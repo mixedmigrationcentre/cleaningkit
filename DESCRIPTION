@@ -6,14 +6,13 @@ Authors@R:
 Description: This package offers an automated toolkit for streamlining 4Mi survey data cleaning and validation, enforcing protocols on data quality, sampling, and enumerator performance. It provides a standardized approach to checking interview consistency, identifying outliers, "other" text responses, and detecting potential fraud based on official SOPs.
 License: MIT + file LICENSE
 Imports: 
-    addindicators,
-    cleaningtools,
     crayon,
     dplyr,
     jsonlite,
     openxlsx,
     pak,
     purrr,
+    readxl,
     rlang,
     stats,
     stringr,

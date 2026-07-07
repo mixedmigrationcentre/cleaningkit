@@ -30,9 +30,8 @@ if (getRversion() >= "2.15.1") {
 #' @import openxlsx
 #' @import tidyr
 #' @import jsonlite
-#' @import addindicators
 #' @import pak
-#' @importFrom rlang .data sym
+#' @importFrom rlang .data sym :=
 #' @importFrom purrr map map_lgl map2
 #' @importFrom crayon green yellow red
 #' @importFrom stats setNames

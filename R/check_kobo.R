@@ -58,12 +58,24 @@ check_answer_in_list <- function(questions, choices, constraint) {
 #'   \code{NULL} if all constraints are valid.
 #' @export
 check_constraints <- function(questions, choices) {
-  # Verify survey and choices using cleaningtools package
-  if (!cleaningtools::verify_valid_survey(questions)) {
-    stop("Survey sheet does not meet all the criteria. Please check!")
+  # Verify survey and choices sheets
+  if (!is.data.frame(questions)) {
+    stop("Survey sheet (questions) must be a data frame.")
   }
-  if (!cleaningtools::verify_valid_choices(choices)) {
-    stop("Choices sheet does not meet all the criteria. Please check!")
+  if (!is.data.frame(choices)) {
+    stop("Choices sheet must be a data frame.")
+  }
+
+  required_survey_cols <- c("name", "type", "relevant")
+  missing_survey <- setdiff(required_survey_cols, colnames(questions))
+  if (length(missing_survey) > 0) {
+    stop("Survey sheet is missing required columns: ", paste(missing_survey, collapse = ", "))
+  }
+
+  required_choices_cols <- c("list_name", "name")
+  missing_choices <- setdiff(required_choices_cols, colnames(choices))
+  if (length(missing_choices) > 0) {
+    stop("Choices sheet is missing required columns: ", paste(missing_choices, collapse = ", "))
   }
 
   questions <- mutate_at(questions, c("name", "type"), ~ str_trim(.))
