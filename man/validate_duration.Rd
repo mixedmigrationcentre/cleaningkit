@@ -7,7 +7,7 @@
 validate_duration(
   dataset,
   column_to_check = "_duration",
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "duration_log",
   lower_bound = 15,
   upper_bound = 60
@@ -18,7 +18,7 @@ validate_duration(
 
 \item{column_to_check}{The name of the column containing the duration in seconds. Default is \code{"_duration"}.}
 
-\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"uuid"}.}
+\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"_uuid"}.}
 
 \item{log_name}{The name of the log to create in the list. Default is \code{"duration_log"}.}
 

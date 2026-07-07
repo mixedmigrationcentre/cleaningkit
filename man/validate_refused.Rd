@@ -6,7 +6,7 @@
 \usage{
 validate_refused(
   dataset,
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "refused_log",
   max_refused = 6,
   refused_value = "Refused"
@@ -15,7 +15,7 @@ validate_refused(
 \arguments{
 \item{dataset}{A dataframe or a list containing a dataframe named \code{checked_dataset}.}
 
-\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"uuid"}.}
+\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"_uuid"}.}
 
 \item{log_name}{The name of the log to create in the list. Default is \code{"refused_log"}.}
 

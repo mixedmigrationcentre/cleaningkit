@@ -6,7 +6,7 @@
 \usage{
 validate_completeness(
   dataset,
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "completeness_log",
   min_content_cells = 100,
   metadata_cols = c("start", "end", "today", "deviceid", "username", "simserial",
@@ -17,7 +17,7 @@ validate_completeness(
 \arguments{
 \item{dataset}{A dataframe or a list containing a dataframe named \code{checked_dataset}.}
 
-\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"uuid"}.}
+\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"_uuid"}.}
 
 \item{log_name}{The name of the log to create in the list. Default is \code{"completeness_log"}.}
 
