@@ -9,7 +9,8 @@ validate_refused(
   uuid_column = "_uuid",
   log_name = "refused_log",
   max_refused = 6,
-  refused_value = "Refused"
+  refused_value = "Refused",
+  skip_label_row = TRUE
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ validate_refused(
 \item{max_refused}{The maximum allowable number of refused responses. Default is \code{6}.}
 
 \item{refused_value}{The response value to flag as refused. Default is \code{"Refused"}.}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of the dataset is removed
+before validation. ONA exports include a label/description row immediately after the header
+that should not be treated as survey data.}
 }
 \value{
 A list containing the original dataset and the new log dataframe.
