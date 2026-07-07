@@ -1,29 +1,3 @@
-#' Replace first group separator in column names
-#'
-#' Internal helper. For each column name, checks whether the first separator
-#' character is "/" or ".". If "/" comes first, replaces only that first "/"
-#' with ".". If "." comes first, the name is left unchanged.
-#'
-#' @param nms Character vector of column names.
-#' @return Character vector with selectively replaced names.
-#' @keywords internal
-replace_first_separator <- function(nms) {
-  vapply(
-    nms,
-    function(x) {
-      dot_pos <- regexpr("\\.", x)
-      slash_pos <- regexpr("/", x)
-      # Replace only when "/" exists and comes before any "."
-      if (slash_pos > 0 && (dot_pos < 0 || slash_pos < dot_pos)) {
-        sub("/", ".", x)
-      } else {
-        x
-      }
-    },
-    character(1),
-    USE.NAMES = FALSE
-  )
-}
 
 #' Read Raw Main Dataset
 #'
@@ -136,7 +110,6 @@ read_raw_data <- function(
   cols_numeric <- get_cols_numeric(kobo_survey)
   df <- df %>%
     mutate_at(intersect(cols_numeric, colnames(df)), as.numeric)
-  names(df) <- replace_first_separator(names(df))
 
   return(df)
 }
@@ -261,7 +234,6 @@ read_loop_data <- function(
   cols_numeric <- get_cols_numeric(kobo_survey)
   df <- df %>%
     mutate_at(intersect(cols_numeric, colnames(df)), as.numeric)
-  names(df) <- replace_first_separator(names(df))
 
   return(df)
 }
