@@ -7,10 +7,11 @@
 validate_duration(
   dataset,
   column_to_check = "_duration",
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "duration_log",
   lower_bound = 15,
-  upper_bound = 60
+  upper_bound = 60,
+  skip_label_row = TRUE
 )
 }
 \arguments{
@@ -18,13 +19,17 @@ validate_duration(
 
 \item{column_to_check}{The name of the column containing the duration in seconds. Default is \code{"_duration"}.}
 
-\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"uuid"}.}
+\item{uuid_column}{The name of the column containing the unique identifier. Default is \code{"_uuid"}.}
 
 \item{log_name}{The name of the log to create in the list. Default is \code{"duration_log"}.}
 
 \item{lower_bound}{The lower threshold for duration in minutes. Default is \code{15}.}
 
 \item{upper_bound}{The upper threshold for duration in minutes. Default is \code{60}.}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of the dataset is removed
+before validation. ONA exports include a label/description row immediately after the header
+that should not be treated as survey data.}
 }
 \value{
 A list containing the original dataset and the new log dataframe.

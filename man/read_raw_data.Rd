@@ -9,7 +9,8 @@ read_raw_data(
   kobo_survey,
   extra_date_cols = NULL,
   extra_datetime_cols = NULL,
-  sheet = 1
+  sheet = 1,
+  skip_label_row = TRUE
 )
 }
 \arguments{
@@ -27,6 +28,12 @@ column names to convert (default is NULL). These are appended to the
 auto-detected "start", "end", and "datetime" columns and "_submission_time".}
 
 \item{sheet}{Sheet number or name to read from the Excel file (default is 1).}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), the first data row is
+excluded from date and numeric type conversions. ONA exports include a label/description
+row immediately after the header that contains question text (e.g. "Please select...")
+rather than survey data. The label row is preserved in the returned dataframe but kept
+as text so it does not cause conversion errors.}
 }
 \value{
 A dataframe with dates and datetimes converted, and numeric columns cast to numeric.

@@ -4,15 +4,18 @@
 #' fewer than a specified threshold of non-empty cells.
 #'
 #' @param dataset A dataframe or a list containing a dataframe named \code{checked_dataset}.
-#' @param uuid_column The name of the column containing the unique identifier. Default is \code{"uuid"}.
+#' @param uuid_column The name of the column containing the unique identifier. Default is \code{"_uuid"}.
 #' @param log_name The name of the log to create in the list. Default is \code{"completeness_log"}.
 #' @param min_content_cells The minimum number of cells that must contain content. Default is \code{100}.
 #' @param metadata_cols A character vector of column names representing metadata to exclude from completeness calculation.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of the dataset is removed
+#'   before validation. ONA exports include a label/description row immediately after the header
+#'   that should not be treated as survey data.
 #' @return A list containing the original dataset and the new log dataframe.
 #' @export
 validate_completeness <- function(
   dataset,
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "completeness_log",
   min_content_cells = 100,
   metadata_cols = c(
@@ -32,7 +35,8 @@ validate_completeness <- function(
     "index",
     "_index",
     "df_name"
-  )
+  ),
+  skip_label_row = TRUE
 ) {
   if (is.data.frame(dataset)) {
     dataset <- list(checked_dataset = dataset)
@@ -48,9 +52,9 @@ validate_completeness <- function(
     stop(msg)
   }
 
-  # Filter out "_uuid" and "uuid" rows from df
-  if (uuid_column %in% colnames(df)) {
-    df <- df[!(df[[uuid_column]] %in% c("_uuid", "uuid")), , drop = FALSE]
+  # Skip the ONA label/description row (first row after header)
+  if (skip_label_row && nrow(df) > 0) {
+    df <- df[-1, , drop = FALSE]
   }
 
   # Exclude metadata columns
@@ -96,18 +100,22 @@ validate_completeness <- function(
 #' threshold of "Refused" responses.
 #'
 #' @param dataset A dataframe or a list containing a dataframe named \code{checked_dataset}.
-#' @param uuid_column The name of the column containing the unique identifier. Default is \code{"uuid"}.
+#' @param uuid_column The name of the column containing the unique identifier. Default is \code{"_uuid"}.
 #' @param log_name The name of the log to create in the list. Default is \code{"refused_log"}.
 #' @param max_refused The maximum allowable number of refused responses. Default is \code{6}.
 #' @param refused_value The response value to flag as refused. Default is \code{"Refused"}.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of the dataset is removed
+#'   before validation. ONA exports include a label/description row immediately after the header
+#'   that should not be treated as survey data.
 #' @return A list containing the original dataset and the new log dataframe.
 #' @export
 validate_refused <- function(
   dataset,
-  uuid_column = "uuid",
+  uuid_column = "_uuid",
   log_name = "refused_log",
   max_refused = 6,
-  refused_value = "Refused"
+  refused_value = "Refused",
+  skip_label_row = TRUE
 ) {
   if (is.data.frame(dataset)) {
     dataset <- list(checked_dataset = dataset)
@@ -123,9 +131,9 @@ validate_refused <- function(
     stop(msg)
   }
 
-  # Filter out "_uuid" and "uuid" rows from df
-  if (uuid_column %in% colnames(df)) {
-    df <- df[!(df[[uuid_column]] %in% c("_uuid", "uuid")), , drop = FALSE]
+  # Skip the ONA label/description row (first row after header)
+  if (skip_label_row && nrow(df) > 0) {
+    df <- df[-1, , drop = FALSE]
   }
 
   # Vectorized check for "Refused" values (case-sensitive as specified, using trimws)
