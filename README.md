@@ -3,27 +3,39 @@
 
 # cleaningkit
 
-<!-- badges: start -->
-
-<!-- badges: end -->
-
-The goal of cleaningkit is to …
+`cleaningkit` is a simple R package built to help clean and validate
+survey data (especially Ona surveys).
 
 ## Installation
 
-You can install the development version of cleaningkit from
-[GitHub](https://github.com/) with:
+You can grab the development version from GitHub using `pak`:
 
 ``` r
 # install.packages("pak")
 pak::pak("iAthmanMMC/cleaningkit")
 ```
 
-## Example
+## How to use it
 
-This is a basic example which shows you how to solve a common problem:
+Here is a quick look at how you can load your data and run a few
+validation checks:
 
 ``` r
 library(cleaningkit)
-## basic example code
+
+# Load your raw data and Kobo survey schema
+raw_data <- read_raw_data("path/to/data.xlsx", kobo_survey = survey_sheet)
+
+# 1. Check if the survey duration makes sense (e.g. between 15 and 60 minutes)
+checked_data <- validate_duration(raw_data, column_to_check = "_duration", lower_bound = 15, upper_bound = 60)
+# Look at the issues logged
+print(checked_data$duration_log)
+
+# 2. Flag surveys with less than 100 answered questions
+checked_data <- validate_completeness(checked_data, min_content_cells = 100)
+print(checked_data$completeness_log)
+
+# 3. Check for surveys with more than 6 "Refused" answers
+checked_data <- validate_refused(checked_data, max_refused = 6)
+print(checked_data$refused_log)
 ```

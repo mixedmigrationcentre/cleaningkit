@@ -20,20 +20,19 @@ identifying date and numeric columns).}
 
 \item{extra_date_cols}{Optional character vector of additional date column
 names to convert (default is NULL). These are appended to the auto-detected
-"today" type columns from the survey.}
+"today" and "date" type columns from the survey.}
 
 \item{extra_datetime_cols}{Optional character vector of additional datetime
 column names to convert (default is NULL). These are appended to the
-standard \code{c("start_time", "end_time", "_submission_time")}.}
+auto-detected "start", "end", and "datetime" columns and "_submission_time".}
 
 \item{sheet}{Sheet number or name to read from the Excel file (default is 1).}
 }
 \value{
-A dataframe with dates converted, identifiers renamed, and numeric
-columns cast to numeric.
+A dataframe with dates and datetimes converted, and numeric columns cast to numeric.
 }
 \description{
 Reads the main raw dataset from an Excel file, converts date and datetime
-columns based on the Kobo survey definition, renames key identifier columns,
-and converts integer/decimal columns to numeric.
+columns based on the Kobo survey definition, and converts integer/decimal
+columns to numeric.
 }
