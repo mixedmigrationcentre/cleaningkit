@@ -27,7 +27,9 @@ validate_duration <- function(
     stop("Cannot identify the dataset in the list")
   }
 
-  if (!(column_to_check %in% names(dataset[["checked_dataset"]]))) {
+  df <- dataset[["checked_dataset"]]
+
+  if (!(column_to_check %in% names(df))) {
     msg <- paste0(
       "Cannot find ",
       column_to_check,
@@ -36,7 +38,12 @@ validate_duration <- function(
     stop(msg)
   }
 
-  log <- dataset[["checked_dataset"]] %>%
+  # Filter out "_uuid" and "uuid" rows from df
+  if (uuid_column %in% colnames(df)) {
+    df <- df[!(df[[uuid_column]] %in% c("_uuid", "uuid")), , drop = FALSE]
+  }
+
+  log <- df %>%
     dplyr::mutate(
       duration_check = (as.numeric(!!rlang::sym(column_to_check)) / 60) <
         lower_bound |

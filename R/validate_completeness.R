@@ -48,6 +48,11 @@ validate_completeness <- function(
     stop(msg)
   }
 
+  # Filter out "_uuid" and "uuid" rows from df
+  if (uuid_column %in% colnames(df)) {
+    df <- df[!(df[[uuid_column]] %in% c("_uuid", "uuid")), , drop = FALSE]
+  }
+
   # Exclude metadata columns
   cols_to_check <- setdiff(names(df), metadata_cols)
   df_sub <- df[, cols_to_check, drop = FALSE]
@@ -116,6 +121,11 @@ validate_refused <- function(
   if (!(uuid_column %in% names(df))) {
     msg <- paste0("Cannot find ", uuid_column, " in the names of the dataset")
     stop(msg)
+  }
+
+  # Filter out "_uuid" and "uuid" rows from df
+  if (uuid_column %in% colnames(df)) {
+    df <- df[!(df[[uuid_column]] %in% c("_uuid", "uuid")), , drop = FALSE]
   }
 
   # Vectorized check for "Refused" values (case-sensitive as specified, using trimws)
