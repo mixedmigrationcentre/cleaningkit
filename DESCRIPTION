@@ -1,16 +1,30 @@
 Package: cleaningkit
 Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Version: 2026.07.0
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Abubakar", "Athman", , "abubakar.athman@mixedmigration.org", role = c("aut", "cre"))
+Description: This package offers an automated toolkit for streamlining 4Mi survey data cleaning and validation, enforcing protocols on data quality, sampling, and enumerator performance. It provides a standardized approach to checking interview consistency, identifying outliers, "other" text responses, and detecting potential fraud based on official SOPs.
 License: MIT + file LICENSE
-Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
-RoxygenNote: 8.0.0
+Imports: 
+    crayon,
+    dplyr,
+    jsonlite,
+    openxlsx,
+    pak,
+    purrr,
+    readxl,
+    rlang,
+    stats,
+    stringr,
+    tidyr,
+    utils
 Suggests: 
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
+VignetteBuilder: 
+    knitr
 Config/testthat/edition: 3
-VignetteBuilder: knitr
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0
