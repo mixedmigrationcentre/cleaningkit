@@ -11,8 +11,8 @@ create_cleaning_log(
   uuid_column = "_uuid",
   enumerator_column = "username",
   date_column = "today",
-  column_for_color = "Survey UUID",
-  include_dataset = FALSE,
+  column_for_color = "check_binding",
+  include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -36,11 +36,13 @@ create_cleaning_log(
 
 \item{date_column}{Name of the survey-date column in the checked dataset. Default \code{"today"}.}
 
-\item{column_for_color}{Final-log column used to colourise rows. Default \code{"Survey UUID"}
-(all issues from one interview share a colour). Set to \code{NULL} to disable colouring.}
+\item{column_for_color}{Column used to colourise rows. Default \code{"check_binding"}, so all
+log rows that share a binding (e.g. several questions flagged by one check for the same
+record) get the same colour. The column is written but kept hidden in the output. Set to
+\code{NULL} to disable colouring.}
 
-\item{include_dataset}{Logical. If \code{TRUE}, the checked dataset is also written as a sheet.
-Default \code{FALSE}.}
+\item{include_dataset}{Logical. If \code{TRUE} (the default), the checked dataset is written to
+a sheet named \code{"dataset"} so reviewers can refer back to the raw data.}
 
 \item{header_front_size}{Header font size (default is 12).}
 
@@ -79,6 +81,5 @@ from \code{date_column} and \code{enumerator_column}. The remaining reviewer col
 be completed during review.
 
 The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-\code{change_response}, \code{delete_data_point}, \code{discard}, \code{addition},
-\code{other}.
+\code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
 }

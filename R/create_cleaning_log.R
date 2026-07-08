@@ -162,8 +162,7 @@ create_formated_wb <- function(
 #' be completed during review.
 #'
 #' The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-#' \code{change_response}, \code{delete_data_point}, \code{discard}, \code{addition},
-#' \code{other}.
+#' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
 #'
 #' @param write_list A list containing the combined log and the checked dataset.
 #' @param cleaning_log_name Name of the combined-log element in \code{write_list}. Default \code{"cleaning_log"}.
@@ -171,10 +170,12 @@ create_formated_wb <- function(
 #' @param uuid_column Name of the uuid column in the checked dataset. Default \code{"_uuid"}.
 #' @param enumerator_column Name of the enumerator column in the checked dataset. Default \code{"username"}.
 #' @param date_column Name of the survey-date column in the checked dataset. Default \code{"today"}.
-#' @param column_for_color Final-log column used to colourise rows. Default \code{"Survey UUID"}
-#'   (all issues from one interview share a colour). Set to \code{NULL} to disable colouring.
-#' @param include_dataset Logical. If \code{TRUE}, the checked dataset is also written as a sheet.
-#'   Default \code{FALSE}.
+#' @param column_for_color Column used to colourise rows. Default \code{"check_binding"}, so all
+#'   log rows that share a binding (e.g. several questions flagged by one check for the same
+#'   record) get the same colour. The column is written but kept hidden in the output. Set to
+#'   \code{NULL} to disable colouring.
+#' @param include_dataset Logical. If \code{TRUE} (the default), the checked dataset is written to
+#'   a sheet named \code{"dataset"} so reviewers can refer back to the raw data.
 #' @param header_front_size Header font size (default is 12).
 #' @param header_front_color Hexcode for header font color (default is white).
 #' @param header_fill_color Hexcode for header fill color (default is MMC blue \code{"#00A2A5"}).
@@ -196,8 +197,8 @@ create_cleaning_log <- function(
   uuid_column = "_uuid",
   enumerator_column = "username",
   date_column = "today",
-  column_for_color = "Survey UUID",
-  include_dataset = FALSE,
+  column_for_color = "check_binding",
+  include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -209,7 +210,7 @@ create_cleaning_log <- function(
 ) {
   # ---- action codes shared by the drop-down and the readme ----
   action_codes <- c(
-    "change_response",
+    "recoded",
     "delete_data_point",
     "discard",
     "addition",
@@ -257,6 +258,11 @@ create_cleaning_log <- function(
   }
   if (!(uuid_column %in% names(raw))) {
     stop(paste0("Cannot find ", uuid_column, " in ", dataset_name, "."))
+  }
+
+  # fall back to a per-question/record binding if the log doesn't carry one
+  if (!("check_binding" %in% names(cl))) {
+    cl$check_binding <- paste(cl$question, cl$uuid, sep = " ~/~ ")
   }
 
   # ---- build lookups from the checked dataset ----
@@ -325,11 +331,13 @@ create_cleaning_log <- function(
     "Question text" = unname(label_lookup[as.character(cl$question)]),
     "Issue" = as.character(cl$issue),
     "Old value" = as.character(cl$old_value),
+    "Action taken" = NA_character_,
     "New value" = NA_character_,
     "Identified by" = NA_character_,
-    "Action taken" = NA_character_,
     "Comments" = NA_character_,
-    "PO feedback" = NA_character_
+    "PO feedback" = NA_character_,
+    # trailing helper column used only to colour related rows; hidden in the output
+    "check_binding" = as.character(cl$check_binding)
   )
 
   # ---- readme and (hidden) validation sheets ----
@@ -349,7 +357,7 @@ create_cleaning_log <- function(
   out_list <- list()
   out_list[[cleaning_log_name]] <- final_log
   if (include_dataset) {
-    out_list[[dataset_name]] <- raw
+    out_list[["dataset"]] <- raw
   }
   out_list[["readme"]] <- readme_df
   out_list[["validation_rules"]] <- validation_df
@@ -369,6 +377,18 @@ create_cleaning_log <- function(
   hide_sheet <- which(names(workbook) == "validation_rules")
   if (length(hide_sheet) == 1) {
     openxlsx::sheetVisibility(workbook)[hide_sheet] <- FALSE
+  }
+
+  # hide the helper check_binding column (kept only to drive row colouring)
+  cb_col <- which(names(final_log) == "check_binding")
+  if (length(cb_col) == 1) {
+    openxlsx::setColWidths(
+      workbook,
+      sheet = cleaning_log_name,
+      cols = cb_col,
+      widths = 25,
+      hidden = TRUE
+    )
   }
 
   # ---- Action taken drop-down, pointing at the validation_rules sheet ----
