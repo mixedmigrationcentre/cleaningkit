@@ -10,7 +10,8 @@ save_other_responses(
   enumerator_id = NULL,
   save_location = "output",
   other_db = NULL,
-  apply_styles = TRUE
+  apply_styles = TRUE,
+  skip_label_row = TRUE
 )
 }
 \arguments{
@@ -30,6 +31,13 @@ save_other_responses(
 cell styling. Set to FALSE for very large exports where per-cell styling
 makes openxlsx slow or memory-hungry; the data and dropdowns are still
 written.}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), guard against an
+ONA label/description row still sitting at the top of \code{df}. When \code{df}
+comes from \code{prepare_other_responses()} the label row was already handled
+(tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
+dropped. Only when \code{df} has no such provenance is its first row dropped,
+with a message. Set to \code{FALSE} to always keep every row.}
 }
 \value{
 NULL. Saves an Excel file.

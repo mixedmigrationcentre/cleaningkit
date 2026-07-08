@@ -31,7 +31,14 @@
 #'   to include from the raw data (e.g., \code{c("enumerator", "sample_area")}).
 #'   Default is NULL.
 #' @param uuid_column Name of the uuid column in raw_data (default is "_uuid").
-#' @return A dataframe formatted for \code{save_other_responses()}.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of
+#'   \code{raw_data} and of every loop/roster in \code{raw_loops} is dropped
+#'   before processing. ONA exports place a label/description row immediately
+#'   after the header; if it is kept it is mistaken for a respondent and produces
+#'   one spurious "other" response (label text, bogus uuid) per question.
+#' @return A dataframe formatted for \code{save_other_responses()}. It carries an
+#'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
+#'   dropped, so \code{save_other_responses()} does not drop a row a second time.
 #' @export
 prepare_other_responses <- function(
   raw_data,
@@ -39,8 +46,27 @@ prepare_other_responses <- function(
   kobo_choices,
   raw_loops = NULL,
   extra_columns = NULL,
-  uuid_column = "_uuid"
+  uuid_column = "_uuid",
+  skip_label_row = TRUE
 ) {
+  # --- Drop the ONA label/description row (first row after the header) --------
+  # Done first, before any pivot, so it is never treated as real survey data.
+  # Applied to the main data and to every loop/roster (each has its own label row).
+  if (isTRUE(skip_label_row)) {
+    if (nrow(raw_data) > 0) {
+      raw_data <- raw_data[-1, , drop = FALSE]
+    }
+    if (!is.null(raw_loops)) {
+      raw_loops <- lapply(raw_loops, function(loop_df) {
+        if (!is.null(loop_df) && nrow(loop_df) > 0) {
+          loop_df[-1, , drop = FALSE]
+        } else {
+          loop_df
+        }
+      })
+    }
+  }
+
   # Rename uuid column if needed
   if (uuid_column != "uuid" && uuid_column %in% colnames(raw_data)) {
     raw_data <- raw_data %>% rename(uuid = !!sym(uuid_column))
@@ -276,6 +302,10 @@ prepare_other_responses <- function(
   }
 
   df <- relocate(df, "selected_choices", .before = "response_en")
+
+  # Record that the label row has (or has not) been handled, so downstream
+  # save_other_responses() does not drop a row a second time.
+  attr(df, "ona_label_row_skipped") <- isTRUE(skip_label_row)
   return(df)
 }
 
@@ -296,6 +326,12 @@ prepare_other_responses <- function(
 #'   cell styling. Set to FALSE for very large exports where per-cell styling
 #'   makes openxlsx slow or memory-hungry; the data and dropdowns are still
 #'   written.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), guard against an
+#'   ONA label/description row still sitting at the top of \code{df}. When \code{df}
+#'   comes from \code{prepare_other_responses()} the label row was already handled
+#'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
+#'   dropped. Only when \code{df} has no such provenance is its first row dropped,
+#'   with a message. Set to \code{FALSE} to always keep every row.
 #' @return NULL. Saves an Excel file.
 #' @export
 save_other_responses <- function(
@@ -304,7 +340,8 @@ save_other_responses <- function(
   enumerator_id = NULL,
   save_location = "output",
   other_db = NULL,
-  apply_styles = TRUE
+  apply_styles = TRUE,
+  skip_label_row = TRUE
 ) {
   get_column_letter <- function(r) {
     result <- character(length(r))
@@ -319,6 +356,23 @@ save_other_responses <- function(
       result[i] <- col
     }
     result
+  }
+
+  # --- Guard against a stray ONA label row -----------------------------------
+  # The authoritative place to drop the label row is prepare_other_responses().
+  # If df carries the "ona_label_row_skipped" attribute it already went through
+  # that step, so we must NOT drop again (that would delete a real response).
+  # Only when provenance is unknown (no attribute) do we drop the first row.
+  if (
+    isTRUE(skip_label_row) &&
+      is.null(attr(df, "ona_label_row_skipped")) &&
+      nrow(df) > 0
+  ) {
+    message(
+      "save_other_responses(): dropping the first row as the ONA label row ",
+      "(df did not come from prepare_other_responses(); set skip_label_row = FALSE to keep it)."
+    )
+    df <- df[-1, , drop = FALSE]
   }
 
   # --- Clean invalid UTF-8 BEFORE any writeData call --------------------------

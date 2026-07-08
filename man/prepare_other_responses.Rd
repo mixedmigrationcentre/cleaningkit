@@ -10,7 +10,8 @@ prepare_other_responses(
   kobo_choices,
   raw_loops = NULL,
   extra_columns = NULL,
-  uuid_column = "_uuid"
+  uuid_column = "_uuid",
+  skip_label_row = TRUE
 )
 }
 \arguments{
@@ -29,9 +30,17 @@ to include from the raw data (e.g., \code{c("enumerator", "sample_area")}).
 Default is NULL.}
 
 \item{uuid_column}{Name of the uuid column in raw_data (default is "_uuid").}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of
+\code{raw_data} and of every loop/roster in \code{raw_loops} is dropped
+before processing. ONA exports place a label/description row immediately
+after the header; if it is kept it is mistaken for a respondent and produces
+one spurious "other" response (label text, bogus uuid) per question.}
 }
 \value{
-A dataframe formatted for \code{save_other_responses()}.
+A dataframe formatted for \code{save_other_responses()}. It carries an
+attribute \code{"ona_label_row_skipped"} recording whether the label row was
+dropped, so \code{save_other_responses()} does not drop a row a second time.
 }
 \description{
 Combines other responses from all sheets/loops into a single dataframe
