@@ -261,22 +261,43 @@ prepare_other_responses <- function(
         character(1)
       )
 
-      # Split the stored value into choice codes. A naive space split breaks
-      # multi-word choice names (e.g. a name that IS "Waiting for transport")
-      # into single words. So: build the set of valid names per list from
-      # kobo_choices, take the fast path when every space-token is already a
-      # valid code, and otherwise greedily match the longest (most-words) known
-      # name from the vocabulary.
-      vocab_by_list <- if (
-        !is.null(kobo_choices) &&
-          all(c("list_name", "name") %in% names(kobo_choices))
-      ) {
+      # Split the stored value into its individual selected choices.
+      #
+      # A naive space split breaks a multi-word choice ("Waiting for transport")
+      # into single words. Instead we segment the value against a known
+      # vocabulary:
+      #   * fast path - if every space-token is a valid short code (from
+      #     kobo_choices$name for this list), use the tokens as-is;
+      #   * otherwise - greedily match the longest known label phrase from
+      #     other_db$choices (the ";;"-separated labels), case-insensitively.
+      # Tokens that match nothing are kept as-is (e.g. an "other" code, which the
+      # downstream resolver then turns into its label).
+      vocab_by_list <- if (!is.null(kobo_choices) &&
+        all(c("list_name", "name") %in% names(kobo_choices))) {
         split(
           as.character(kobo_choices$name),
           as.character(kobo_choices$list_name)
         )
       } else {
         list()
+      }
+
+      # list_name -> vector of label phrases, taken from other_db$choices ("A;;B").
+      label_vocab_by_list <- list()
+      if (!is.null(other_db) &&
+        all(c("list_name", "choices") %in% names(other_db))) {
+        ldf <- other_db[
+          !is.na(other_db$list_name) & !is.na(other_db$choices),
+          c("list_name", "choices"),
+          drop = FALSE
+        ]
+        ldf <- ldf[!duplicated(ldf$list_name), , drop = FALSE]
+        for (i in seq_len(nrow(ldf))) {
+          labs <- strsplit(as.character(ldf$choices[i]), ";;", fixed = TRUE)[[1]]
+          labs <- trimws(labs)
+          labs <- labs[nzchar(labs)]
+          label_vocab_by_list[[as.character(ldf$list_name[i])]] <- labs
+        }
       }
 
       split_selected <- function(value, ln) {
@@ -288,32 +309,41 @@ prepare_other_responses <- function(
         if (length(toks) == 0) {
           return(character(0))
         }
-        vn <- if (!is.na(ln)) vocab_by_list[[ln]] else NULL
-        # fast path: proper single-token codes (unchanged behaviour)
-        if (is.null(vn) || length(vn) == 0 || all(toks %in% vn)) {
+
+        # fast path: proper single-token codes
+        name_vn <- if (!is.na(ln)) vocab_by_list[[ln]] else NULL
+        if (!is.null(name_vn) && length(name_vn) > 0 && all(toks %in% name_vn)) {
           return(toks)
         }
-        # greedy longest-match against known (possibly multi-word) names
-        vn_words <- strsplit(vn, "\\s+")
-        ord <- order(-lengths(vn_words))
-        vn <- vn[ord]
-        vn_words <- vn_words[ord]
+
+        # greedy longest-match against the ";;" label phrases (case-insensitive)
+        lab_vn <- if (!is.na(ln)) label_vocab_by_list[[ln]] else NULL
+        if (is.null(lab_vn) || length(lab_vn) == 0) {
+          return(toks)
+        }
+        lab_words <- strsplit(lab_vn, "\\s+")
+        ord <- order(-lengths(lab_words))
+        lab_vn <- lab_vn[ord]
+        lab_words <- lab_words[ord]
+        lab_words_lc <- lapply(lab_words, tolower)
+        toks_lc <- tolower(toks)
+
         out <- character(0)
         i <- 1L
         n <- length(toks)
         while (i <= n) {
           matched <- NA_character_
-          for (j in seq_along(vn)) {
-            w <- vn_words[[j]]
-            L <- length(w)
-            if (i + L - 1L <= n && identical(toks[i:(i + L - 1L)], w)) {
-              matched <- vn[j]
+          for (j in seq_along(lab_vn)) {
+            L <- length(lab_words_lc[[j]])
+            if (i + L - 1L <= n &&
+              identical(toks_lc[i:(i + L - 1L)], lab_words_lc[[j]])) {
+              matched <- lab_vn[j] # canonical label from other_db
               i <- i + L
               break
             }
           }
           if (is.na(matched)) {
-            out <- c(out, toks[i]) # unknown token: keep as-is
+            out <- c(out, toks[i]) # unmatched token: keep (resolver handles codes)
             i <- i + 1L
           } else {
             out <- c(out, matched)
@@ -351,17 +381,13 @@ prepare_other_responses <- function(
       # "label::Arabic (ar)"). When preferred_language is set, that column is put
       # first so the fallback also prefers it; otherwise columns keep their order.
       choice_fallback_map <- NULL
-      if (
-        isTRUE(label_language_fallback) &&
-          !is.null(kobo_choices) &&
-          all(c("list_name", "name") %in% names(kobo_choices)) &&
-          nrow(kobo_choices) > 0
-      ) {
+      if (isTRUE(label_language_fallback) &&
+        !is.null(kobo_choices) &&
+        all(c("list_name", "name") %in% names(kobo_choices)) &&
+        nrow(kobo_choices) > 0) {
         label_cols <- grep(
-          "^label",
-          names(kobo_choices),
-          ignore.case = TRUE,
-          value = TRUE
+          "^label", names(kobo_choices),
+          ignore.case = TRUE, value = TRUE
         )
         if (!is.null(preferred_language) && length(label_cols) > 0) {
           pref <- label_cols[
@@ -382,8 +408,7 @@ prepare_other_responses <- function(
             sep = "\u0001"
           )
           choice_fallback_map <- stats::setNames(
-            as.character(first_nonempty),
-            ck
+            as.character(first_nonempty), ck
           )
         }
       }
@@ -394,9 +419,7 @@ prepare_other_responses <- function(
       resolve_label <- function(list_name, code) {
         lab <- tryCatch(
           as.character(get_label_from_name(
-            list_name,
-            code,
-            kobo_choices,
+            list_name, code, kobo_choices,
             label_column = preferred_language
           ))[1],
           error = function(e) NA_character_
@@ -515,11 +538,9 @@ save_other_responses <- function(
   # If df carries the "ona_label_row_skipped" attribute it already went through
   # that step, so we must NOT drop again (that would delete a real response).
   # Only when provenance is unknown (no attribute) do we drop the first row.
-  if (
-    isTRUE(skip_label_row) &&
-      is.null(attr(df, "ona_label_row_skipped")) &&
-      nrow(df) > 0
-  ) {
+  if (isTRUE(skip_label_row) &&
+    is.null(attr(df, "ona_label_row_skipped")) &&
+    nrow(df) > 0) {
     message(
       "save_other_responses(): dropping the first row as the ONA label row ",
       "(df did not come from prepare_other_responses(); set skip_label_row = FALSE to keep it)."

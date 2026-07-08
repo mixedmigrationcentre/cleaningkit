@@ -72,9 +72,14 @@
 #'   \code{"label::Arabic (ar)"}) or a substring (e.g. \code{"Arabic"}). If
 #'   \code{NULL} (the default), a bare \code{label} column is preferred, else the
 #'   first label column found; other languages fill any gaps.
+#' @param other_text_types Optional character vector of text question names
+#'   whose text fields use a different suffix (e.g. \code{"_2"}, \code{"_3"}).
+#'   Pass the full question names as they appear in the survey, for example
+#'   \code{c("Q31_2", "Q45_3")}. Defaults to \code{NULL} (no extra text types).
 #' @return A dataframe containing the corresponding other labels.
 #' @export
-get_other_labels <- function(kobo_survey, preferred_language = NULL) {
+get_other_labels <- function(kobo_survey, preferred_language = NULL,
+                             other_text_types = NULL) {
   # Language-aware question labels: name -> best available full_label.
   survey_labels <- data.frame(
     ref_question = as.character(kobo_survey$name),
@@ -83,7 +88,7 @@ get_other_labels <- function(kobo_survey, preferred_language = NULL) {
   )
 
   other_labels <- kobo_survey %>%
-    filter((type == "text" & str_detect(name, "_"))) %>%
+    filter(type == "text" & (str_detect(name, "_1$") | name %in% other_text_types)) %>%
     mutate(
       ref_question = as.character(lapply(relevant, get_ref_question))
     ) %>%
