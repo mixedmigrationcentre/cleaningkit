@@ -13,6 +13,7 @@ if (getRversion() >= "2.15.1") {
     "analysis_var",
     "analysis_var_value",
     "check",
+    "check_binding",
     "checks_triggered",
     "cleaning_log_other",
     "completeness_check",
