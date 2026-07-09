@@ -51,6 +51,11 @@
 #'   \code{get_label_from_name()} and also used to order the fallback lookup. If
 #'   \code{NULL} (the default), the existing preference order is used (a bare
 #'   \code{label} column, else the first label column found).
+#' @param questions Optional character vector of question names (as they appear
+#'   in the \code{name} column of \code{other_db}) to process. If \code{NULL}
+#'   (the default), all questions in \code{other_db} are used. When provided,
+#'   only the specified questions are prepared; an error is raised if any name
+#'   is not found in \code{other_db}.
 #' @return A dataframe formatted for \code{save_other_responses()}. It carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
@@ -62,6 +67,7 @@ prepare_other_responses <- function(
   raw_loops = NULL,
   extra_columns = NULL,
   uuid_column = "_uuid",
+  questions = NULL,
   skip_label_row = TRUE,
   label_language_fallback = TRUE,
   fallback_to_code = TRUE,
@@ -83,6 +89,18 @@ prepare_other_responses <- function(
         }
       })
     }
+  }
+
+  # --- Optionally filter other_db to only the requested questions -------------
+  if (!is.null(questions)) {
+    missing_qs <- setdiff(questions, other_db$name)
+    if (length(missing_qs) > 0) {
+      stop(
+        "The following question(s) were not found in `other_db`: ",
+        paste(missing_qs, collapse = ", ")
+      )
+    }
+    other_db <- other_db[other_db$name %in% questions, , drop = FALSE]
   }
 
   # Rename uuid column if needed

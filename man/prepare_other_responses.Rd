@@ -11,6 +11,7 @@ prepare_other_responses(
   raw_loops = NULL,
   extra_columns = NULL,
   uuid_column = "_uuid",
+  questions = NULL,
   skip_label_row = TRUE,
   label_language_fallback = TRUE,
   fallback_to_code = TRUE,
@@ -33,6 +34,12 @@ to include from the raw data (e.g., \code{c("enumerator", "sample_area")}).
 Default is NULL.}
 
 \item{uuid_column}{Name of the uuid column in raw_data (default is "_uuid").}
+
+\item{questions}{Optional character vector of question names (as they appear
+in the \code{name} column of \code{other_db}) to process. If \code{NULL}
+(the default), all questions in \code{other_db} are used. When provided,
+only the specified questions are prepared; an error is raised if any name
+is not found in \code{other_db}.}
 
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of
 \code{raw_data} and of every loop/roster in \code{raw_loops} is dropped
