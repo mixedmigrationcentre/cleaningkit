@@ -214,6 +214,7 @@ create_cleaning_log <- function(
     "delete_data_point",
     "discard",
     "addition",
+    "no_action",
     "other"
   )
   action_descriptions <- c(
@@ -221,6 +222,7 @@ create_cleaning_log <- function(
     "Data point is deleted",
     "Delete an entire survey. Provide participant ID in Comments column of log",
     "Any addition to raw data e.g. filling in empty cell or adding a column",
+    "No action taken, data point stays the same",
     "Any change made to the raw data that cannot be classified using labels above"
   )
 

@@ -33,7 +33,7 @@ column, excluding \code{checked_dataset}) are used.}
 \code{c(back_to_back_log = 2, duration_log = 1)}). Logs not named default to weight 1.}
 
 \item{diversity_bonus}{Numeric >= 0. How much each additional distinct check inflates the
-score. \code{0} ignores diversity; \code{0.5} (the default) adds 50\\% per extra check.}
+score. \code{0} ignores diversity; \code{0.5} (the default) adds 50\% per extra check.}
 
 \item{include_clean}{Logical. If \code{TRUE}, enumerators with no flags are also listed
 (with a score of 0). Default \code{FALSE}.}

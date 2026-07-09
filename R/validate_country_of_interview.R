@@ -135,6 +135,11 @@ validate_country_of_interview <- function(
   # Convert old_value to character to ensure consistency across logs if combined
   log$old_value <- as.character(log$old_value)
 
+  # Tag with check_binding so the cleaning log can colour-group related rows.
+  # Both nationality-match and journey-start-match rows for the same UUID
+  # share a colour, making it easy for the reviewer to spot related flags.
+  log$check_binding <- paste("country_of_interview_check", log$uuid, sep = " ~/~ ")
+
   dataset[[log_name]] <- log
   return(dataset)
 }
