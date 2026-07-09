@@ -554,6 +554,21 @@ save_other_responses <- function(
   df[] <- lapply(df, .sanitize_utf8)
   names(df) <- stringi::stri_enc_toutf8(names(df), validate = TRUE)
 
+  # --- Place enumerator column right after uuid if provided --------------------
+  if (!is.null(enumerator_id) && enumerator_id %in% names(df)) {
+    uuid_pos <- which(names(df) == "uuid")
+    if (length(uuid_pos) > 0) {
+      other_cols <- setdiff(names(df), enumerator_id)
+      insert_at <- uuid_pos[1]
+      new_order <- c(
+        other_cols[seq_len(insert_at)],
+        enumerator_id,
+        other_cols[setdiff(seq_along(other_cols), seq_len(insert_at))]
+      )
+      df <- df[, new_order, drop = FALSE]
+    }
+  }
+
   n_rows <- nrow(df)
   n_cols <- ncol(df)
 
