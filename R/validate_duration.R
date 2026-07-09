@@ -69,6 +69,9 @@ validate_duration <- function(
   # Convert old_value to character to ensure consistency across logs if combined
   log$old_value <- as.character(log$old_value)
 
+  # Tag with check_binding so the cleaning log can colour-group related rows
+  log$check_binding <- paste("duration_check", log$uuid, sep = " ~/~ ")
+
   dataset[[log_name]] <- log
   return(dataset)
 }
