@@ -11,6 +11,7 @@ Description: This package offers an automated toolkit for streamlining 4Mi
     on official SOPs.
 License: MIT + file LICENSE
 Imports: 
+    cluster,
     crayon,
     dplyr,
     grDevices,

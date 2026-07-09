@@ -84,7 +84,8 @@ load_packages <- function() {
     "httr",
     "jsonlite",
     "keyring",
-    "magrittr"
+    "magrittr",
+    "cluster"
   )
 
   # Install pak if not installed
@@ -101,7 +102,10 @@ load_packages <- function() {
   # Load all packages
   cat(crayon::yellow("Loading required packages...\n"))
   invisible(lapply(core_pkgs, function(pkg) {
-    suppressPackageStartupMessages(do.call(library, list(pkg, character.only = TRUE)))
+    suppressPackageStartupMessages(do.call(
+      library,
+      list(pkg, character.only = TRUE)
+    ))
   }))
 
   cat(crayon::green("All required packages loaded successfully!\n"))
