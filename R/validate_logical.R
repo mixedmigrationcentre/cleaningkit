@@ -78,7 +78,11 @@ validate_logical_with_list <- function(
   if (!is.data.frame(list_of_check) || nrow(list_of_check) == 0) {
     stop("`list_of_check` must be a non-empty dataframe.")
   }
-  required_cols <- c(check_id_column, check_to_perform_column, description_column)
+  required_cols <- c(
+    check_id_column,
+    check_to_perform_column,
+    description_column
+  )
   missing_cols <- setdiff(required_cols, names(list_of_check))
   if (length(missing_cols) > 0) {
     stop(paste0(
@@ -91,7 +95,9 @@ validate_logical_with_list <- function(
   ]
   if (length(dupes) > 0) {
     stop(paste0(
-      "Duplicate check id(s) found in '", check_id_column, "': ",
+      "Duplicate check id(s) found in '",
+      check_id_column,
+      "': ",
       paste(unique(dupes), collapse = ", ")
     ))
   }
@@ -129,8 +135,12 @@ validate_logical_with_list <- function(
       dplyr::filter(df, !!rlang::parse_expr(expr_str)),
       error = function(e) {
         stop(paste0(
-          "Error evaluating check '", cid, "': ", conditionMessage(e),
-          "\n  Expression: ", expr_str
+          "Error evaluating check '",
+          cid,
+          "': ",
+          conditionMessage(e),
+          "\n  Expression: ",
+          expr_str
         ))
       }
     )
@@ -155,26 +165,52 @@ validate_logical_with_list <- function(
     }
     cols_to_log <- intersect(cols_to_log, names(df))
 
+    # Empty log template — same shape regardless of which branch builds it.
+    empty_log <- data.frame(
+      uuid = character(0),
+      old_value = character(0),
+      question = character(0),
+      issue = character(0),
+      check_binding = character(0),
+      stringsAsFactors = FALSE
+    )
+
+    if (nrow(flagged) == 0) {
+      return(list(flag = flag, log = empty_log, cid = cid))
+    }
+
+    uuids <- as.character(flagged[[uuid_column]])
+
     if (length(cols_to_log) == 0) {
       # no specific columns: one row per flagged record
       log <- data.frame(
-        uuid = as.character(flagged[[uuid_column]]),
+        uuid = uuids,
         old_value = NA_character_,
         question = cid,
         issue = desc,
+        # binding = check_id ~/~ uuid so all rows from this check+record
+        # share a colour in the cleaning log
+        check_binding = paste(cid, uuids, sep = " ~/~ "),
         stringsAsFactors = FALSE
       )
     } else {
-      # one row per (flagged record × column to clean)
-      log <- do.call(rbind, lapply(cols_to_log, function(col) {
-        data.frame(
-          uuid = as.character(flagged[[uuid_column]]),
-          old_value = as.character(flagged[[col]]),
-          question = col,
-          issue = paste0("[", cid, "] ", desc),
-          stringsAsFactors = FALSE
-        )
-      }))
+      # one row per (flagged record × column to clean), all with the same
+      # check_binding so the reviewer sees them grouped by colour
+      log <- do.call(
+        rbind,
+        lapply(cols_to_log, function(col) {
+          data.frame(
+            uuid = uuids,
+            old_value = as.character(flagged[[col]]),
+            question = col,
+            issue = paste0("[", cid, "] ", desc),
+            check_binding = paste(cid, uuids, sep = " ~/~ "),
+            stringsAsFactors = FALSE
+          )
+        })
+      )
+      # sort so all columns for the same uuid sit together
+      log <- log[order(log$uuid), , drop = FALSE]
     }
     list(flag = flag, log = log, cid = cid)
   }
@@ -205,8 +241,11 @@ validate_logical_with_list <- function(
 
   total_flags <- sum(vapply(all_logs, nrow, integer(1)))
   message(
-    "validate_logical_with_list: ran ", length(results), " check(s); ",
-    total_flags, " log row(s) produced across ",
+    "validate_logical_with_list: ran ",
+    length(results),
+    " check(s); ",
+    total_flags,
+    " log row(s) produced across ",
     length(unique(unlist(lapply(all_logs, `[[`, "uuid")))),
     " unique record(s)."
   )
