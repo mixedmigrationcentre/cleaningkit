@@ -78,7 +78,11 @@ checked_data <- raw_data |>
   # 8. Implausible back-to-back interviews (gap < 10 minutes)
   validate_back_to_back(threshold_mins = 10) |>
   # 9. External logical checks (requires a checklist dataframe)
-  validate_logical_with_list(list_of_check = logical_checks_df)
+  validate_logical_with_list(list_of_check = logical_list,
+    check_id_column = "check_id",
+    check_to_perform_column = "check_to_perform",
+    columns_to_clean_column = "columns_to_clean",
+    description_column = "description")
 
 # Look at the issues logged for any of the checks
 print(checked_data$duration_log)
