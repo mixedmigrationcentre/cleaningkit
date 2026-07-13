@@ -371,7 +371,8 @@ read_other_responses <- function(
         dataset,
         uuid_column,
         sm_separator,
-        skip_label_row
+        skip_label_row,
+        tool_choices
       )
     })
     log_parts[["remove"]] <- do.call(rbind, remove_rows)
@@ -475,7 +476,8 @@ read_other_responses <- function(
   dataset,
   uuid_column,
   sm_separator,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  tool_choices = NULL
 ) {
   rows <- list()
   uuid <- x$uuid
@@ -502,10 +504,26 @@ read_other_responses <- function(
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
+    vocab <- .get_vocab(x$list_name, tool_choices)
+    all_sub <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
+    suffixes <- sub(paste0("^", x$ref_question, sm_separator), "", all_sub)
+    use_lbl <- any(grepl(" ", suffixes, fixed = TRUE))
+    token_rem <- if (use_lbl) {
+      .resolve_token_to_token(
+        x$option_other,
+        x$list_name,
+        tool_choices,
+        "label"
+      )
+    } else {
+      cd <- get_name_from_label(x$list_name, x$option_other, tool_choices)
+      if (is.na(cd)) x$option_other else cd
+    }
     old_concat <- gv(x$ref_question)
-    new_concat <- .remove_code(
+    new_concat <- .remove_token(
       if (is.na(old_concat)) "" else old_concat,
-      x$option_other
+      token_rem,
+      vocab
     )
     new_concat <- if (trimws(new_concat) == "") {
       NA_character_
@@ -534,7 +552,18 @@ read_other_responses <- function(
         stringsAsFactors = FALSE
       )
     } else {
-      sub_col <- paste0(x$ref_question, sm_separator, x$option_other)
+      # find and blank the sub-column for the other option
+      sub_col <- paste0(x$ref_question, sm_separator, token_rem)
+      if (!(sub_col %in% names(dataset))) {
+        # fallback: try the other form (code ↔ label)
+        alt <- .resolve_token_to_token(
+          token_rem,
+          x$list_name,
+          tool_choices,
+          to = if (use_lbl) "name" else "label"
+        )
+        sub_col <- paste0(x$ref_question, sm_separator, alt)
+      }
       if (sub_col %in% names(dataset)) {
         rows[[length(rows) + 1]] <- data.frame(
           uuid = uuid,
@@ -568,31 +597,126 @@ read_other_responses <- function(
   do.call(rbind, rows)
 }
 
-#' Add a code to a space-separated code string (order-preserving, no sort)
-#' Unlike the user's add_choice, this never sorts alphabetically — it appends
-#' the new code at the end if not already present, preserving the original order.
+#' Split a space-joined multi-word token string using a known vocabulary
+#'
+#' The concat column in ONA exports joins selected values with spaces. When
+#' values are multi-word labels (e.g. "Travel in a group Plan my journey
+#' carefully Other") a naive whitespace split breaks them. This function
+#' greedily matches the longest known token from \code{vocab} (sorted by
+#' descending word count), case-insensitively, so multi-word labels are
+#' correctly identified as atomic tokens.
+#'
+#' @param concat Space-joined string of selected values.
+#' @param vocab  Character vector of all valid tokens for this question.
+#' @return Character vector of matched tokens (in original order).
 #' @keywords internal
-.add_code <- function(concat, code) {
+.split_concat <- function(concat, vocab) {
   if (is.na(concat) || !nzchar(trimws(concat))) {
-    return(code)
+    return(character(0))
   }
-  tokens <- strsplit(trimws(concat), "\\s+")[[1]]
-  tokens <- tokens[nzchar(tokens)]
-  if (code %in% tokens) {
-    return(concat)
+  toks <- strsplit(trimws(concat), "\\s+")[[1]]
+  toks <- toks[nzchar(toks)]
+  if (length(toks) == 0) {
+    return(character(0))
   }
-  paste(c(tokens, code), collapse = " ")
+
+  # fast path: every whitespace-token is itself in the vocab (pure-code datasets)
+  if (all(toks %in% vocab)) {
+    return(toks)
+  }
+
+  # greedy longest-match (descending word count, case-insensitive)
+  vocab_words <- strsplit(vocab, "\\s+")
+  ord <- order(-lengths(vocab_words))
+  vocab_ord <- vocab[ord]
+  vocab_lc <- lapply(vocab_words[ord], tolower)
+  toks_lc <- tolower(toks)
+
+  out <- character(0)
+  i <- 1L
+  n <- length(toks)
+  while (i <= n) {
+    matched <- NA_character_
+    for (j in seq_along(vocab_ord)) {
+      L <- length(vocab_lc[[j]])
+      if (
+        i + L - 1L <= n &&
+          identical(toks_lc[i:(i + L - 1L)], vocab_lc[[j]])
+      ) {
+        matched <- vocab_ord[j]
+        i <- i + L
+        break
+      }
+    }
+    if (is.na(matched)) {
+      out <- c(out, toks[i]) # unknown token: keep as-is
+      i <- i + 1L
+    } else {
+      out <- c(out, matched)
+    }
+  }
+  out
 }
 
-#' Remove a code from a space-separated code string (atomic token match only)
+#' Remove a token from a space-joined concat using vocabulary-aware splitting
 #' @keywords internal
-.remove_code <- function(concat, code) {
-  if (is.na(concat) || !nzchar(trimws(concat))) {
+.remove_token <- function(concat, token, vocab) {
+  tokens <- .split_concat(concat, vocab)
+  tokens <- tokens[!tolower(tokens) %in% tolower(token)]
+  if (length(tokens) == 0) {
     return("")
   }
-  tokens <- strsplit(trimws(concat), "\\s+")[[1]]
-  tokens <- tokens[nzchar(tokens) & tokens != code]
   paste(tokens, collapse = " ")
+}
+
+#' Add a token to a space-joined concat (appended at end if not already present)
+#' @keywords internal
+.add_token <- function(concat, token, vocab) {
+  tokens <- .split_concat(concat, vocab)
+  if (any(tolower(tokens) == tolower(token))) {
+    return(paste(tokens, collapse = " "))
+  }
+  paste(c(tokens, token), collapse = " ")
+}
+
+#' Get the vocabulary (all valid tokens) for a list from tool_choices
+#' @keywords internal
+.get_vocab <- function(list_name, tool_choices) {
+  if (is.null(tool_choices)) {
+    return(character(0))
+  }
+  tc <- tool_choices[
+    !is.na(tool_choices$list_name) &
+      tool_choices$list_name == list_name,
+  ]
+  # both names and labels are valid tokens depending on dataset convention
+  unique(c(as.character(tc$name), as.character(tc$label)))
+}
+
+#' Resolve a token (name or label) to its counterpart in tool_choices
+#' @keywords internal
+.resolve_token_to_token <- function(
+  token,
+  list_name,
+  tool_choices,
+  to = "label"
+) {
+  if (is.null(tool_choices)) {
+    return(token)
+  }
+  tc <- tool_choices[
+    !is.na(tool_choices$list_name) &
+      tool_choices$list_name == list_name,
+  ]
+  # try matching token as name first, then as label
+  idx <- which(tc$name == token)
+  if (length(idx) == 0) {
+    idx <- which(tc$label == token)
+  }
+  if (length(idx) == 0) {
+    return(token)
+  }
+  as.character(tc[[to]][idx[1]])
 }
 
 #' Build log rows for a RECODE action
@@ -646,21 +770,18 @@ read_other_responses <- function(
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
-    # Split on ";;" first (from prepare_other_responses selected_choices), then
-    # on ";" (from the unite() join of the three EXISTING other columns).
+    # Split the existing_other field on ";;" or ";" to get individual labels
     raw_existing <- trimws(x$existing_other)
-    labels <- if (grepl(";;", raw_existing, fixed = TRUE)) {
+    chosen_labels <- if (grepl(";;", raw_existing, fixed = TRUE)) {
       trimws(stringr::str_split(raw_existing, ";;")[[1]])
     } else {
       trimws(stringr::str_split(raw_existing, ";")[[1]])
     }
-    labels <- labels[nzchar(labels)]
+    chosen_labels <- chosen_labels[nzchar(chosen_labels)]
 
-    # Resolve each label to its code via tool_choices.
-    # If a label is not found, warn and skip — never fall back to using the
-    # label text as a code, because that breaks the space-separated concat.
-    codes <- c()
-    for (l in labels) {
+    # Validate every chosen label exists in tool_choices — skip unknowns
+    valid_labels <- c()
+    for (l in chosen_labels) {
       cd <- get_name_from_label(x$list_name, l, tool_choices)
       if (length(cd) == 0 || is.na(cd[1]) || !nzchar(cd[1])) {
         warning(paste0(
@@ -670,36 +791,75 @@ read_other_responses <- function(
           x$list_name,
           "' for uuid '",
           uuid,
-          "' — this choice will be skipped. ",
-          "Check that the label in the EXISTING other column exactly matches ",
-          "the tool_choices label column."
+          "' — skipped. Check the label matches exactly."
         ))
       } else {
-        codes <- c(codes, as.character(cd[1]))
+        valid_labels <- c(valid_labels, l)
       }
     }
 
+    vocab <- .get_vocab(x$list_name, tool_choices)
     old_concat <- gv(x$ref_question)
     new_concat <- if (is.na(old_concat)) "" else old_concat
-    option_other <- x$option_other
 
-    # Remove the "other" code from the concatenation and flip its binary column.
-    new_concat <- .remove_code(new_concat, option_other)
-    sub_col_other <- paste0(x$ref_question, sm_separator, option_other)
+    # Detect which naming convention the dataset uses for sub-columns:
+    # "label convention" → sub-cols named Q119/Travel in a group (multi-word)
+    # "code convention"  → sub-cols named Q119/2 (short code, no spaces)
+    # We detect by inspecting the actual sub-column names: if any contains a
+    # space in the suffix, the dataset uses labels as tokens.
+    all_sub_cols <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
+    suffixes <- sub(
+      paste0("^", x$ref_question, sm_separator),
+      "",
+      all_sub_cols,
+      fixed = FALSE
+    )
+    use_label_convention <- any(grepl(" ", suffixes, fixed = TRUE))
+
+    option_other <- x$option_other # from other_db (could be code OR label)
+
+    # Resolve the "other" option to the correct token for the dataset convention
+    token_to_remove <- if (use_label_convention) {
+      # need the label form — if option_other is a code, resolve it; else use as-is
+      .resolve_token_to_token(
+        option_other,
+        x$list_name,
+        tool_choices,
+        to = "label"
+      )
+    } else {
+      # need the code form — if option_other is a label, resolve it; else use as-is
+      cd <- get_name_from_label(x$list_name, option_other, tool_choices)
+      if (is.na(cd)) option_other else cd
+    }
+    sub_col_other <- paste0(x$ref_question, sm_separator, token_to_remove)
+
+    # Remove the "other" token from the concat
+    new_concat <- .remove_token(new_concat, token_to_remove, vocab)
     if (sub_col_other %in% names(dataset)) {
       rows[[length(rows) + 1]] <- data.frame(
         uuid = uuid,
         question = sub_col_other,
         action_taken = "recode",
-        old_value = "1",
+        old_value = as.character(gv(sub_col_other)),
         new_value = "0",
         stringsAsFactors = FALSE
       )
     }
 
-    # Add each resolved code to the concatenation and flip its binary column.
-    for (code in codes) {
-      sub_col <- paste0(x$ref_question, sm_separator, code)
+    # Add each validated label (or its code) to the concat
+    for (lbl in valid_labels) {
+      # token to add to the concat and its sub-column name
+      token_to_add <- if (use_label_convention) {
+        lbl
+      } else {
+        get_name_from_label(x$list_name, lbl, tool_choices)
+      }
+      sub_col <- paste0(
+        x$ref_question,
+        sm_separator,
+        if (use_label_convention) lbl else token_to_add
+      )
       cur_val <- gv(sub_col)
       if (!identical(cur_val, "1")) {
         if (sub_col %in% names(dataset)) {
@@ -712,7 +872,7 @@ read_other_responses <- function(
             stringsAsFactors = FALSE
           )
         }
-        new_concat <- .add_code(new_concat, code)
+        new_concat <- .add_token(new_concat, token_to_add, vocab)
       }
     }
 
