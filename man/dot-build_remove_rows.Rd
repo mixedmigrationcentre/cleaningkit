@@ -9,7 +9,8 @@
   dataset,
   uuid_column,
   sm_separator,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  tool_choices = NULL
 )
 }
 \description{
