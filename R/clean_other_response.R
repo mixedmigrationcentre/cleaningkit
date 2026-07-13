@@ -503,8 +503,11 @@ read_other_responses <- function(
     )
   } else if (identical(ref_type, "select_multiple")) {
     old_concat <- gv(x$ref_question)
-    new_concat <- remove_choice(old_concat, x$option_other)
-    new_concat <- if (is.na(new_concat) || trimws(new_concat) == "") {
+    new_concat <- .remove_code(
+      if (is.na(old_concat)) "" else old_concat,
+      x$option_other
+    )
+    new_concat <- if (trimws(new_concat) == "") {
       NA_character_
     } else {
       trimws(new_concat)
@@ -565,6 +568,33 @@ read_other_responses <- function(
   do.call(rbind, rows)
 }
 
+#' Add a code to a space-separated code string (order-preserving, no sort)
+#' Unlike the user's add_choice, this never sorts alphabetically — it appends
+#' the new code at the end if not already present, preserving the original order.
+#' @keywords internal
+.add_code <- function(concat, code) {
+  if (is.na(concat) || !nzchar(trimws(concat))) {
+    return(code)
+  }
+  tokens <- strsplit(trimws(concat), "\\s+")[[1]]
+  tokens <- tokens[nzchar(tokens)]
+  if (code %in% tokens) {
+    return(concat)
+  }
+  paste(c(tokens, code), collapse = " ")
+}
+
+#' Remove a code from a space-separated code string (atomic token match only)
+#' @keywords internal
+.remove_code <- function(concat, code) {
+  if (is.na(concat) || !nzchar(trimws(concat))) {
+    return("")
+  }
+  tokens <- strsplit(trimws(concat), "\\s+")[[1]]
+  tokens <- tokens[nzchar(tokens) & tokens != code]
+  paste(tokens, collapse = " ")
+}
+
 #' Build log rows for a RECODE action
 #' @keywords internal
 .build_recode_rows <- function(
@@ -616,35 +646,45 @@ read_other_responses <- function(
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
-    labels <- trimws(stringr::str_split(x$existing_other, ";")[[1]])
+    # Split on ";;" first (from prepare_other_responses selected_choices), then
+    # on ";" (from the unite() join of the three EXISTING other columns).
+    raw_existing <- trimws(x$existing_other)
+    labels <- if (grepl(";;", raw_existing, fixed = TRUE)) {
+      trimws(stringr::str_split(raw_existing, ";;")[[1]])
+    } else {
+      trimws(stringr::str_split(raw_existing, ";")[[1]])
+    }
     labels <- labels[nzchar(labels)]
-    codes <- vapply(
-      labels,
-      function(l) {
-        cd <- get_name_from_label(x$list_name, l, tool_choices)
-        if (length(cd) == 0 || is.na(cd[1])) {
-          warning(paste0(
-            "Label '",
-            l,
-            "' not found for list '",
-            x$list_name,
-            "' uuid '",
-            uuid,
-            "' — using label as-is."
-          ))
-          return(l)
-        }
-        as.character(cd[1])
-      },
-      character(1)
-    )
+
+    # Resolve each label to its code via tool_choices.
+    # If a label is not found, warn and skip — never fall back to using the
+    # label text as a code, because that breaks the space-separated concat.
+    codes <- c()
+    for (l in labels) {
+      cd <- get_name_from_label(x$list_name, l, tool_choices)
+      if (length(cd) == 0 || is.na(cd[1]) || !nzchar(cd[1])) {
+        warning(paste0(
+          "Label '",
+          l,
+          "' not found in tool_choices list '",
+          x$list_name,
+          "' for uuid '",
+          uuid,
+          "' — this choice will be skipped. ",
+          "Check that the label in the EXISTING other column exactly matches ",
+          "the tool_choices label column."
+        ))
+      } else {
+        codes <- c(codes, as.character(cd[1]))
+      }
+    }
 
     old_concat <- gv(x$ref_question)
-    new_concat <- old_concat
+    new_concat <- if (is.na(old_concat)) "" else old_concat
     option_other <- x$option_other
 
-    # remove the "other" binary sub-column and from the concatenation
-    new_concat <- remove_choice(new_concat, option_other)
+    # Remove the "other" code from the concatenation and flip its binary column.
+    new_concat <- .remove_code(new_concat, option_other)
     sub_col_other <- paste0(x$ref_question, sm_separator, option_other)
     if (sub_col_other %in% names(dataset)) {
       rows[[length(rows) + 1]] <- data.frame(
@@ -657,11 +697,11 @@ read_other_responses <- function(
       )
     }
 
-    # add each matched code
+    # Add each resolved code to the concatenation and flip its binary column.
     for (code in codes) {
-      cur_val <- gv(paste0(x$ref_question, sm_separator, code))
+      sub_col <- paste0(x$ref_question, sm_separator, code)
+      cur_val <- gv(sub_col)
       if (!identical(cur_val, "1")) {
-        sub_col <- paste0(x$ref_question, sm_separator, code)
         if (sub_col %in% names(dataset)) {
           rows[[length(rows) + 1]] <- data.frame(
             uuid = uuid,
@@ -672,17 +712,19 @@ read_other_responses <- function(
             stringsAsFactors = FALSE
           )
         }
-        new_concat <- add_choice(new_concat, code)
+        new_concat <- .add_code(new_concat, code)
       }
     }
 
     new_concat <- trimws(new_concat)
-    if (nzchar(new_concat) && new_concat != as.character(old_concat)) {
+    new_concat <- if (!nzchar(new_concat)) NA_character_ else new_concat
+    final_old <- as.character(old_concat)
+    if (!identical(new_concat, final_old)) {
       rows[[length(rows) + 1]] <- data.frame(
         uuid = uuid,
         question = x$ref_question,
         action_taken = "recode",
-        old_value = as.character(old_concat),
+        old_value = final_old,
         new_value = new_concat,
         stringsAsFactors = FALSE
       )
