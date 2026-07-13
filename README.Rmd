@@ -75,7 +75,7 @@ print(checked_data$back_to_back_log)
 
 You can extract and prepare "other" responses from your dataset using two functions:
 
-*   **`prepare_other_responses()`**: Combines other responses from all sheets into a single dataframe ready for use with `save_other_responses()`.
+*   **`prepare_other_responses()`**: Combines other responses from all sheets into a single dataframe ready for use with `save_other_responses()`. You can optionally pass a character vector of specific question names to the `questions` parameter if you only want to process a subset of questions.
 *   **`save_other_responses()`**: This function saves the prepared other responses into an Excel workbook with specific formatting and data validation.
 
 ```r
