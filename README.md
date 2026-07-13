@@ -85,6 +85,37 @@ print(checked_data$duration_log)
 print(checked_data$back_to_back_log)
 ```
 
+## Combining and Exporting Logs
+
+After running the validation checks, you can combine all the individual
+logs and save them into an Excel file for review and follow-up:
+
+``` r
+#----------------------------------
+# combine logs
+#----------------------------------
+
+# Since all logs are stored in the `checked_data` list, 
+# you can pass it directly to create a single combined log:
+combined_log <- cleaningkit::create_combined_log(
+  list_of_log = checked_data,
+  dataset_name = "checked_dataset"
+)
+
+#----------------------------------
+# create cleaning log
+#----------------------------------
+
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  output_path = paste0(
+    "path/to/output/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
 ## Creating Other Responses
 
 You can extract and prepare “other” responses from your dataset using
