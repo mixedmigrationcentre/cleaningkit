@@ -28,6 +28,13 @@ pak::pak("iAthmanMMC/cleaningkit")
 
 ## How to use it
 
+Before running any other functions, you need to run `load_packages()`. This ensures that all required dependencies for `cleaningkit` are installed and loaded properly.
+
+```r
+library(cleaningkit)
+load_packages()
+```
+
 The package provides a suite of `validate_*` functions to run various data quality checks. Each function returns a list containing the checked dataset and a log of flagged issues.
 
 *   **`validate_duration()`**: Checks if the survey duration falls within an acceptable time range.
