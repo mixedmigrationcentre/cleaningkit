@@ -416,3 +416,194 @@ validate_duplicates <- function(
   dataset[[log_name]] <- log
   return(dataset)
 }
+
+
+#' Validate Duplicate Answers for Specific Questions Per Enumerator
+#'
+#' For each question in \code{questions_to_check}, groups surveys by enumerator
+#' and flags any answer value that appears in more than one of that enumerator's
+#' surveys. Only questions where at least one duplicate is found are reported.
+#' All surveys that share the same duplicated answer for the same question get
+#' an identical \code{check_binding} so they are coloured as a group in the
+#' review workbook.
+#'
+#' @details
+#' This is complementary to \code{validate_duplicates()}: where that function
+#' uses Gower distance to detect globally similar surveys, this function
+#' pinpoints specific questions (e.g. a destination country, a landmark, a
+#' journey start point) that should vary between respondents but are suspiciously
+#' repeated within one enumerator's workload.
+#'
+#' A common fraud pattern is an enumerator copying one answer across many
+#' records. Passing \code{questions_to_check = c("Q41", "Q59", "Q13")} will
+#' independently check each question; only those that are actually duplicated
+#' produce log rows.
+#'
+#' Blank and \code{NA} values are never treated as duplicates — only non-empty
+#' answers are compared, so unanswered questions do not generate false positives.
+#'
+#' @param dataset A dataframe or a list containing a dataframe named
+#'   \code{checked_dataset}.
+#' @param questions_to_check A character vector of column names to check for
+#'   duplicate answers within each enumerator's surveys.
+#' @param uuid_column Name of the unique-identifier column. Default \code{"_uuid"}.
+#' @param enumerator_column Name of the enumerator column used to group surveys.
+#'   Default \code{"username"}.
+#' @param log_name Name of the log element in the returned list.
+#'   Default \code{"duplicate_questions_log"}.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of
+#'   the dataset is removed before validation. ONA exports include a
+#'   label/description row immediately after the header that must not be treated
+#'   as a survey record.
+#'
+#' @return A list containing:
+#'   \item{checked_dataset}{The original dataset, unchanged.}
+#'   \item{<log_name>}{A dataframe with columns \code{uuid},
+#'     \code{old_value} (the duplicated answer),
+#'     \code{question} (the column name),
+#'     \code{issue}, and \code{check_binding}. One row per survey per flagged
+#'     question. Empty (zero rows) if no duplicates are found.}
+#' @export
+validate_duplicate_questions <- function(
+  dataset,
+  questions_to_check,
+  uuid_column = "_uuid",
+  enumerator_column = "username",
+  log_name = "duplicate_questions_log",
+  skip_label_row = TRUE
+) {
+  # ---- normalise input ----
+  if (is.data.frame(dataset)) {
+    dataset <- list(checked_dataset = dataset)
+  }
+  if (!("checked_dataset" %in% names(dataset))) {
+    stop("Cannot identify the dataset in the list.")
+  }
+
+  df <- dataset[["checked_dataset"]]
+
+  if (!(uuid_column %in% names(df))) {
+    stop(paste0("Cannot find '", uuid_column, "' in the names of the dataset."))
+  }
+  if (!(enumerator_column %in% names(df))) {
+    stop(paste0(
+      "Cannot find '",
+      enumerator_column,
+      "' in the names of the dataset."
+    ))
+  }
+  if (!is.character(questions_to_check) || length(questions_to_check) == 0) {
+    stop(
+      "`questions_to_check` must be a non-empty character vector of column names."
+    )
+  }
+
+  missing_qs <- setdiff(questions_to_check, names(df))
+  if (length(missing_qs) > 0) {
+    stop(paste0(
+      "The following question(s) were not found in the dataset: ",
+      paste(missing_qs, collapse = ", ")
+    ))
+  }
+
+  # ---- drop ONA label row ----
+  if (skip_label_row && nrow(df) > 0) {
+    df <- df[-1, , drop = FALSE]
+  }
+
+  if (nrow(df) == 0) {
+    warning("Dataset has no records after dropping the label row.")
+    dataset[[log_name]] <- data.frame(
+      uuid = character(0),
+      old_value = character(0),
+      question = character(0),
+      issue = character(0),
+      check_binding = character(0),
+      stringsAsFactors = FALSE
+    )
+    return(dataset)
+  }
+
+  uuids <- as.character(df[[uuid_column]])
+  enums <- trimws(as.character(df[[enumerator_column]]))
+
+  # ---- check each question independently ----
+  log_parts <- lapply(questions_to_check, function(q) {
+    values <- trimws(as.character(df[[q]]))
+
+    # collect one log row per survey per (enumerator, duplicated value) group
+    rows <- lapply(unique(enums[enums != "" & !is.na(enums)]), function(enum) {
+      enum_idx <- which(enums == enum)
+      enum_vals <- values[enum_idx]
+      enum_uuids <- uuids[enum_idx]
+
+      # find answer values that appear more than once (ignore blank / NA)
+      val_counts <- table(enum_vals[
+        !is.na(enum_vals) & enum_vals != "" & enum_vals != "NA"
+      ])
+      dup_vals <- names(val_counts[val_counts > 1])
+
+      if (length(dup_vals) == 0) {
+        return(NULL)
+      }
+
+      do.call(
+        rbind,
+        lapply(dup_vals, function(v) {
+          matched_uuids <- enum_uuids[!is.na(enum_vals) & enum_vals == v]
+          n_surveys <- length(matched_uuids)
+
+          # all surveys sharing this (question, enumerator, value) get one binding
+          binding <- paste0(
+            "dup_q ~/~ ",
+            q,
+            " ~/~ ",
+            enum,
+            " ~/~ ",
+            v
+          )
+
+          data.frame(
+            uuid = matched_uuids,
+            old_value = v,
+            question = q,
+            issue = paste0(
+              "Duplicate answer for '",
+              q,
+              "' within enumerator '",
+              enum,
+              "': value '",
+              v,
+              "' appears in ",
+              n_surveys,
+              " surveys"
+            ),
+            check_binding = binding,
+            stringsAsFactors = FALSE
+          )
+        })
+      )
+    })
+
+    do.call(rbind, rows)
+  })
+
+  log <- do.call(rbind, log_parts)
+
+  if (is.null(log) || nrow(log) == 0) {
+    log <- data.frame(
+      uuid = character(0),
+      old_value = character(0),
+      question = character(0),
+      issue = character(0),
+      check_binding = character(0),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    rownames(log) <- NULL
+    log <- log[order(log$question, log$check_binding, log$uuid), ]
+  }
+
+  dataset[[log_name]] <- log
+  return(dataset)
+}

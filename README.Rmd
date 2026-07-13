@@ -36,6 +36,7 @@ The package provides a suite of `validate_*` functions to run various data quali
 *   **`validate_logical_with_list()`**: Runs a batch of logical checks defined in an external checklist against the dataset.
 *   **`validate_interview_time()`**: Flags interviews conducted at implausible times of the day (e.g., middle of the night).
 *   **`validate_duplicates()`**: Detects suspiciously similar surveys (soft duplicates) based on differing column counts.
+*   **`validate_duplicate_questions()`**: Flags specific questions where an enumerator has repeatedly recorded the exact same answer across multiple surveys.
 *   **`validate_country_of_interview()`**: Flags cases where the interview country matches the respondent's nationality or journey start.
 *   **`validate_back_to_back()`**: Flags interviews conducted by the same enumerator with suspiciously short or negative gaps between them.
 
@@ -59,11 +60,13 @@ checked_data <- raw_data |>
   validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
   # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
   validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
-  # 6. Country of interview shouldn't match nationality or journey start
+  # 6. Duplicated answers for specific questions by the same enumerator
+  validate_duplicate_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
+  # 7. Country of interview shouldn't match nationality or journey start
   validate_country_of_interview() |>
-  # 7. Implausible back-to-back interviews (gap < 10 minutes)
+  # 8. Implausible back-to-back interviews (gap < 10 minutes)
   validate_back_to_back(threshold_mins = 10) |>
-  # 8. External logical checks (requires a checklist dataframe)
+  # 9. External logical checks (requires a checklist dataframe)
   validate_logical_with_list(list_of_check = logical_checks_df)
 
 # Look at the issues logged for any of the checks
