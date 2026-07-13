@@ -4,7 +4,13 @@
 \alias{apply_other_responses}
 \title{Apply Other Responses Cleaning Log to a Dataset}
 \usage{
-apply_other_responses(dataset, other_log, uuid_column = "uuid", verbose = TRUE)
+apply_other_responses(
+  dataset,
+  other_log,
+  uuid_column = "_uuid",
+  skip_label_row = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{dataset}{The current working dataset to modify.}
@@ -12,32 +18,23 @@ apply_other_responses(dataset, other_log, uuid_column = "uuid", verbose = TRUE)
 \item{other_log}{The cleaning log produced by \code{read_other_responses()}.}
 
 \item{uuid_column}{Name of the uuid column in \code{dataset}. Default
-\code{"uuid"}.}
+\code{"_uuid"}.}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), changes are
+never applied to the first (ONA label) row even if its uuid somehow
+matched.}
 
 \item{verbose}{Logical. If \code{TRUE} (the default), a message is printed
-for each change applied, matching the original loop's \code{message()} output.}
+for each change applied, matching the original loop output.}
 }
 \value{
 A list with:
 \item{dataset}{The modified dataset.}
-\item{audit_log}{A dataframe with columns \code{uuid}, \code{question},
-\code{action_taken}, \code{value_before}, \code{value_after}.}
+\item{audit_log}{A dataframe recording every change with columns
+\code{uuid}, \code{question}, \code{action_taken}, \code{value_before},
+\code{value_after}.}
 }
 \description{
 Applies every row of the cleaning log produced by \code{read_other_responses()}
-to the dataset, writing the new value into the appropriate column for each
-uuid. Returns the modified dataset and an audit trail.
-}
-\details{
-This function is a direct replacement for the manual apply loop:
-\preformatted{
-for (r in seq_len(nrow(cleaning_log_other))) {
-  uuid <- cleaning_log_other$uuid[r]
-  ...
-  clean_data[[question]][row_match] <- new_value
-}
-}
-It applies changes in order, so later rows override earlier ones if both
-target the same \code{uuid + question} — this matches the behaviour of the
-original loop.
+to the dataset. A direct replacement for the manual apply loop.
 }

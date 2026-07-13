@@ -4,7 +4,14 @@
 \alias{.build_recode_rows}
 \title{Build log rows for a RECODE action}
 \usage{
-.build_recode_rows(x, dataset, kobo_choices, uuid_column, sm_separator)
+.build_recode_rows(
+  x,
+  dataset,
+  tool_choices,
+  uuid_column,
+  sm_separator,
+  skip_label_row = TRUE
+)
 }
 \description{
 Build log rows for a RECODE action

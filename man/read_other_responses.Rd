@@ -8,11 +8,13 @@ read_other_responses(
   path,
   dataset,
   other_db,
-  kobo_choices,
-  uuid_column = "uuid",
+  tool_choices,
+  uuid_column = "_uuid",
+  log_uuid_col = "uuid",
   sm_separator = "/",
   file_pattern = "_other_responses_edited\\\\.xlsx$",
   skip_questions = NULL,
+  skip_label_row = TRUE,
   verbose = TRUE
 )
 }
@@ -23,38 +25,43 @@ file.}
 
 \item{dataset}{The current working dataset (after any prior cleaning). Used
 to filter to valid uuids and to look up current values of parent columns
-for \code{select_multiple} recoding. Must contain a \code{uuid} column
-(or the column named by \code{uuid_column}).}
+for \code{select_multiple} recoding.}
 
 \item{other_db}{The \code{other_db} dataframe produced by
 \code{get_other_db()}, containing at least \code{name},
 \code{ref_question}, \code{q_type}, and \code{option_other}.}
 
-\item{kobo_choices}{The Kobo choices sheet dataframe, used to resolve choice
-labels to codes for recode actions. Passed to \code{get_name_from_label()}.}
+\item{tool_choices}{The XLSForm choices sheet dataframe (works with Kobo,
+ONA, or any other XLSForm-based tool), used to resolve choice labels to
+codes for recode actions. Passed to \code{get_name_from_label()}.}
 
 \item{uuid_column}{Name of the uuid column in \code{dataset}. Default
-\code{"uuid"}.}
+\code{"_uuid"}.}
+
+\item{log_uuid_col}{Name of the uuid column in the other-responses log
+files. Default \code{"uuid"} (as produced by \code{prepare_other_responses()}).
+Set to \code{"_uuid"} if your files use the raw ONA column name.}
 
 \item{sm_separator}{Separator between a select-multiple parent column name
 and its binary sub-columns in \code{dataset}. Default \code{"/"} (ONA
-export style). Used to locate sub-columns when updating select-multiple
-binary columns.}
+export style).}
 
 \item{file_pattern}{Regex pattern used when \code{path} is a directory.
 Default \code{"_other_responses_edited\\\\.xlsx$"}.}
 
 \item{skip_questions}{Character vector of question names to exclude from
-processing (e.g. free-text comments columns that should not be recoded).
-Default \code{NULL}.}
+processing (e.g. free-text comments columns). Default \code{NULL}.}
+
+\item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row
+of \code{dataset} is treated as the ONA label/description row and excluded
+from the valid-uuid list so it cannot match against log file uuids.}
 
 \item{verbose}{Logical. If \code{TRUE} (the default), progress messages are
 printed.}
 }
 \value{
 A dataframe with columns \code{uuid}, \code{question},
-\code{action_taken}, \code{old_value}, \code{new_value}, ready for
-\code{apply_other_responses()} or the manual apply loop.
+\code{action_taken}, \code{old_value}, \code{new_value}.
 }
 \description{
 Reads one or more filled other-responses Excel files from a directory (or a
@@ -68,9 +75,9 @@ cleaning-log dataframe ready for \code{apply_other_responses()}.
 \describe{
 \item{\code{true_other}}{A genuine new answer (e.g. a translation).
 Overwrites the \code{_other} text column with the value in
-\code{TRUE other …}. The parent question is not touched.}
+\code{TRUE other ...}. The parent question is not touched.}
 \item{\code{recode}}{The response actually matches an existing choice.
-One or more of the \code{EXISTING other …} columns is filled. For
+One or more of the \code{EXISTING other ...} columns is filled. For
 \code{select_one}: blanks the \code{_other} text column, sets the parent
 to the matched choice code. For \code{select_multiple}: blanks the
 \code{_other} text column, removes the \code{other} option from the
@@ -80,13 +87,18 @@ Blanks the \code{_other} text column and removes/blanks the parent
 question reference.}
 }
 
+\strong{UUID matching:} the dataset uuid column (\code{uuid_column}) and
+the other-responses file uuid column (\code{log_uuid_col}) are resolved
+independently so they can have different names (e.g. \code{"_uuid"} in the
+dataset and \code{"uuid"} in the log file). The ONA label/description row
+is excluded from the dataset uuid list when \code{skip_label_row = TRUE}.
+
 \strong{Mutual exclusivity:} each row must have exactly one of
-\code{true_other}, \code{existing_other} (any of the three slots), or
-\code{invalid_other} filled. Rows with zero or more than one filled are
-flagged with a warning and excluded.
+\code{true_other}, \code{existing_other}, or \code{invalid_other} filled.
+Rows with zero or more than one filled are flagged with a warning and
+excluded.
 
 \strong{Output shape:} the returned dataframe has columns
 \code{uuid}, \code{question}, \code{action_taken}, \code{old_value},
-\code{new_value} — matching the shape expected by \code{apply_other_responses()}
-and compatible with the manual apply loop.
+\code{new_value} ready for \code{apply_other_responses()}.
 }

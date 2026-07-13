@@ -4,7 +4,13 @@
 \alias{.build_remove_rows}
 \title{Build log rows for a REMOVE action}
 \usage{
-.build_remove_rows(x, dataset, uuid_column, sm_separator)
+.build_remove_rows(
+  x,
+  dataset,
+  uuid_column,
+  sm_separator,
+  skip_label_row = TRUE
+)
 }
 \description{
 Build log rows for a REMOVE action
