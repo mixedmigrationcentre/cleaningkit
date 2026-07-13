@@ -532,6 +532,7 @@ read_other_responses <- function(
     }
 
     if (is.na(new_concat)) {
+      # removing this choice empties the parent — blank all sub-columns too
       sub_cols <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
       for (col in sub_cols) {
         rows[[length(rows) + 1]] <- data.frame(
@@ -552,10 +553,9 @@ read_other_responses <- function(
         stringsAsFactors = FALSE
       )
     } else {
-      # find and blank the sub-column for the other option
+      # blank (NA) the sub-column for the other option
       sub_col <- paste0(x$ref_question, sm_separator, token_rem)
       if (!(sub_col %in% names(dataset))) {
-        # fallback: try the other form (code ↔ label)
         alt <- .resolve_token_to_token(
           token_rem,
           x$list_name,
@@ -569,8 +569,8 @@ read_other_responses <- function(
           uuid = uuid,
           question = sub_col,
           action_taken = "remove",
-          old_value = "1",
-          new_value = "0",
+          old_value = as.character(gv(sub_col)),
+          new_value = NA_character_,
           stringsAsFactors = FALSE
         )
       }
@@ -693,7 +693,66 @@ read_other_responses <- function(
   unique(c(as.character(tc$name), as.character(tc$label)))
 }
 
-#' Resolve a token (name or label) to its counterpart in tool_choices
+#' Detect what value means "selected" in a dataset's select-multiple sub-columns
+#'
+#' ONA exports use one of two conventions for binary sub-columns:
+#' \itemize{
+#'   \item \strong{Binary}: selected = \code{"1"}, not-selected = \code{"0"} or \code{NA}.
+#'   \item \strong{Label-value}: selected = the sub-column suffix (the choice label
+#'     or code, e.g. \code{"Travel in a group"}), not-selected = \code{NA} or blank.
+#' }
+#' We detect the convention by looking at a sub-column whose suffix is a known
+#' token: if a selected row's value equals the suffix, it's label-value convention;
+#' if it equals \code{"1"}, it's binary. The \code{selected_val} returned is what
+#' must be written when marking a choice as selected, and \code{NA} is always used
+#' when marking as not-selected (blank).
+#'
+#' @param dataset The dataset.
+#' @param parent_col The parent select-multiple column name.
+#' @param sm_separator Sub-column separator.
+#' @param uuid_column UUID column name.
+#' @param skip_label_row Whether to skip the first (label) row.
+#' @return A function \code{f(suffix)} that returns the correct "selected" value
+#'   for a sub-column with the given suffix.
+#' @keywords internal
+.make_selected_val_fn <- function(
+  dataset,
+  parent_col,
+  sm_separator,
+  uuid_column,
+  skip_label_row = TRUE
+) {
+  ds <- if (skip_label_row && nrow(dataset) > 0) {
+    dataset[-1, , drop = FALSE]
+  } else {
+    dataset
+  }
+  sub_cols <- .sm_sub_cols(ds, parent_col, sm_separator)
+
+  # Sample a few sub-columns to detect the convention
+  convention <- "binary" # default
+  for (col in head(sub_cols, 5)) {
+    suffix <- sub(paste0("^", parent_col, sm_separator), "", col)
+    vals <- as.character(ds[[col]])
+    vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+    if (length(vals) > 0) {
+      if (any(vals == suffix)) {
+        convention <- "label_value"
+        break
+      } else if (any(vals == "1")) {
+        convention <- "binary"
+        break
+      }
+    }
+  }
+
+  # Return a function that gives the right "selected" value for a given suffix
+  if (convention == "label_value") {
+    function(suffix) suffix # selected = the suffix itself
+  } else {
+    function(suffix) "1" # selected = "1"
+  }
+}
 #' @keywords internal
 .resolve_token_to_token <- function(
   token,
@@ -816,6 +875,16 @@ read_other_responses <- function(
     )
     use_label_convention <- any(grepl(" ", suffixes, fixed = TRUE))
 
+    # Detect what value means "selected" in this dataset's sub-columns
+    # (.make_selected_val_fn returns a function suffix -> selected_value)
+    sel_fn <- .make_selected_val_fn(
+      dataset,
+      x$ref_question,
+      sm_separator,
+      uuid_column,
+      skip_label_row
+    )
+
     option_other <- x$option_other # from other_db (could be code OR label)
 
     # Resolve the "other" option to the correct token for the dataset convention
@@ -834,7 +903,7 @@ read_other_responses <- function(
     }
     sub_col_other <- paste0(x$ref_question, sm_separator, token_to_remove)
 
-    # Remove the "other" token from the concat
+    # Remove the "other" token from the concat; blank (NA) its sub-column
     new_concat <- .remove_token(new_concat, token_to_remove, vocab)
     if (sub_col_other %in% names(dataset)) {
       rows[[length(rows) + 1]] <- data.frame(
@@ -842,14 +911,14 @@ read_other_responses <- function(
         question = sub_col_other,
         action_taken = "recode",
         old_value = as.character(gv(sub_col_other)),
-        new_value = "0",
+        new_value = NA_character_,
         stringsAsFactors = FALSE
       )
     }
 
-    # Add each validated label (or its code) to the concat
+    # Add each validated label (or its code) to the concat;
+    # set its sub-column to the dataset's "selected" value
     for (lbl in valid_labels) {
-      # token to add to the concat and its sub-column name
       token_to_add <- if (use_label_convention) {
         lbl
       } else {
@@ -861,14 +930,16 @@ read_other_responses <- function(
         if (use_label_convention) lbl else token_to_add
       )
       cur_val <- gv(sub_col)
-      if (!identical(cur_val, "1")) {
+      # "not selected" means NA or anything that isn't the selected marker
+      suffix_for_sel <- if (use_label_convention) lbl else token_to_add
+      if (!identical(cur_val, sel_fn(suffix_for_sel))) {
         if (sub_col %in% names(dataset)) {
           rows[[length(rows) + 1]] <- data.frame(
             uuid = uuid,
             question = sub_col,
             action_taken = "recode",
             old_value = as.character(cur_val),
-            new_value = "1",
+            new_value = sel_fn(suffix_for_sel),
             stringsAsFactors = FALSE
           )
         }
