@@ -28,25 +28,68 @@ pak::pak("iAthmanMMC/cleaningkit")
 
 ## How to use it
 
+The package provides a suite of `validate_*` functions to run various data quality checks. Each function returns a list containing the checked dataset and a log of flagged issues.
+
+*   **`validate_duration()`**: Checks if the survey duration falls within an acceptable time range.
+*   **`validate_completeness()`**: Flags surveys that have fewer than a specified number of answered questions.
+*   **`validate_refused()`**: Identifies surveys with an excessive number of "Refused" answers.
+*   **`validate_logical_with_list()`**: Runs a batch of logical checks defined in an external checklist against the dataset.
+*   **`validate_interview_time()`**: Flags interviews conducted at implausible times of the day (e.g., middle of the night).
+*   **`validate_duplicates()`**: Detects suspiciously similar surveys (soft duplicates) based on differing column counts.
+*   **`validate_country_of_interview()`**: Flags cases where the interview country matches the respondent's nationality or journey start.
+*   **`validate_back_to_back()`**: Flags interviews conducted by the same enumerator with suspiciously short or negative gaps between them.
+
 Here is a quick look at how you can load your data and run a few validation checks:
 
 ```r
 library(cleaningkit)
 
-# Load your raw data and Kobo survey schema
+# Load your raw data and tool survey schema
 raw_data <- read_raw_data("path/to/data.xlsx", tool_survey = survey_sheet)
 
-# 1. Check if the survey duration makes sense (e.g. between 15 and 60 minutes)
-checked_data <- validate_duration(raw_data, column_to_check = "_duration", lower_bound = 15, upper_bound = 60)
-# Look at the issues logged
+# Run validations (each step passes the result to the next)
+checked_data <- raw_data |>
+  # 1. Survey duration makes sense (e.g. between 15 and 60 minutes)
+  validate_duration(column_to_check = "_duration", lower_bound = 15, upper_bound = 60) |>
+  # 2. Minimum of 100 answered questions
+  validate_completeness(min_content_cells = 100) |>
+  # 3. Maximum of 6 "Refused" answers
+  validate_refused(max_refused = 6) |>
+  # 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)
+  validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
+  # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
+  validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
+  # 6. Country of interview shouldn't match nationality or journey start
+  validate_country_of_interview() |>
+  # 7. Implausible back-to-back interviews (gap < 10 minutes)
+  validate_back_to_back(threshold_mins = 10) |>
+  # 8. External logical checks (requires a checklist dataframe)
+  validate_logical_with_list(list_of_check = logical_checks_df)
+
+# Look at the issues logged for any of the checks
 print(checked_data$duration_log)
+print(checked_data$back_to_back_log)
+```
 
-# 2. Flag surveys with less than 100 answered questions
-checked_data <- validate_completeness(checked_data, min_content_cells = 100)
-print(checked_data$completeness_log)
+## Creating Other Responses
 
-# 3. Check for surveys with more than 6 "Refused" answers
-checked_data <- validate_refused(checked_data, max_refused = 6)
-print(checked_data$refused_log)
+You can extract and prepare "other" responses from your dataset using two functions:
+
+*   **`prepare_other_responses()`**: Combines other responses from all sheets into a single dataframe ready for use with `save_other_responses()`.
+*   **`save_other_responses()`**: This function saves the prepared other responses into an Excel workbook with specific formatting and data validation.
+
+```r
+# Prepare the other responses dataframe
+other_responses_df <- prepare_other_responses(
+  raw_data = raw_data,
+  other_db = other_db,
+  tool_choices = choices_sheet
+)
+
+# Save to an Excel workbook for review
+save_other_responses(
+  df = other_responses_df,
+  save_location = "output"
+)
 ```
 
