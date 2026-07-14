@@ -1,7 +1,7 @@
 # cleaningkit
 
-`cleaningkit` is a simple R package built to help clean and validate
-survey data (especially Ona surveys).
+`cleaningkit` is an R package built to help clean and validate survey
+data (especially Ona surveys).
 
 ## Installation
 
