@@ -1,8 +1,8 @@
 ---
-title: "introduction"
+title: "2. Validation and Cleaning Process"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{introduction}
+  %\VignetteIndexEntry{2. Validation and Cleaning Process}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,3 +17,7 @@ knitr::opts_chunk$set(
 ```{r setup}
 library(cleaningkit)
 ```
+
+## Introduction
+
+*(Add more details on the validation and cleaning process here...)*

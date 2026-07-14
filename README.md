@@ -15,6 +15,16 @@ You can grab the v2026.07.0 version from GitHub using `pak`:
 pak::pak("mixedmigrationcentre/cleaningkit")
 ```
 
+## User Guides
+
+For a comprehensive overview of the package workflow, please refer to
+the following guides:
+
+- [1. Introduction](vignettes/1-introduction.Rmd)
+- [2. Validation and Cleaning
+  Process](vignettes/2-validation-and-cleaning.Rmd)
+- [3. Applying Cleaning Logs](vignettes/3-applying-cleaning-logs.Rmd)
+
 ## How to use it
 
 Before running any other functions, you need to run `load_packages()`.
