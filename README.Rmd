@@ -23,7 +23,7 @@ You can grab the v2026.07.0 version from GitHub using `pak`:
 
 ```r
 # install.packages("pak")
-pak::pak("iAthmanMMC/cleaningkit")
+pak::pak("mixedmigrationcentre/cleaningkit")
 ```
 
 ## How to use it
