@@ -8,7 +8,7 @@ survey data (especially Ona surveys).
 
 ## Installation
 
-You can grab the development version from GitHub using `pak`:
+You can grab the v2026.07.0 version from GitHub using `pak`:
 
 ``` r
 # install.packages("pak")
