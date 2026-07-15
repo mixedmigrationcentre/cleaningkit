@@ -34,8 +34,8 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/1-introduction.html">1. Introduction</a></li>
-    <li><a class="dropdown-item" href="../articles/2-validation-and-cleaning.html">2. Validation and Cleaning Process</a></li>
-    <li><a class="dropdown-item" href="../articles/3-applying-cleaning-logs.html">3. Applying Cleaning Logs</a></li>
+    <li><a class="dropdown-item" href="../articles/2-cleaning_and_validation.html">2. Data Cleaning and Validation</a></li>
+    <li><a class="dropdown-item" href="../articles/3-create_clean_data.html">3. Create Clean Data</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -82,17 +82,20 @@ Output</strong></li>
 <div class="section level3">
 <h3 id="the-validation-and-cleaning-process">1. The Validation and Cleaning Process<a class="anchor" aria-label="anchor" href="#the-validation-and-cleaning-process"></a>
 </h3>
-<p>This initial phase involves running a suite of validation functions
-(all starting with <code>validate_</code>). Each of these functions
-performs a specific check on your dataset and generates a corresponding
-log of flagged issues.</p>
-<p>After running the individual checks, you will combine all the
+<p>This initial phase involves:</p>
+<ul>
+<li>Running a suite of validation functions (all starting with
+<code>validate_</code>).</li>
+<li>Each of these functions performs a specific check on your dataset
+and generates a corresponding log of flagged issues.</li>
+<li>After running the individual checks, you will combine all the
 generated logs into a single, comprehensive cleaning log that also
 includes a dataset to facilitate the review process. Concurrently, you
 will extract, prepare, and create a specialized cleaning log for
-handling “other” text responses.</p>
+handling “other” text responses.</li>
+</ul>
 <p>For detailed instructions and examples on running these functions,
-please see the <a href="2-validation-and-cleaning.html">Validation and
+please see the <a href="2-cleaning_and_validation.html">Validation and
 Cleaning Process</a> article.</p>
 </div>
 <div class="section level3">
@@ -113,8 +116,7 @@ steps have been successfully implemented.</li>
 contains the README, the raw data, the newly cleaned data, and the
 applied cleaning logs all in one place.</li>
 </ul>
-<p>For more details on this step, please see the <a href="3-applying-cleaning-logs.html">Applying Cleaning Logs</a>
-article.</p>
+<p>For more details on this step, please see the <a href="3-create_clean_data.html">Applying Cleaning Logs</a> article.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

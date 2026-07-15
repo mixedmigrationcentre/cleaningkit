@@ -3,6 +3,6 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   1-introduction: 1-introduction.html
-  2-validation-and-cleaning: 2-validation-and-cleaning.html
-  3-applying-cleaning-logs: 3-applying-cleaning-logs.html
-last_built: 2026-07-14T13:43Z
+  2-cleaning_and_validation: 2-cleaning_and_validation.html
+  3-create_clean_data: 3-create_clean_data.html
+last_built: 2026-07-15T12:31Z

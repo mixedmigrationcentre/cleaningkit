@@ -1,0 +1,269 @@
+# 2. Data Cleaning and Validation
+
+## Initialize the package and all required packages
+
+``` r
+
+rm(list = ls())
+library(cleaningkit)
+
+cleaningkit::load_packages()
+```
+
+## Read tool data
+
+``` r
+
+tool_survey <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
+tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
+```
+
+## Create other response db
+
+``` r
+
+other_labels <- cleaningkit::get_other_labels(
+  tool_survey = tool_survey,
+  other_text_types = c("Q31_2")
+)
+
+other_db <- cleaningkit::get_other_db(
+  other_labels = other_labels,
+  tool_choices = tool_choices,
+  tool_survey = tool_survey
+)
+```
+
+## Read raw data
+
+``` r
+
+raw_data <- cleaningkit::read_raw_data(
+  filename = "./data/data.xlsx",
+  tool_survey = tool_survey
+)
+```
+
+## Filter read raw data
+
+Perform a filter on the raw dataset for multiple cleaning logs outputs.
+
+## Prepare and save other responses
+
+Add the other responses questions you want to be included in the output
+in the question argument.
+
+``` r
+
+df <- cleaningkit::prepare_other_responses(
+  uuid_column = "_uuid",
+  raw_data = raw_data,
+  other_db = other_db,
+  tool_choices = tool_choices,
+  extra_columns = c("username"),
+  questions = c(
+    "Q34_1",
+    "Q35_1",
+    "Q37_1",
+    "Q38_1",
+    "Q39_1",
+    "Q41_1",
+    "Q33_1"
+  )
+)
+
+cleaningkit::save_other_responses(
+  df = df,
+  other_db = other_db,
+  save_location = "./output/other",
+  enumerator_id = "username"
+)
+```
+
+## Validate duration
+
+Flags anything below 15 mins and above 60 mins.
+
+``` r
+
+duration_log <- cleaningkit::validate_duration(
+  dataset = raw_data,
+  column_to_check = "_duration",
+  uuid_column = "_uuid",
+  log_name = "duration_log",
+  lower_bound = 15,
+  upper_bound = 60,
+  skip_label_row = TRUE
+)
+```
+
+## Validate completeness
+
+`metadata_cols = c("start","end","today","deviceid","username","phonenumber","_uuid")`
+has a list of all metadata columns that will be ingored during this
+check.
+
+``` r
+
+completeness_log <- cleaningkit::validate_completeness(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  log_name = "completeness_log",
+  min_content_cells = 100,
+  skip_label_row = TRUE
+)
+```
+
+## Validate refused
+
+Flags any surveys that have more than 6 “Refused” by default.
+
+``` r
+
+refused_log <- cleaningkit::validate_refused(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  log_name = "refused_log",
+  max_refused = 6,
+  refused_value = "Refused",
+  skip_label_row = TRUE
+)
+```
+
+## Validate back to back interviews
+
+Flags any interviews from the same enumerator if they are 10 mins apart
+by default.
+
+``` r
+
+back_to_back_log <- cleaningkit::validate_back_to_back(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  enumerator_column = "username",
+  start_column = "start",
+  end_column = "end",
+  log_name = "back_to_back_log",
+  threshold_hours = 0,
+  threshold_mins = 10,
+  gap_from = c("end", "start"),
+  skip_label_row = TRUE
+)
+```
+
+## Validate country of interview
+
+Flags if the respondent is being interviewed in their country of
+nationality.
+
+``` r
+
+country_of_interview_log <- cleaningkit::validate_country_of_interview(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  country_interview_col = "Q13",
+  nationality_col = "Q31",
+  journey_start_col = "Q41",
+  log_name = "country_of_interview_log",
+  skip_label_row = TRUE
+)
+```
+
+## Validate time of interview
+
+Flags the earliest and latest times of interview. By default earliest
+hour is 5am and latest hour is 10pm.
+
+``` r
+
+interview_time_log <- cleaningkit::validate_interview_time(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  time_column = "start",
+  log_name = "interview_time_log",
+  earliest_hour = 5,
+  latest_hour = 22,
+  flag_missing = FALSE,
+  skip_label_row = TRUE
+)
+```
+
+## Validate duplicate surveys
+
+Groups data by enumerator and checks surveys which are similar.
+
+``` r
+
+duplicate_log <- raw_data %>%
+  cleaningkit::validate_duplicates(
+    tool_survey = tool_survey,
+    idnk_value = "Don't know",
+    threshold = 30
+  )
+```
+
+## Validate duplicate questions
+
+Groups data by enumerator and checks questions passed for similarity.
+
+``` r
+
+duplicate_questions_log <- raw_data %>%
+  cleaningkit::validate_duplicate_questions(
+    questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
+  )
+```
+
+## Validate logical
+
+Reads the logical excel sheets and uses that for validating the survey.
+
+``` r
+
+logical_list <- openxlsx::read.xlsx("./resources/logical_checks_mmc.xlsx", sheet = 1)
+
+logical_check_log <- raw_data %>%
+  cleaningkit::validate_logical_with_list(
+    list_of_check = logical_list,
+    check_id_column = "check_id",
+    check_to_perform_column = "check_to_perform",
+    columns_to_clean_column = "columns_to_clean",
+    description_column = "description"
+  )
+```
+
+## Combine logs
+
+``` r
+
+list_of_log_all <- c(
+  duration_log,
+  completeness_log,
+  refused_log,
+  back_to_back_log,
+  country_of_interview_log,
+  interview_time_log,
+  logical_check_log,
+  duplicate_log,
+  duplicate_questions_log
+)
+
+combined_log <- cleaningkit::create_combined_log(
+  list_of_log = list_of_log_all,
+  dataset_name = "checked_dataset"
+)
+```
+
+## Create cleaning log
+
+``` r
+
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  output_path = paste0(
+    "output/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```

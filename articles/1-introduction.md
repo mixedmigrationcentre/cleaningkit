@@ -16,20 +16,21 @@ into two primary phases:
 
 ### 1. The Validation and Cleaning Process
 
-This initial phase involves running a suite of validation functions (all
-starting with `validate_`). Each of these functions performs a specific
-check on your dataset and generates a corresponding log of flagged
-issues.
+This initial phase involves:
 
-After running the individual checks, you will combine all the generated
-logs into a single, comprehensive cleaning log that also includes a
-dataset to facilitate the review process. Concurrently, you will
-extract, prepare, and create a specialized cleaning log for handling
-“other” text responses.
+- Running a suite of validation functions (all starting with
+  `validate_`).
+- Each of these functions performs a specific check on your dataset and
+  generates a corresponding log of flagged issues.
+- After running the individual checks, you will combine all the
+  generated logs into a single, comprehensive cleaning log that also
+  includes a dataset to facilitate the review process. Concurrently, you
+  will extract, prepare, and create a specialized cleaning log for
+  handling “other” text responses.
 
 For detailed instructions and examples on running these functions,
 please see the [Validation and Cleaning
-Process](2-validation-and-cleaning.md) article.
+Process](2-cleaning_and_validation.md) article.
 
 ### 2. Applying the Cleaning Logs
 
@@ -49,4 +50,4 @@ This phase involves:
   applied cleaning logs all in one place.
 
 For more details on this step, please see the [Applying Cleaning
-Logs](3-applying-cleaning-logs.md) article.
+Logs](3-create_clean_data.md) article.
