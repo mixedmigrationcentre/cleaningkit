@@ -30,9 +30,9 @@ pak::pak("mixedmigrationcentre/cleaningkit")
 
 For a comprehensive overview of the package workflow, please refer to the following guides:
 
-* [1. Introduction](vignettes/1-introduction.Rmd)
-* [2. Validation and Cleaning Process](vignettes/2-validation-and-cleaning.Rmd)
-* [3. Applying Cleaning Logs](vignettes/3-applying-cleaning-logs.Rmd)
+* [1. Introduction](https://mixedmigrationcentre.github.io/cleaningkit/articles/1-introduction.html)
+* [2. Data Cleaning and Validation](https://mixedmigrationcentre.github.io/cleaningkit/articles/2-cleaning_and_validation.html)
+* [3. Create Clean Data](https://mixedmigrationcentre.github.io/cleaningkit/articles/3-create_clean_data.html)
 
 
 ## How to use it
