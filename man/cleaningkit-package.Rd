@@ -6,6 +6,8 @@
 \alias{cleaningkit-package}
 \title{cleaningkit: What the Package Does (One Line, Title Case)}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 This package offers an automated toolkit for streamlining 4Mi survey data cleaning and validation, enforcing protocols on data quality, sampling, and enumerator performance. It provides a standardized approach to checking interview consistency, identifying outliers, "other" text responses, and detecting potential fraud based on official SOPs.
 }
 \author{
