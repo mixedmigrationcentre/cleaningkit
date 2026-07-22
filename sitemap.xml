@@ -17,6 +17,7 @@
 <url><loc>/reference/check_constraints.html</loc></url>
 <url><loc>/reference/cleaningkit-package.html</loc></url>
 <url><loc>/reference/combine_reviewed_logs.html</loc></url>
+<url><loc>/reference/combine_sm_questions.html</loc></url>
 <url><loc>/reference/create_cleaning_log.html</loc></url>
 <url><loc>/reference/create_combined_log.html</loc></url>
 <url><loc>/reference/create_formated_wb.html</loc></url>
@@ -50,6 +51,7 @@
 <url><loc>/reference/read_tool_choices.html</loc></url>
 <url><loc>/reference/read_tool_survey.html</loc></url>
 <url><loc>/reference/remove_choice.html</loc></url>
+<url><loc>/reference/rename_sm_choice_label.html</loc></url>
 <url><loc>/reference/review_cleaned_data.html</loc></url>
 <url><loc>/reference/save_other_responses.html</loc></url>
 <url><loc>/reference/validate_back_to_back.html</loc></url>

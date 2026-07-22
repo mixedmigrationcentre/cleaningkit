@@ -13,6 +13,8 @@
   Constraints
 - [`combine_reviewed_logs()`](combine_reviewed_logs.md) : Combine
   Reviewed Logs into a Single Reviewer-Ready Log
+- [`combine_sm_questions()`](combine_sm_questions.md) : Combine multiple
+  ONA select-multiple questions into a single consolidated column
 - [`create_cleaning_log()`](create_cleaning_log.md) : Creates the final
   cleaning log workbook
 - [`create_combined_log()`](create_combined_log.md) : Combine Validation
@@ -45,6 +47,8 @@
   Sheet.
 - [`remove_choice()`](remove_choice.md) : Remove a Choice from a
   Space-Separated Select Multiple String
+- [`rename_sm_choice_label()`](rename_sm_choice_label.md) : Rename a
+  Choice Label in a Select-Multiple Question
 - [`review_cleaned_data()`](review_cleaned_data.md) : Review Cleaned
   Data Against the Raw Dataset and Cleaning Log
 - [`save_other_responses()`](save_other_responses.md) : Save Other
