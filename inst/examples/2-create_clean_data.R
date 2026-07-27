@@ -212,7 +212,7 @@ cleaningkit::export_final_output(
   raw_dataset = raw_data,
   clean_dataset = clean_data,
   combined_log = final_log,
-  output_path = "./output/P2P_cleaning_output.xlsx",
+  output_path = "./output/final/final_output.xlsx",
   project_name = "4Mi East Africa — Round 12",
   data_collection_round = "Round 12 — Q1 2025",
   prepared_by = "MMC Data Team"
