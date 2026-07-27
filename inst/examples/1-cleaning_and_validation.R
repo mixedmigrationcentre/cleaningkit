@@ -79,7 +79,7 @@ df <- cleaningkit::prepare_other_responses(
 cleaningkit::save_other_responses(
   df = df,
   other_db = other_db,
-  save_location = "./output/other",
+  save_location = "./output/other_responses",
   enumerator_id = "username"
 )
 
@@ -239,7 +239,7 @@ combined_log <- cleaningkit::create_combined_log(
 cleaningkit::create_cleaning_log(
   write_list = combined_log,
   output_path = paste0(
-    "output/",
+    "output/follow_ups/",
     Sys.Date(),
     "_follow-ups.xlsx"
   )
