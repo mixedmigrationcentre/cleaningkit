@@ -44,7 +44,7 @@ raw_data <- cleaningkit::read_raw_data(
 #----------------------------------
 cl <- cleaningkit::read_cleaning_log(
   raw_dataset = raw_data,
-  path = "./output/",
+  path = "./output/follow_ups/",
   sheet = 1,
   raw_uuid_column = "_uuid",
   uuid_col = "Survey UUID",
@@ -109,7 +109,7 @@ clean_data <- cleaningkit::apply_cleaning_log(
 # read and classify other responses
 #----------------------------------
 other_log <- cleaningkit::read_other_responses(
-  path = "./output/other",
+  path = "./output/other_responses/",
   dataset = clean_data$clean_dataset,
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
