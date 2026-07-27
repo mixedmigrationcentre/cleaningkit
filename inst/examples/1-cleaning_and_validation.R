@@ -12,6 +12,15 @@ cleaningkit::load_packages()
 # Read tool data
 #----------------------------------
 
+setup_project_folders(
+  base_path = here::here(),
+  extra_folders = NULL # any site-specific extras
+)
+
+#----------------------------------
+# Read tool data
+#----------------------------------
+
 tool_survey <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
 tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
 
