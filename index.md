@@ -36,6 +36,12 @@ properly.
 
 library(cleaningkit)
 load_packages()
+
+# create project folders (run once)
+setup_project_folders(
+  base_path = here::here(),
+  extra_folders = NULL # any site-specific extras
+)
 ```
 
 ### Data Cleaning and Validation

@@ -80,16 +80,25 @@
 <span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/load_packages.html">load_packages</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="read-tool-data">Read tool data<a class="anchor" aria-label="anchor" href="#read-tool-data"></a>
+<h2 id="setup-project-folders-run-once">Setup project folders (run once)<a class="anchor" aria-label="anchor" href="#setup-project-folders-run-once"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/setup_project_folders.html">setup_project_folders</a></span><span class="op">(</span></span>
+<span>  base_path <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu"><a href="https://here.r-lib.org/reference/here.html" class="external-link">here</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  extra_folders <span class="op">=</span> <span class="cn">NULL</span> <span class="co"># any site-specific extras</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="read-tool-data">Read tool data<a class="anchor" aria-label="anchor" href="#read-tool-data"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tool_survey</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_tool_survey.html">read_tool_survey</a></span><span class="op">(</span><span class="st">"./resources/tool.xlsx"</span><span class="op">)</span></span>
 <span><span class="va">tool_choices</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_tool_choices.html">read_tool_choices</a></span><span class="op">(</span><span class="st">"./resources/tool.xlsx"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="create-other-response-db">Create other response db<a class="anchor" aria-label="anchor" href="#create-other-response-db"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">other_labels</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/get_other_labels.html">get_other_labels</a></span><span class="op">(</span></span>
 <span>  tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
 <span>  other_text_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q31_2"</span><span class="op">)</span></span>
@@ -104,7 +113,7 @@
 <div class="section level2">
 <h2 id="read-raw-data">Read raw data<a class="anchor" aria-label="anchor" href="#read-raw-data"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">raw_data</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_raw_data.html">read_raw_data</a></span><span class="op">(</span></span>
 <span>  filename <span class="op">=</span> <span class="st">"./data/data.xlsx"</span>,</span>
 <span>  tool_survey <span class="op">=</span> <span class="va">tool_survey</span></span>
@@ -121,7 +130,7 @@ outputs.</p>
 </h2>
 <p>Add the other responses questions you want to be included in the
 output in the question argument.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  raw_data <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -150,7 +159,7 @@ output in the question argument.</p>
 <h2 id="validate-duration">Validate duration<a class="anchor" aria-label="anchor" href="#validate-duration"></a>
 </h2>
 <p>Flags anything below 15 mins and above 60 mins.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">duration_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duration.html">validate_duration</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  column_to_check <span class="op">=</span> <span class="st">"_duration"</span>,</span>
@@ -167,7 +176,7 @@ output in the question argument.</p>
 <p><code>metadata_cols = c("start","end","today","deviceid","username","phonenumber","_uuid")</code>
 has a list of all metadata columns that will be ingored during this
 check.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">completeness_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_completeness.html">validate_completeness</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -180,7 +189,7 @@ check.</p>
 <h2 id="validate-refused">Validate refused<a class="anchor" aria-label="anchor" href="#validate-refused"></a>
 </h2>
 <p>Flags any surveys that have more than 6 “Refused” by default.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">refused_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_refused.html">validate_refused</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -195,7 +204,7 @@ check.</p>
 </h2>
 <p>Flags any interviews from the same enumerator if they are 10 mins
 apart by default.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">back_to_back_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -214,7 +223,7 @@ apart by default.</p>
 </h2>
 <p>Flags if the respondent is being interviewed in their country of
 nationality.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">country_of_interview_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_country_of_interview.html">validate_country_of_interview</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -230,7 +239,7 @@ nationality.</p>
 </h2>
 <p>Flags the earliest and latest times of interview. By default earliest
 hour is 5am and latest hour is 10pm.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interview_time_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_time.html">validate_interview_time</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -246,7 +255,7 @@ hour is 5am and latest hour is 10pm.</p>
 <h2 id="validate-duplicate-surveys">Validate duplicate surveys<a class="anchor" aria-label="anchor" href="#validate-duplicate-surveys"></a>
 </h2>
 <p>Groups data by enumerator and checks surveys which are similar.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">duplicate_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duplicates.html">validate_duplicates</a></span><span class="op">(</span></span>
 <span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
@@ -259,7 +268,7 @@ hour is 5am and latest hour is 10pm.</p>
 </h2>
 <p>Groups data by enumerator and checks questions passed for
 similarity.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duplicate_questions.html">validate_duplicate_questions</a></span><span class="op">(</span></span>
 <span>    questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span>, <span class="st">"Q152_1"</span>, <span class="st">"P2P18_1"</span><span class="op">)</span></span>
@@ -270,8 +279,11 @@ similarity.</p>
 </h2>
 <p>Reads the logical excel sheets and uses that for validating the
 survey.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span><span class="st">"./resources/logical_checks_mmc.xlsx"</span>, sheet <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span></span>
+<span>  <span class="st">"./resources/logical_checks_mmc.xlsx"</span>,</span>
+<span>  sheet <span class="op">=</span> <span class="fl">1</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
@@ -285,7 +297,7 @@ survey.</p>
 <div class="section level2">
 <h2 id="combine-logs">Combine logs<a class="anchor" aria-label="anchor" href="#combine-logs"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">list_of_log_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="va">duration_log</span>,</span>
 <span>  <span class="va">completeness_log</span>,</span>
@@ -306,7 +318,7 @@ survey.</p>
 <div class="section level2">
 <h2 id="create-cleaning-log">Create cleaning log<a class="anchor" aria-label="anchor" href="#create-cleaning-log"></a>
 </h2>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>

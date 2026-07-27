@@ -89,7 +89,13 @@
 <p>Before running any other functions, you need to run <code><a href="reference/load_packages.html">load_packages()</a></code>. This ensures that all required dependencies for <code>cleaningkit</code> are installed and loaded properly.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">cleaningkit</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/load_packages.html">load_packages</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/load_packages.html">load_packages</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># create project folders (run once)</span></span>
+<span><span class="fu"><a href="reference/setup_project_folders.html">setup_project_folders</a></span><span class="op">(</span></span>
+<span>  base_path <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu"><a href="https://here.r-lib.org/reference/here.html" class="external-link">here</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  extra_folders <span class="op">=</span> <span class="cn">NULL</span> <span class="co"># any site-specific extras</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="data-cleaning-and-validation">Data Cleaning and Validation<a class="anchor" aria-label="anchor" href="#data-cleaning-and-validation"></a>
 </h3>

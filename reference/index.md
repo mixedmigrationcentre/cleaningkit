@@ -53,6 +53,8 @@
   Data Against the Raw Dataset and Cleaning Log
 - [`save_other_responses()`](save_other_responses.md) : Save Other
   Responses
+- [`setup_project_folders()`](setup_project_folders.md) : Set Up Project
+  Folder Structure
 - [`validate_back_to_back()`](validate_back_to_back.md) : Validate
   Back-to-Back Interviews
 - [`validate_completeness()`](validate_completeness.md) : Validate

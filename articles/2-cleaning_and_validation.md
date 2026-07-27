@@ -10,6 +10,16 @@ library(cleaningkit)
 cleaningkit::load_packages()
 ```
 
+## Setup project folders (run once)
+
+``` r
+
+setup_project_folders(
+  base_path = here::here(),
+  extra_folders = NULL # any site-specific extras
+)
+```
+
 ## Read tool data
 
 ``` r
@@ -220,7 +230,10 @@ Reads the logical excel sheets and uses that for validating the survey.
 
 ``` r
 
-logical_list <- openxlsx::read.xlsx("./resources/logical_checks_mmc.xlsx", sheet = 1)
+logical_list <- openxlsx::read.xlsx(
+  "./resources/logical_checks_mmc.xlsx",
+  sheet = 1
+)
 
 logical_check_log <- raw_data %>%
   cleaningkit::validate_logical_with_list(
