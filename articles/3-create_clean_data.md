@@ -52,7 +52,7 @@ Read the cleaning log file.
 
 cl <- cleaningkit::read_cleaning_log(
   raw_dataset = raw_data,
-  path = "./output/",
+  path = "./output/follow_ups/",
   sheet = 1,
   raw_uuid_column = "_uuid",
   uuid_col = "Survey UUID",
@@ -126,7 +126,7 @@ Read and classify other responses.
 ``` r
 
 other_log <- cleaningkit::read_other_responses(
-  path = "./output/other",
+  path = "./output/other_responses/",
   dataset = clean_data$clean_dataset,
   uuid_column = "_uuid",
   log_uuid_col = "uuid",

@@ -236,7 +236,7 @@ export_final_output(
   raw_dataset = raw_data, 
   clean_dataset = cleaned_data_list$dataset, 
   combined_log = final_log, 
-  output_path = "output/final_output.xlsx"
+  output_path = "output/final/final_output.xlsx"
 )
 ```
 
