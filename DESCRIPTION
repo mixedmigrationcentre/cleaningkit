@@ -21,6 +21,7 @@ Imports:
     purrr,
     readxl,
     rlang,
+    sf,
     stats,
     stringi,
     stringr,
