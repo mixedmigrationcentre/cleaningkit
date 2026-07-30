@@ -119,6 +119,10 @@
 <strong><code><a href="reference/validate_country_of_interview.html">validate_country_of_interview()</a></code></strong>: Flags cases where the interview country matches the respondent’s nationality or journey start.</li>
 <li>
 <strong><code><a href="reference/validate_back_to_back.html">validate_back_to_back()</a></code></strong>: Flags interviews conducted by the same enumerator with suspiciously short or negative gaps between them.</li>
+<li>
+<strong><code><a href="reference/validate_outliers.html">validate_outliers()</a></code></strong>: Flags interviews whose integer values are of much larger or smaller that the set for that column</li>
+<li>
+<strong><code><a href="reference/validate_spatial_proximity.html">validate_spatial_proximity()</a></code></strong>: Flags interviews whose distances from another is less than the threshhold distance provided</li>
 </ul>
 <p>Here is a quick look at how you can load your data and run a few validation checks:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -150,7 +154,15 @@
 <span>  <span class="fu"><a href="reference/validate_country_of_interview.html">validate_country_of_interview</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="co"># 9. Implausible back-to-back interviews (gap &lt; 10 minutes)</span></span>
 <span>  <span class="fu"><a href="reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span>threshold_mins <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 10. External logical checks (requires a checklist dataframe)</span></span>
+<span>  <span class="co"># 10. Spatial distance between two interviews per enumerator or for the entire dataset</span></span>
+<span>  <span class="fu"><a href="reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
+<span>    lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
+<span>    lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
+<span>    uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
+<span>    enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
+<span>    log_name <span class="op">=</span> <span class="st">"spatial_proximity_log"</span>,</span>
+<span>    distance_threshold_m <span class="op">=</span> <span class="fl">50</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co"># 11. External logical checks (requires a checklist dataframe)</span></span>
 <span>  <span class="fu"><a href="reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
 <span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
 <span>    check_id_column <span class="op">=</span> <span class="st">"check_id"</span>,</span>

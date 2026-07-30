@@ -75,3 +75,5 @@
   Integer and Numeric Columns
 - [`validate_refused()`](validate_refused.md) : Validate Refused
   Responses
+- [`validate_spatial_proximity()`](validate_spatial_proximity.md) :
+  Validate Spatial Proximity Between Surveys

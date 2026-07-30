@@ -75,6 +75,12 @@ dataset and a log of flagged issues.
 - **[`validate_back_to_back()`](reference/validate_back_to_back.md)**:
   Flags interviews conducted by the same enumerator with suspiciously
   short or negative gaps between them.
+- **[`validate_outliers()`](reference/validate_outliers.md)**: Flags
+  interviews whose integer values are of much larger or smaller that the
+  set for that column
+- **[`validate_spatial_proximity()`](reference/validate_spatial_proximity.md)**:
+  Flags interviews whose distances from another is less than the
+  threshhold distance provided
 
 Here is a quick look at how you can load your data and run a few
 validation checks:
@@ -109,7 +115,15 @@ checked_data <- raw_data |>
   validate_country_of_interview() |>
   # 9. Implausible back-to-back interviews (gap < 10 minutes)
   validate_back_to_back(threshold_mins = 10) |>
-  # 10. External logical checks (requires a checklist dataframe)
+  # 10. Spatial distance between two interviews per enumerator or for the entire dataset
+  validate_back_to_back(
+    lat_column = "_location_latitude",
+    lon_column = "_location_longitude",
+    uuid_column = "_uuid",
+    enumerator_column = "username",
+    log_name = "spatial_proximity_log",
+    distance_threshold_m = 50) |>
+  # 11. External logical checks (requires a checklist dataframe)
   validate_logical_with_list(
     list_of_check = logical_list,
     check_id_column = "check_id",
