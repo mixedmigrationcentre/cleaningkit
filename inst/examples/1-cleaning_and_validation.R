@@ -197,6 +197,18 @@ duplicate_questions_log <- raw_data %>%
   )
 
 #----------------------------------
+# validate outliers
+# looks through all integer questions and checks for any outliers
+# or checks on specific columns
+#----------------------------------
+outliers_log <- raw_data %>%
+  cleaningkit::validate_outliers(
+    columns_to_check = c("Q141_3"),
+    strongness_factor = 3,
+    min_unique_values = 5
+  )
+
+#----------------------------------
 # validate logical
 # reads the logical excel sheets and uses that for validating the survey
 #----------------------------------
