@@ -100,12 +100,18 @@ checked_data <- raw_data |>
   validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
   # 6. Duplicated answers for specific questions by the same enumerator
   validate_duplicate_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
-  # 7. Country of interview shouldn't match nationality or journey start
+  # 7. Outliers in all integer columns in the dataset or particular columns
+  validate_outliers(
+    columns_to_check = c("Q141_3"),
+    strongness_factor = 3,
+    min_unique_values = 5) |>
+  # 8. Country of interview shouldn't match nationality or journey start
   validate_country_of_interview() |>
-  # 8. Implausible back-to-back interviews (gap < 10 minutes)
+  # 9. Implausible back-to-back interviews (gap < 10 minutes)
   validate_back_to_back(threshold_mins = 10) |>
-  # 9. External logical checks (requires a checklist dataframe)
-  validate_logical_with_list(list_of_check = logical_list,
+  # 10. External logical checks (requires a checklist dataframe)
+  validate_logical_with_list(
+    list_of_check = logical_list,
     check_id_column = "check_id",
     check_to_perform_column = "check_to_perform",
     columns_to_clean_column = "columns_to_clean",

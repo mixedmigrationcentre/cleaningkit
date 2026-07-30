@@ -141,12 +141,18 @@
 <span>  <span class="fu"><a href="reference/validate_duplicates.html">validate_duplicates</a></span><span class="op">(</span>tool_survey <span class="op">=</span> <span class="va">survey_sheet</span>, threshold <span class="op">=</span> <span class="fl">7</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="co"># 6. Duplicated answers for specific questions by the same enumerator</span></span>
 <span>  <span class="fu"><a href="reference/validate_duplicate_questions.html">validate_duplicate_questions</a></span><span class="op">(</span>questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 7. Country of interview shouldn't match nationality or journey start</span></span>
+<span>  <span class="co"># 7. Outliers in all integer columns in the dataset or particular columns</span></span>
+<span>  <span class="fu"><a href="reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
+<span>    columns_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q141_3"</span><span class="op">)</span>,</span>
+<span>    strongness_factor <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>    min_unique_values <span class="op">=</span> <span class="fl">5</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co"># 8. Country of interview shouldn't match nationality or journey start</span></span>
 <span>  <span class="fu"><a href="reference/validate_country_of_interview.html">validate_country_of_interview</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 8. Implausible back-to-back interviews (gap &lt; 10 minutes)</span></span>
+<span>  <span class="co"># 9. Implausible back-to-back interviews (gap &lt; 10 minutes)</span></span>
 <span>  <span class="fu"><a href="reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span>threshold_mins <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 9. External logical checks (requires a checklist dataframe)</span></span>
-<span>  <span class="fu"><a href="reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span>list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
+<span>  <span class="co"># 10. External logical checks (requires a checklist dataframe)</span></span>
+<span>  <span class="fu"><a href="reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
+<span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
 <span>    check_id_column <span class="op">=</span> <span class="st">"check_id"</span>,</span>
 <span>    check_to_perform_column <span class="op">=</span> <span class="st">"check_to_perform"</span>,</span>
 <span>    columns_to_clean_column <span class="op">=</span> <span class="st">"columns_to_clean"</span>,</span>
