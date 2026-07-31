@@ -219,6 +219,35 @@ duplicate_questions_log <- raw_data %>%
   )
 ```
 
+## Validate outliers
+
+Outliers in all integer columns in the dataset or particular columns
+
+```{r}
+duplicate_questions_log <- raw_data %>%
+  cleaningkit::validate_outliers(
+    columns_to_check = c("Q141_3"),
+    strongness_factor = 3,
+    min_unique_values = 5
+  )
+```
+
+## Validate spatial distance
+
+Spatial distance between two interviews per enumerator or for the entire dataset
+
+```{r}
+duplicate_questions_log <- raw_data %>%
+  cleaningkit::validate_back_to_back(
+    lat_column = "_location_latitude",
+    lon_column = "_location_longitude",
+    uuid_column = "_uuid",
+    enumerator_column = "username",
+    log_name = "spatial_proximity_log",
+    distance_threshold_m = 50
+  )
+```
+
 ## Validate logical
 
 Reads the logical excel sheets and uses that for validating the survey.
