@@ -275,11 +275,40 @@ similarity.</p>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="validate-outliers">Validate outliers<a class="anchor" aria-label="anchor" href="#validate-outliers"></a>
+</h2>
+<p>Outliers in all integer columns in the dataset or particular
+columns</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
+<span>    columns_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q141_3"</span><span class="op">)</span>,</span>
+<span>    strongness_factor <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>    min_unique_values <span class="op">=</span> <span class="fl">5</span></span>
+<span>  <span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="validate-spatial-distance">Validate spatial distance<a class="anchor" aria-label="anchor" href="#validate-spatial-distance"></a>
+</h2>
+<p>Spatial distance between two interviews per enumerator or for the
+entire dataset</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
+<span>    lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
+<span>    lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
+<span>    uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
+<span>    enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
+<span>    log_name <span class="op">=</span> <span class="st">"spatial_proximity_log"</span>,</span>
+<span>    distance_threshold_m <span class="op">=</span> <span class="fl">50</span></span>
+<span>  <span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="validate-logical">Validate logical<a class="anchor" aria-label="anchor" href="#validate-logical"></a>
 </h2>
 <p>Reads the logical excel sheets and uses that for validating the
 survey.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span></span>
 <span>  <span class="st">"./resources/logical_checks_mmc.xlsx"</span>,</span>
 <span>  sheet <span class="op">=</span> <span class="fl">1</span></span>
@@ -297,7 +326,7 @@ survey.</p>
 <div class="section level2">
 <h2 id="combine-logs">Combine logs<a class="anchor" aria-label="anchor" href="#combine-logs"></a>
 </h2>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">list_of_log_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="va">duration_log</span>,</span>
 <span>  <span class="va">completeness_log</span>,</span>
@@ -318,7 +347,7 @@ survey.</p>
 <div class="section level2">
 <h2 id="create-cleaning-log">Create cleaning log<a class="anchor" aria-label="anchor" href="#create-cleaning-log"></a>
 </h2>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
