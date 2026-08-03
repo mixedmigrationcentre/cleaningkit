@@ -10,7 +10,9 @@
 \item{df}{An XLSForm survey or choices dataframe.}
 
 \item{preferred_language}{Optional exact label column name (e.g.
-\code{"label::Arabic (ar)"}) or substring (e.g. \code{"Arabic"}).}
+\code{"label::Arabic (ar)"}) or substring to match (e.g. \code{"English"},
+\code{"Arabic"}). When \code{NULL}, a bare \code{label} column is preferred;
+otherwise the first label column whose name contains the substring is used.}
 
 \item{fallback_to_name}{Logical; if \code{TRUE} (default) unresolved rows use
 the \code{name} column value.}
