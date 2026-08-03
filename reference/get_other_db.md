@@ -1,7 +1,7 @@
 # Get Other DB
 
-Processes the 'other_labels' alongside the survey inputs to map out the
-available choices for recoding.
+Processes `other_labels` alongside the survey and choices sheets to map
+out the available choices for recoding "other" responses.
 
 ## Usage
 
@@ -10,7 +10,7 @@ get_other_db(
   tool_survey,
   tool_choices,
   other_labels,
-  preferred_language = NULL
+  preferred_language = "English"
 )
 ```
 
@@ -26,18 +26,20 @@ get_other_db(
 
 - other_labels:
 
-  A dataframe retrieved from `get_other_labels`.
+  A dataframe retrieved from
+  [`get_other_labels()`](get_other_labels.md).
 
 - preferred_language:
 
-  Optional label language to prefer for the available choice labels used
-  to build the recoding dropdowns. May be an exact label column name or
-  a substring (e.g. `"Arabic"`). Should match the value passed to
+  Label column to prefer for the choice labels used to build the
+  recoding dropdowns. Should match the value passed to
   [`get_other_labels()`](get_other_labels.md) so question labels and
-  choice labels are in the same language. If `NULL` (the default), a
-  bare `label` column is preferred, else the first label column found.
+  choice labels are in the same language. Accepts an exact column name
+  or a substring. Defaults to `"English"` so that `label::English (en)`
+  is used automatically. Set to `NULL` to fall back to a bare `label`
+  column.
 
 ## Value
 
-A dataframe representing the mapping required for other responses
+A dataframe representing the mapping required for the other-responses
 database.

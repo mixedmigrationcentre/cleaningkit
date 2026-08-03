@@ -8,7 +8,7 @@ correspond to "other" responses.
 ``` r
 get_other_labels(
   tool_survey,
-  preferred_language = NULL,
+  preferred_language = "English",
   other_text_types = NULL
 )
 ```
@@ -21,18 +21,17 @@ get_other_labels(
 
 - preferred_language:
 
-  Optional label language to prefer for the question `full_label`. May
-  be an exact label column name (e.g. `"label::Arabic (ar)"`) or a
-  substring (e.g. `"Arabic"`). If `NULL` (the default), a bare `label`
-  column is preferred, else the first label column found; other
-  languages fill any gaps.
+  Label column to prefer for `full_label`. Accepts an exact column name
+  (e.g. `"label::English (en)"`) or a substring to match (e.g.
+  `"English"`, `"Arabic"`). Defaults to `"English"` so that
+  `label::English (en)` is picked up automatically on bilingual forms.
+  Set to `NULL` to fall back to a bare `label` column, then the first
+  label column found.
 
 - other_text_types:
 
-  Optional character vector of text question names whose text fields use
-  a different suffix (e.g. `"_2"`, `"_3"`). Pass the full question names
-  as they appear in the survey, for example `c("Q31_2", "Q45_3")`.
-  Defaults to `NULL` (no extra text types).
+  Optional character vector of additional text question names to include
+  (e.g. `c("Q31_2", "Q45_3")`). Default `NULL`.
 
 ## Value
 

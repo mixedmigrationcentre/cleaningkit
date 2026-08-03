@@ -24,7 +24,9 @@ present) so nothing resolves to `NA`.
 - preferred_language:
 
   Optional exact label column name (e.g. `"label::Arabic (ar)"`) or
-  substring (e.g. `"Arabic"`).
+  substring to match (e.g. `"English"`, `"Arabic"`). When `NULL`, a bare
+  `label` column is preferred; otherwise the first label column whose
+  name contains the substring is used.
 
 - fallback_to_name:
 

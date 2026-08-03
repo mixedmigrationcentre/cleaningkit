@@ -74,7 +74,9 @@ resolves to <code>NA</code>.</p>
 
 <dt id="arg-preferred-language">preferred_language<a class="anchor" aria-label="anchor" href="#arg-preferred-language"></a></dt>
 <dd><p>Optional exact label column name (e.g.
-<code>"label::Arabic (ar)"</code>) or substring (e.g. <code>"Arabic"</code>).</p></dd>
+<code>"label::Arabic (ar)"</code>) or substring to match (e.g. <code>"English"</code>,
+<code>"Arabic"</code>). When <code>NULL</code>, a bare <code>label</code> column is preferred;
+otherwise the first label column whose name contains the substring is used.</p></dd>
 
 
 <dt id="arg-fallback-to-name">fallback_to_name<a class="anchor" aria-label="anchor" href="#arg-fallback-to-name"></a></dt>
