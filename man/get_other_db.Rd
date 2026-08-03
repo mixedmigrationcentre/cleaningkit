@@ -8,7 +8,7 @@ get_other_db(
   tool_survey,
   tool_choices,
   other_labels,
-  preferred_language = NULL
+  preferred_language = "English"
 )
 }
 \arguments{
@@ -16,18 +16,20 @@ get_other_db(
 
 \item{tool_choices}{A dataframe representing the XLSForm choices sheet.}
 
-\item{other_labels}{A dataframe retrieved from \code{get_other_labels}.}
+\item{other_labels}{A dataframe retrieved from \code{get_other_labels()}.}
 
-\item{preferred_language}{Optional label language to prefer for the available
-choice labels used to build the recoding dropdowns. May be an exact label
-column name or a substring (e.g. \code{"Arabic"}). Should match the value
-passed to \code{get_other_labels()} so question labels and choice labels are
-in the same language. If \code{NULL} (the default), a bare \code{label}
-column is preferred, else the first label column found.}
+\item{preferred_language}{Label column to prefer for the choice labels used
+to build the recoding dropdowns. Should match the value passed to
+\code{get_other_labels()} so question labels and choice labels are in the
+same language. Accepts an exact column name or a substring. Defaults to
+\code{"English"} so that \code{label::English (en)} is used automatically.
+Set to \code{NULL} to fall back to a bare \code{label} column.}
 }
 \value{
-A dataframe representing the mapping required for other responses database.
+A dataframe representing the mapping required for the other-responses
+database.
 }
 \description{
-Processes the 'other_labels' alongside the survey inputs to map out the available choices for recoding.
+Processes \code{other_labels} alongside the survey and choices sheets to map
+out the available choices for recoding "other" responses.
 }

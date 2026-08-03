@@ -10,7 +10,9 @@
 #'
 #' @param df An XLSForm survey or choices dataframe.
 #' @param preferred_language Optional exact label column name (e.g.
-#'   \code{"label::Arabic (ar)"}) or substring (e.g. \code{"Arabic"}).
+#'   \code{"label::Arabic (ar)"}) or substring to match (e.g. \code{"English"},
+#'   \code{"Arabic"}). When \code{NULL}, a bare \code{label} column is preferred;
+#'   otherwise the first label column whose name contains the substring is used.
 #' @param fallback_to_name Logical; if \code{TRUE} (default) unresolved rows use
 #'   the \code{name} column value.
 #' @return A character vector of labels, one per row of \code{df}.
@@ -36,7 +38,10 @@
     return(rep(NA_character_, nrow(df)))
   }
 
-  # Order columns by preference.
+  # Order columns by preference:
+  #   1. preferred_language match (exact or substring)
+  #   2. bare "label" column (when no preferred_language given)
+  #   3. remaining columns in their original order (fallback languages)
   if (!is.null(preferred_language)) {
     pref <- label_cols[
       label_cols == preferred_language |
@@ -64,22 +69,25 @@
 
 #' Get Other Labels
 #'
-#' Retrieves text labels for questions in the XLSForm survey sheet that correspond to "other" responses.
+#' Retrieves text labels for questions in the XLSForm survey sheet that
+#' correspond to "other" responses.
 #'
 #' @param tool_survey A dataframe containing the XLSForm survey sheet.
-#' @param preferred_language Optional label language to prefer for the question
-#'   \code{full_label}. May be an exact label column name (e.g.
-#'   \code{"label::Arabic (ar)"}) or a substring (e.g. \code{"Arabic"}). If
-#'   \code{NULL} (the default), a bare \code{label} column is preferred, else the
-#'   first label column found; other languages fill any gaps.
-#' @param other_text_types Optional character vector of text question names
-#'   whose text fields use a different suffix (e.g. \code{"_2"}, \code{"_3"}).
-#'   Pass the full question names as they appear in the survey, for example
-#'   \code{c("Q31_2", "Q45_3")}. Defaults to \code{NULL} (no extra text types).
+#' @param preferred_language Label column to prefer for \code{full_label}.
+#'   Accepts an exact column name (e.g. \code{"label::English (en)"}) or a
+#'   substring to match (e.g. \code{"English"}, \code{"Arabic"}). Defaults to
+#'   \code{"English"} so that \code{label::English (en)} is picked up
+#'   automatically on bilingual forms. Set to \code{NULL} to fall back to a
+#'   bare \code{label} column, then the first label column found.
+#' @param other_text_types Optional character vector of additional text question
+#'   names to include (e.g. \code{c("Q31_2", "Q45_3")}). Default \code{NULL}.
 #' @return A dataframe containing the corresponding other labels.
 #' @export
-get_other_labels <- function(tool_survey, preferred_language = NULL,
-                             other_text_types = NULL) {
+get_other_labels <- function(
+  tool_survey,
+  preferred_language = "English",
+  other_text_types = NULL
+) {
   # Language-aware question labels: name -> best available full_label.
   survey_labels <- data.frame(
     ref_question = as.character(tool_survey$name),
@@ -88,25 +96,30 @@ get_other_labels <- function(tool_survey, preferred_language = NULL,
   )
 
   other_labels <- tool_survey %>%
-    filter(type == "text" & (str_detect(name, "_1$") | name %in% other_text_types)) %>%
-    mutate(
+    dplyr::filter(
+      type == "text" &
+        (stringr::str_detect(name, "_1$") | name %in% other_text_types)
+    ) %>%
+    dplyr::mutate(
       ref_question = as.character(lapply(relevant, get_ref_question))
     ) %>%
-    mutate(
+    dplyr::mutate(
       ref_question = ifelse(is.na(ref_question), name, ref_question)
     ) %>%
-    select(name, ref_question) %>%
-    left_join(survey_labels, by = "ref_question")
+    dplyr::select(name, ref_question) %>%
+    dplyr::left_join(survey_labels, by = "ref_question")
 
-  cat(green(" - SAVING (./resources/labels_questions_others.xlsx) ... \n"))
+  cat(crayon::green(
+    " - SAVING (./resources/labels_questions_others.xlsx) ... \n"
+  ))
 
   if (!dir.exists("resources")) {
     dir.create("resources", recursive = TRUE)
   }
-  write.xlsx(
+  openxlsx::write.xlsx(
     other_labels,
     "resources/labels_questions_others.xlsx",
-    overwrite = T
+    overwrite = TRUE
   )
 
   return(other_labels)
@@ -114,43 +127,48 @@ get_other_labels <- function(tool_survey, preferred_language = NULL,
 
 #' Get Other DB
 #'
-#' Processes the 'other_labels' alongside the survey inputs to map out the available choices for recoding.
+#' Processes \code{other_labels} alongside the survey and choices sheets to map
+#' out the available choices for recoding "other" responses.
 #'
 #' @param tool_survey A dataframe representing the XLSForm survey sheet.
 #' @param tool_choices A dataframe representing the XLSForm choices sheet.
-#' @param other_labels A dataframe retrieved from `get_other_labels`.
-#' @param preferred_language Optional label language to prefer for the available
-#'   choice labels used to build the recoding dropdowns. May be an exact label
-#'   column name or a substring (e.g. \code{"Arabic"}). Should match the value
-#'   passed to \code{get_other_labels()} so question labels and choice labels are
-#'   in the same language. If \code{NULL} (the default), a bare \code{label}
-#'   column is preferred, else the first label column found.
-#' @return A dataframe representing the mapping required for other responses database.
+#' @param other_labels A dataframe retrieved from \code{get_other_labels()}.
+#' @param preferred_language Label column to prefer for the choice labels used
+#'   to build the recoding dropdowns. Should match the value passed to
+#'   \code{get_other_labels()} so question labels and choice labels are in the
+#'   same language. Accepts an exact column name or a substring. Defaults to
+#'   \code{"English"} so that \code{label::English (en)} is used automatically.
+#'   Set to \code{NULL} to fall back to a bare \code{label} column.
+#' @return A dataframe representing the mapping required for the other-responses
+#'   database.
 #' @export
 get_other_db <- function(
   tool_survey,
   tool_choices,
   other_labels,
-  preferred_language = NULL
+  preferred_language = "English"
 ) {
   # generate other_db
   other_db <- other_labels %>%
-    left_join(
-      select(tool_survey, name, q_type, list_name),
+    dplyr::left_join(
+      dplyr::select(tool_survey, name, q_type, list_name),
       by = c("ref_question" = "name")
     ) %>%
-    left_join(select(tool_survey, name, relevant), by = "name") %>%
-    mutate(
-      option_other = str_replace_all(
-        str_extract(relevant, "\'.*\'"),
+    dplyr::left_join(
+      dplyr::select(tool_survey, name, relevant),
+      by = "name"
+    ) %>%
+    dplyr::mutate(
+      option_other = stringr::str_replace_all(
+        stringr::str_extract(relevant, "\'.*\'"),
         "'",
         ""
       )
     ) %>%
-    select(-relevant)
+    dplyr::select(-relevant)
 
-  # remove all of option_other from choices
-  tool_choices_sub <- filter(
+  # remove the "other" option from the choices available for recoding
+  tool_choices_sub <- dplyr::filter(
     tool_choices,
     list_name %in% other_db$list_name
   )
@@ -158,7 +176,7 @@ get_other_db <- function(
   for (r in seq_len(nrow(other_db))) {
     if (!is.na(other_db$option_other[r])) {
       tool_choices_sub <- tool_choices_sub %>%
-        filter(
+        dplyr::filter(
           !(list_name == other_db$list_name[r] &
             name == other_db$option_other[r])
         )
@@ -166,7 +184,7 @@ get_other_db <- function(
   }
 
   # Resolve choice labels in the preferred language (fallback across languages,
-  # then the choice name), so the recoding dropdowns are not English-only / NA.
+  # then the choice name), so recoding dropdowns are not English-only / NA.
   tool_choices_sub$resolved_label <- .best_label(
     tool_choices_sub,
     preferred_language
@@ -174,11 +192,11 @@ get_other_db <- function(
 
   # add list of available choices
   other_db <- other_db %>%
-    left_join(
+    dplyr::left_join(
       tool_choices_sub %>%
-        group_by(list_name) %>%
-        summarise(
-          num_choices = n(),
+        dplyr::group_by(list_name) %>%
+        dplyr::summarise(
+          num_choices = dplyr::n(),
           choices = paste0(resolved_label, collapse = ";;"),
           .groups = "drop"
         ),

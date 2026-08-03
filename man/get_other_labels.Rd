@@ -6,27 +6,27 @@
 \usage{
 get_other_labels(
   tool_survey,
-  preferred_language = NULL,
+  preferred_language = "English",
   other_text_types = NULL
 )
 }
 \arguments{
 \item{tool_survey}{A dataframe containing the XLSForm survey sheet.}
 
-\item{preferred_language}{Optional label language to prefer for the question
-\code{full_label}. May be an exact label column name (e.g.
-\code{"label::Arabic (ar)"}) or a substring (e.g. \code{"Arabic"}). If
-\code{NULL} (the default), a bare \code{label} column is preferred, else the
-first label column found; other languages fill any gaps.}
+\item{preferred_language}{Label column to prefer for \code{full_label}.
+Accepts an exact column name (e.g. \code{"label::English (en)"}) or a
+substring to match (e.g. \code{"English"}, \code{"Arabic"}). Defaults to
+\code{"English"} so that \code{label::English (en)} is picked up
+automatically on bilingual forms. Set to \code{NULL} to fall back to a
+bare \code{label} column, then the first label column found.}
 
-\item{other_text_types}{Optional character vector of text question names
-whose text fields use a different suffix (e.g. \code{"_2"}, \code{"_3"}).
-Pass the full question names as they appear in the survey, for example
-\code{c("Q31_2", "Q45_3")}. Defaults to \code{NULL} (no extra text types).}
+\item{other_text_types}{Optional character vector of additional text question
+names to include (e.g. \code{c("Q31_2", "Q45_3")}). Default \code{NULL}.}
 }
 \value{
 A dataframe containing the corresponding other labels.
 }
 \description{
-Retrieves text labels for questions in the XLSForm survey sheet that correspond to "other" responses.
+Retrieves text labels for questions in the XLSForm survey sheet that
+correspond to "other" responses.
 }
