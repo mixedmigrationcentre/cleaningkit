@@ -28,6 +28,7 @@
 <url><loc>/reference/dot-get_val.html</loc></url>
 <url><loc>/reference/dot-get_vocab.html</loc></url>
 <url><loc>/reference/dot-make_selected_val_fn.html</loc></url>
+<url><loc>/reference/dot-normalise_label_col.html</loc></url>
 <url><loc>/reference/dot-remove_token.html</loc></url>
 <url><loc>/reference/dot-sanitize_utf8.html</loc></url>
 <url><loc>/reference/dot-sm_sub_cols.html</loc></url>

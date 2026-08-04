@@ -42,9 +42,9 @@
   Filled Other-Responses Files
 - [`read_raw_data()`](read_raw_data.md) : Read Raw Main Dataset
 - [`read_tool_choices()`](read_tool_choices.md) : Read XLSForm Choices
-  Sheet.
+  Sheet
 - [`read_tool_survey()`](read_tool_survey.md) : Read XLSForm Survey
-  Sheet.
+  Sheet
 - [`remove_choice()`](remove_choice.md) : Remove a Choice from a
   Space-Separated Select Multiple String
 - [`rename_sm_choice_label()`](rename_sm_choice_label.md) : Rename a
