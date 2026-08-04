@@ -1,29 +1,38 @@
 #' Validate Spatial Proximity Between Surveys
 #'
 #' Checks how close together surveys were conducted by computing the geodesic
-#' distance between every pair of GPS coordinates. Flags pairs whose interviews
-#' were conducted within \code{distance_threshold_m} metres of each other, which
-#' may indicate that surveys were collected from the same household or location
-#' rather than from distinct respondents.
+#' distance between every pair of GPS coordinates and grouping nearby surveys
+#' into spatial clusters. Each survey that belongs to a cluster of two or more
+#' surveys within \code{distance_threshold_m} metres is flagged with one log
+#' row, regardless of how many other surveys are in the same cluster.
 #'
 #' @details
-#' When \code{enumerator_column} is supplied, pairwise distances are computed
-#' only within each enumerator's own surveys — a proximity flag is only raised
-#' if the same enumerator conducted two nearby interviews. When
-#' \code{enumerator_column} is \code{NULL}, all surveys in the dataset are
-#' compared against each other regardless of who collected them.
+#' \strong{Why clusters instead of pairs?}
+#' A naive pairwise approach flags every combination of nearby surveys: a camp
+#' with 20 surveys within 50 m of each other produces 20×19/2 = 190 pairs and
+#' 380 log rows. The cluster approach groups all transitively connected surveys
+#' (connected components in the proximity graph) and emits exactly one row per
+#' survey in a cluster, so the same 20 surveys produce 20 rows. The output size
+#' is therefore proportional to the number of suspicious surveys, not to the
+#' square of them.
 #'
-#' GPS coordinates from ONA exports are decimal degrees on the WGS84 datum
-#' (EPSG:4326). Distances are computed as geodesic metres using
-#' \code{sf::st_distance()}, which accounts for the curvature of the earth.
+#' \strong{What is a cluster?}
+#' Two surveys are \emph{directly} connected if they are within
+#' \code{distance_threshold_m} metres of each other. A cluster is the maximal
+#' set of surveys where every survey is reachable from every other via a chain
+#' of direct connections (a connected component in graph terms). A cluster of
+#' size 1 is not flagged.
 #'
-#' Each flagged \emph{pair} produces two log rows (one per survey), sharing a
-#' \code{check_binding} so both surveys are coloured as a group in the review
-#' workbook. A survey that is close to multiple others produces multiple pairs,
-#' each with its own binding.
+#' \strong{Enumerator grouping:}
+#' When \code{enumerator_column} is supplied, clustering is performed
+#' independently within each enumerator's surveys. A proximity flag is only
+#' raised when the same enumerator collected multiple nearby interviews. When
+#' \code{enumerator_column} is \code{NULL}, all surveys are compared globally.
 #'
-#' Surveys with missing or non-numeric coordinates are excluded from comparison
-#' and a warning is issued with the count.
+#' \strong{check_binding:}
+#' All surveys in the same cluster share one \code{check_binding} value
+#' (\code{"proximity ~/~ <cluster_id>"}), so they are coloured as a group in
+#' the review workbook.
 #'
 #' @param dataset A dataframe or a list containing a dataframe named
 #'   \code{checked_dataset}.
@@ -34,25 +43,24 @@
 #' @param uuid_column Name of the unique-identifier column. Default
 #'   \code{"_uuid"}.
 #' @param enumerator_column Name of the enumerator column. When supplied,
-#'   proximity is checked only within each enumerator's surveys. When
+#'   clustering is performed within each enumerator's surveys only. When
 #'   \code{NULL}, all surveys are compared globally. Default \code{"username"}.
 #' @param log_name Name of the log element in the returned list. Default
 #'   \code{"spatial_proximity_log"}.
-#' @param distance_threshold_m Numeric. Surveys closer than this many metres
-#'   are flagged. Default \code{50} (roughly the footprint of one household
-#'   compound).
+#' @param distance_threshold_m Numeric. Two surveys are considered in proximity
+#'   if they are within this many metres of each other. Default \code{50}.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
-#'   of the dataset is treated as the ONA label/description row and excluded
-#'   from all calculations.
+#'   of the dataset is treated as the ONA label/description row and excluded.
 #'
 #' @return A list containing:
 #'   \item{checked_dataset}{The original dataset, unchanged.}
-#'   \item{<log_name>}{A dataframe with columns \code{uuid},
-#'     \code{old_value} (the coordinate pair as \code{"lat, lon"}),
+#'   \item{<log_name>}{A dataframe with one row per survey that belongs to a
+#'     spatial cluster, with columns \code{uuid},
+#'     \code{old_value} (coordinates as \code{"lat, lon"}),
 #'     \code{question} (\code{"gps_location"}),
-#'     \code{issue} (distance in metres to the nearest flagged neighbour,
-#'     with enumerator and paired uuid),
-#'     and \code{check_binding} (shared between both surveys in a flagged pair).}
+#'     \code{issue} (cluster size, nearest neighbour distance, and all cluster
+#'     member UUIDs), and \code{check_binding} (shared by all surveys in the
+#'     same cluster).}
 #' @export
 validate_spatial_proximity <- function(
   dataset,
@@ -116,7 +124,7 @@ validate_spatial_proximity <- function(
   lats <- suppressWarnings(as.numeric(df[[lat_column]]))
   lons <- suppressWarnings(as.numeric(df[[lon_column]]))
 
-  # ---- handle missing coordinates ----
+  # ---- handle missing / invalid coordinates ----
   valid_coords <- !is.na(lats) &
     !is.na(lons) &
     is.finite(lats) &
@@ -159,10 +167,37 @@ validate_spatial_proximity <- function(
     crs = 4326
   )
 
-  # ---- pairwise distance computation per group ----
-  log_parts <- list()
+  # ---- union-find helpers for connected-component clustering ----
+  # Each survey starts in its own component. When two surveys are within the
+  # threshold, their components are merged. The result is a cluster ID per survey.
+  uf_find <- function(parent, i) {
+    while (parent[i] != i) {
+      parent[i] <- parent[parent[i]] # path compression
+      i <- parent[i]
+    }
+    i
+  }
+  uf_union <- function(parent, rank, i, j) {
+    ri <- uf_find(parent, i)
+    rj <- uf_find(parent, j)
+    if (ri == rj) {
+      return(list(parent = parent, rank = rank))
+    }
+    if (rank[ri] < rank[rj]) {
+      tmp <- ri
+      ri <- rj
+      rj <- tmp
+    }
+    parent[rj] <- ri
+    if (rank[ri] == rank[rj]) {
+      rank[ri] <- rank[ri] + 1L
+    }
+    list(parent = parent, rank = rank)
+  }
 
-  groups <- unique(enum_v[!is.na(enum_v) & enum_v != ""])
+  # ---- cluster per enumerator group ----
+  log_parts <- list()
+  groups <- unique(enum_v[!is.na(enum_v) & nzchar(enum_v)])
 
   for (grp in groups) {
     grp_idx <- which(enum_v == grp)
@@ -174,70 +209,99 @@ validate_spatial_proximity <- function(
     grp_uuids <- uuids_v[grp_idx]
     grp_lats <- lats_v[grp_idx]
     grp_lons <- lons_v[grp_idx]
+    n <- length(grp_idx)
 
-    # compute full n×n geodesic distance matrix (metres)
+    # geodesic distance matrix (metres)
     dist_mat <- sf::st_distance(grp_pts)
-    class(dist_mat) <- "matrix" # strip units for numeric comparison
+    class(dist_mat) <- "matrix"
     storage.mode(dist_mat) <- "numeric"
 
-    n <- length(grp_idx)
+    # union-find: one component per survey initially
+    parent <- seq_len(n)
+    rank <- integer(n)
+
+    # record the minimum distance each survey has to any neighbour within threshold
+    min_dist <- rep(NA_real_, n)
 
     for (i in seq_len(n - 1L)) {
       for (j in seq(i + 1L, n)) {
-        d_m <- dist_mat[i, j]
-        if (is.na(d_m) || d_m > distance_threshold_m) {
+        d <- dist_mat[i, j]
+        if (is.na(d) || d > distance_threshold_m) {
           next
         }
+        # merge the two surveys into the same cluster
+        uf_res <- uf_union(parent, rank, i, j)
+        parent <- uf_res$parent
+        rank <- uf_res$rank
+        # track nearest neighbour distance
+        if (is.na(min_dist[i]) || d < min_dist[i]) {
+          min_dist[i] <- d
+        }
+        if (is.na(min_dist[j]) || d < min_dist[j]) min_dist[j] <- d
+      }
+    }
 
-        uuid_i <- grp_uuids[i]
-        uuid_j <- grp_uuids[j]
+    # resolve cluster IDs (canonical root for each survey)
+    cluster_ids <- vapply(
+      seq_len(n),
+      function(i) uf_find(parent, i),
+      integer(1)
+    )
 
-        d_label <- round(d_m, 1)
-        enum_tag <- if (use_enumerator) {
-          paste0(" by enumerator '", grp, "'")
+    # only keep clusters of size >= 2
+    cluster_sizes <- table(cluster_ids)
+    multi_clusters <- as.integer(names(cluster_sizes[cluster_sizes >= 2]))
+
+    if (length(multi_clusters) == 0) {
+      next
+    }
+
+    enum_tag <- if (use_enumerator) paste0(" (enumerator: '", grp, "')") else ""
+
+    for (cid in multi_clusters) {
+      members <- which(cluster_ids == cid)
+      cluster_size <- length(members)
+      member_uuids <- grp_uuids[members]
+
+      # stable cluster identifier: sorted UUIDs collapsed
+      cluster_key <- paste(sort(member_uuids), collapse = "_")
+      binding <- paste0("proximity ~/~ ", cluster_key)
+
+      for (k in members) {
+        nearest_m <- if (!is.na(min_dist[k])) {
+          round(min_dist[k], 1)
         } else {
-          ""
+          NA_real_
         }
 
-        issue_i <- paste0(
-          "Survey is ",
-          d_label,
-          "m from survey ",
-          uuid_j,
-          enum_tag,
-          " — possible same-household or fabricated interview ",
-          "(threshold: ",
+        # list the other members so the reviewer can see the full cluster
+        other_uuids <- member_uuids[member_uuids != grp_uuids[k]]
+        others_str <- paste(other_uuids, collapse = ", ")
+
+        issue <- paste0(
+          "Survey belongs to a spatial cluster of ",
+          cluster_size,
+          " surveys within ",
           distance_threshold_m,
-          "m)"
-        )
-        issue_j <- paste0(
-          "Survey is ",
-          d_label,
-          "m from survey ",
-          uuid_i,
+          "m",
           enum_tag,
-          " — possible same-household or fabricated interview ",
-          "(threshold: ",
-          distance_threshold_m,
-          "m)"
+          ". Nearest neighbour: ",
+          nearest_m,
+          "m. ",
+          "Other surveys in cluster: ",
+          others_str,
+          " — possible same-household or fabricated interviews."
         )
 
-        # binding: lexicographic min/max of the pair so both share one colour
-        binding <- paste0(
-          "proximity ~/~ ",
-          min(uuid_i, uuid_j),
-          " ~/~ ",
-          max(uuid_i, uuid_j)
-        )
-
-        log_parts[[paste0(uuid_i, "__", uuid_j)]] <- data.frame(
-          uuid = c(uuid_i, uuid_j),
-          old_value = c(
-            paste0(round(grp_lats[i], 6), ", ", round(grp_lons[i], 6)),
-            paste0(round(grp_lats[j], 6), ", ", round(grp_lons[j], 6))
+        log_parts[[paste0(cluster_key, "__", grp_uuids[k])]] <- data.frame(
+          uuid = grp_uuids[k],
+          old_value = paste0(
+            round(grp_lats[k], 6),
+            ", ",
+            round(grp_lons[k], 6)
           ),
           question = "gps_location",
-          issue = c(issue_i, issue_j),
+          issue = issue,
           check_binding = binding,
           stringsAsFactors = FALSE
         )
@@ -254,14 +318,14 @@ validate_spatial_proximity <- function(
     log <- log[order(log$check_binding, log$uuid), ]
   }
 
-  n_pairs <- length(log_parts)
+  n_clusters <- length(unique(log$check_binding[log$check_binding != ""]))
   n_surveys <- length(unique(log$uuid))
   message(
     "validate_spatial_proximity: ",
-    n_pairs,
-    " flagged pair(s) involving ",
     n_surveys,
-    " survey(s)",
+    " survey(s) across ",
+    n_clusters,
+    " spatial cluster(s) flagged",
     if (use_enumerator) " (checked per enumerator)" else " (checked globally)",
     "."
   )
