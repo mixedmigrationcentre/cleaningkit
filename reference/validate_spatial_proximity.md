@@ -1,10 +1,11 @@
 # Validate Spatial Proximity Between Surveys
 
 Checks how close together surveys were conducted by computing the
-geodesic distance between every pair of GPS coordinates. Flags pairs
-whose interviews were conducted within `distance_threshold_m` metres of
-each other, which may indicate that surveys were collected from the same
-household or location rather than from distinct respondents.
+geodesic distance between every pair of GPS coordinates and grouping
+nearby surveys into spatial clusters. Each survey that belongs to a
+cluster of two or more surveys within `distance_threshold_m` metres is
+flagged with one log row, regardless of how many other surveys are in
+the same cluster.
 
 ## Usage
 
@@ -43,8 +44,8 @@ validate_spatial_proximity(
 
 - enumerator_column:
 
-  Name of the enumerator column. When supplied, proximity is checked
-  only within each enumerator's surveys. When `NULL`, all surveys are
+  Name of the enumerator column. When supplied, clustering is performed
+  within each enumerator's surveys only. When `NULL`, all surveys are
   compared globally. Default `"username"`.
 
 - log_name:
@@ -54,14 +55,13 @@ validate_spatial_proximity(
 
 - distance_threshold_m:
 
-  Numeric. Surveys closer than this many metres are flagged. Default
-  `50` (roughly the footprint of one household compound).
+  Numeric. Two surveys are considered in proximity if they are within
+  this many metres of each other. Default `50`.
 
 - skip_label_row:
 
   Logical. If `TRUE` (the default), the first row of the dataset is
-  treated as the ONA label/description row and excluded from all
-  calculations.
+  treated as the ONA label/description row and excluded.
 
 ## Value
 
@@ -73,29 +73,35 @@ A list containing:
 
 - \<log_name\>:
 
-  A dataframe with columns `uuid`, `old_value` (the coordinate pair as
-  `"lat, lon"`), `question` (`"gps_location"`), `issue` (distance in
-  metres to the nearest flagged neighbour, with enumerator and paired
-  uuid), and `check_binding` (shared between both surveys in a flagged
-  pair).
+  A dataframe with one row per survey that belongs to a spatial cluster,
+  with columns `uuid`, `old_value` (coordinates as `"lat, lon"`),
+  `question` (`"gps_location"`), `issue` (cluster size, nearest
+  neighbour distance, and all cluster member UUIDs), and `check_binding`
+  (shared by all surveys in the same cluster).
 
 ## Details
 
-When `enumerator_column` is supplied, pairwise distances are computed
-only within each enumerator's own surveys — a proximity flag is only
-raised if the same enumerator conducted two nearby interviews. When
-`enumerator_column` is `NULL`, all surveys in the dataset are compared
-against each other regardless of who collected them.
+**Why clusters instead of pairs?** A naive pairwise approach flags every
+combination of nearby surveys: a camp with 20 surveys within 50 m of
+each other produces 20×19/2 = 190 pairs and 380 log rows. The cluster
+approach groups all transitively connected surveys (connected components
+in the proximity graph) and emits exactly one row per survey in a
+cluster, so the same 20 surveys produce 20 rows. The output size is
+therefore proportional to the number of suspicious surveys, not to the
+square of them.
 
-GPS coordinates from ONA exports are decimal degrees on the WGS84 datum
-(EPSG:4326). Distances are computed as geodesic metres using
-[`sf::st_distance()`](https://r-spatial.github.io/sf/reference/geos_measures.html),
-which accounts for the curvature of the earth.
+**What is a cluster?** Two surveys are *directly* connected if they are
+within `distance_threshold_m` metres of each other. A cluster is the
+maximal set of surveys where every survey is reachable from every other
+via a chain of direct connections (a connected component in graph
+terms). A cluster of size 1 is not flagged.
 
-Each flagged *pair* produces two log rows (one per survey), sharing a
-`check_binding` so both surveys are coloured as a group in the review
-workbook. A survey that is close to multiple others produces multiple
-pairs, each with its own binding.
+**Enumerator grouping:** When `enumerator_column` is supplied,
+clustering is performed independently within each enumerator's surveys.
+A proximity flag is only raised when the same enumerator collected
+multiple nearby interviews. When `enumerator_column` is `NULL`, all
+surveys are compared globally.
 
-Surveys with missing or non-numeric coordinates are excluded from
-comparison and a warning is issued with the count.
+**check_binding:** All surveys in the same cluster share one
+`check_binding` value (`"proximity ~/~ <cluster_id>"`), so they are
+coloured as a group in the review workbook.
