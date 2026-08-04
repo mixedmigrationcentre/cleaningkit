@@ -2,21 +2,35 @@
 % Please edit documentation in R/read_tool.R
 \name{read_tool_choices}
 \alias{read_tool_choices}
-\title{Read XLSForm Choices Sheet.}
+\title{Read XLSForm Choices Sheet}
 \usage{
-read_tool_choices(filepath, sheet_name = "choices")
+read_tool_choices(filepath, sheet_name = "choices", label_column = "English")
 }
 \arguments{
 \item{filepath}{Path to the XLSForm XLS/XLSX tool file.}
 
-\item{sheet_name}{Name of the choices sheet (default is "choices").}
+\item{sheet_name}{Name of the choices sheet. Default \code{"choices"}.}
+
+\item{label_column}{The label column to normalise as the primary \code{label}
+column. Accepts an exact column name (e.g. \code{"label::English (en)"}),
+a substring to match (e.g. \code{"English"}), or \code{NULL} to use a
+bare \code{label} column if present. Default \code{"English"}, which
+automatically picks up \code{label::English (en)}.}
 }
 \value{
-A dataframe containing the processed choices sheet with columns
-\code{list_name}, \code{name}, and \code{label}.
+A dataframe containing the processed choices sheet. Always includes
+\code{list_name}, \code{name}, and \code{label} (the resolved preferred
+language label), plus any additional label columns present in the sheet.
 }
 \description{
-Reads and processes the choices sheet from an XLSForm tool. Column names
-are lowercased, rows without a \code{list_name} are removed, and
-duplicate entries are dropped.
+Reads and processes the choices sheet from an XLSForm tool. Column names are
+lowercased, rows without a \code{list_name} are removed, and duplicate
+entries are dropped.
+}
+\details{
+A normalised \code{label} column is created from whichever label column
+matches \code{label_column} (e.g. \code{label::English (en)}). This ensures
+\code{get_label_from_name()}, \code{get_name_from_label()}, and all other
+downstream functions that reference \code{tool_choices$label} work
+consistently regardless of form language setup.
 }

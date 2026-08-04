@@ -2,21 +2,36 @@
 % Please edit documentation in R/read_tool.R
 \name{read_tool_survey}
 \alias{read_tool_survey}
-\title{Read XLSForm Survey Sheet.}
+\title{Read XLSForm Survey Sheet}
 \usage{
-read_tool_survey(filepath, sheet_name = "survey")
+read_tool_survey(filepath, sheet_name = "survey", label_column = "English")
 }
 \arguments{
 \item{filepath}{Path to the XLSForm XLS/XLSX tool file.}
 
-\item{sheet_name}{Name of the survey sheet (default is "survey").}
+\item{sheet_name}{Name of the survey sheet. Default \code{"survey"}.}
+
+\item{label_column}{The label column to normalise as the primary \code{label}
+column. Accepts an exact column name (e.g. \code{"label::English (en)"}),
+a substring to match (e.g. \code{"English"}), or \code{NULL} to use a
+bare \code{label} column if present. Default \code{"English"}, which
+automatically picks up \code{label::English (en)}.}
 }
 \value{
-A dataframe containing the processed survey sheet with added
-\code{q_type} and \code{list_name} columns.
+A dataframe containing the processed survey sheet. Always includes a
+\code{label} column (the resolved preferred language label), \code{q_type},
+and \code{list_name}, plus all other original columns.
 }
 \description{
 Reads and processes the survey sheet from an XLSForm tool. Column names are
-lowercased, rows without a name are removed, and \code{q_type} and
+lowercased, rows without a \code{name} are removed, and \code{q_type} and
 \code{list_name} columns are extracted from the \code{type} column.
+}
+\details{
+A normalised \code{label} column is created from whichever label column
+matches \code{label_column} (e.g. \code{label::English (en)}). This ensures
+all downstream functions that reference \code{tool_survey$label} work
+consistently regardless of whether the form uses a bare \code{label} column
+or a language-tagged one. All original label columns are preserved alongside
+the normalised one.
 }
