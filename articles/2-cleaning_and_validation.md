@@ -230,7 +230,7 @@ Outliers in all integer columns in the dataset or particular columns
 
 ``` r
 
-duplicate_questions_log <- raw_data %>%
+outliers_log <- raw_data %>%
   cleaningkit::validate_outliers(
     columns_to_check = c("Q141_3"),
     strongness_factor = 3,
@@ -245,8 +245,8 @@ dataset
 
 ``` r
 
-duplicate_questions_log <- raw_data %>%
-  cleaningkit::validate_back_to_back(
+spatial_proximity_log <- raw_data %>%
+  cleaningkit::validate_spatial_proximity(
     lat_column = "_location_latitude",
     lon_column = "_location_longitude",
     uuid_column = "_uuid",
@@ -256,9 +256,120 @@ duplicate_questions_log <- raw_data %>%
   )
 ```
 
+## Validate interview location
+
+Checks the GPS point recorded during each in-person interview against
+the country and the city the respondent claims the interview took place
+in. Three separate flags can be raised: a missing or invalid GPS point,
+a GPS point that falls outside the claimed country, and a GPS point
+further than `city_radius_km` from the centre of the claimed city.
+
+The country check uses country polygons from `rnaturalearthdata`. The
+city check geocodes each unique city + country pair **once** through the
+OpenStreetMap Nominatim API, so an internet connection is needed and the
+check takes a little longer the first time it runs on a new dataset.
+City names in the data should be spelled in English and reasonably match
+OpenStreetMap (e.g. “Kampala”, “Addis Ababa”); any city that cannot be
+geocoded is skipped with a warning.
+
+``` r
+
+interview_location_log <- cleaningkit::validate_interview_location(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  lat_column = "_location_latitude",
+  lon_column = "_location_longitude",
+  country_question = "Q13",
+  city_question = "Q14",
+  log_name = "interview_location_log",
+  city_radius_km = 75,
+  check_country = TRUE,
+  check_city = TRUE,
+  flag_missing_gps = TRUE,
+  nominatim_delay_s = 1,
+  skip_label_row = TRUE
+)
+```
+
+Either check can be switched off, which is useful when there is no
+internet connection or when only one of the two is relevant:
+
+``` r
+
+# country check only - no internet needed
+interview_location_log <- cleaningkit::validate_interview_location(
+  dataset = raw_data,
+  check_city = FALSE
+)
+```
+
 ## Validate logical
 
-Reads the logical excel sheets and uses that for validating the survey.
+Logical checks are the consistency rules of the 4Mi questionnaire - the
+“this answer cannot go together with that answer” rules. Rather than
+being written in R, they are maintained in an Excel checklist so that
+research staff can add, edit or retire a check without touching the
+code.
+[`validate_logical_with_list()`](../reference/validate_logical_with_list.md)
+reads that checklist and runs every row of it against the dataset.
+
+### The checklist file
+
+Each row of the checklist is one check. Four columns are used by the
+function (a fifth, `module`, is optional and only helps organise the
+sheet):
+
+| Column | What it holds |
+|----|----|
+| `check_id` | A unique id for the check, e.g. `check_01`. Must be unique - duplicates raise an error. It is written into the log and into `check_binding`. |
+| `description` | A plain-language explanation of what is wrong. This is what the reviewer reads in the cleaning log. |
+| `check_to_perform` | An R expression, written as text, that is `TRUE` for the records that should be flagged, e.g. `Q13 == Q31`. |
+| `columns_to_clean` | A comma-separated list of the columns the reviewer should look at, e.g. `Q13, Q31`. One log row is produced per flagged record **per column**. Leave blank if there is no specific column to clean. |
+
+Some worked examples of `check_to_perform`:
+
+``` r
+
+# a straightforward comparison of two questions
+Q13 == Q31
+
+# either of two conditions
+(Q92 == Q31) | (Q92 == Q41)
+
+# a select_multiple: use str_detect() with fixed() on the concatenated string
+str_detect(Q78, fixed("Natural disaster or environmental factors")) & Q86_a == "No"
+```
+
+The expression is evaluated inside
+[`dplyr::filter()`](https://dplyr.tidyverse.org/reference/filter.html),
+so any `dplyr` or `stringr` verb can be used and column names are
+written bare (no quotes, no `df$`). Because a select_multiple question
+is exported as one space-separated string, always test it with
+`str_detect(..., fixed("choice label"))` rather than `==`.
+
+### Where to find the checklist template
+
+A ready-made checklist with the standard MMC core checks ships with the
+package. Copy it into the project’s `resources/` folder and edit it
+there:
+
+``` r
+
+# where the template lives
+template_path <- system.file(
+  "extdata",
+  "logical_checklist_example.xlsx",
+  package = "cleaningkit"
+)
+
+# copy it into the project so it can be edited
+file.copy(template_path, "./resources/logical_checks_mmc.xlsx")
+```
+
+It can also be browsed on GitHub under
+[`inst/extdata/logical_checklist_example.xlsx`](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx).
+
+### Running the checks
 
 ``` r
 
@@ -277,6 +388,40 @@ logical_check_log <- raw_data %>%
   )
 ```
 
+By default every check is stacked into a single `logical_log`. Setting
+`bind_checks = FALSE` stores each check in its own log named after its
+`check_id`, which is handy when one check needs to be inspected on its
+own:
+
+``` r
+
+logical_check_log <- raw_data %>%
+  cleaningkit::validate_logical_with_list(
+    list_of_check = logical_list,
+    check_id_column = "check_id",
+    check_to_perform_column = "check_to_perform",
+    columns_to_clean_column = "columns_to_clean",
+    description_column = "description",
+    bind_checks = FALSE
+  )
+
+# inspect one check on its own
+logical_check_log$check_01
+```
+
+A logical flag column is also added to `checked_dataset` for every check
+(named after the `check_id`, `TRUE` = flagged), so the number of records
+each check caught can be reviewed before the log is exported:
+
+``` r
+
+table(logical_check_log$checked_dataset$check_01)
+```
+
+If a check is written badly the function stops and prints both the
+`check_id` and the offending expression, so the row in the Excel sheet
+can be corrected and the checklist re-read.
+
 ## Combine logs
 
 ``` r
@@ -288,6 +433,7 @@ list_of_log_all <- c(
   back_to_back_log,
   country_of_interview_log,
   interview_time_log,
+  interview_location_log,
   logical_check_log,
   duplicate_log,
   duplicate_questions_log

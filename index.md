@@ -81,6 +81,10 @@ dataset and a log of flagged issues.
 - **[`validate_spatial_proximity()`](reference/validate_spatial_proximity.md)**:
   Flags interviews whose distances from another is less than the
   threshhold distance provided
+- **[`validate_interview_location()`](reference/validate_interview_location.md)**:
+  Flags interviews whose GPS point is missing, falls outside the claimed
+  country of interview, or sits too far from the claimed city of
+  interview
 
 Here is a quick look at how you can load your data and run a few
 validation checks:
@@ -116,14 +120,19 @@ checked_data <- raw_data |>
   # 9. Implausible back-to-back interviews (gap < 10 minutes)
   validate_back_to_back(threshold_mins = 10) |>
   # 10. Spatial distance between two interviews per enumerator or for the entire dataset
-  validate_back_to_back(
+  validate_spatial_proximity(
     lat_column = "_location_latitude",
     lon_column = "_location_longitude",
     uuid_column = "_uuid",
     enumerator_column = "username",
     log_name = "spatial_proximity_log",
     distance_threshold_m = 50) |>
-  # 11. External logical checks (requires a checklist dataframe)
+  # 11. GPS point matches the claimed country and city of interview
+  validate_interview_location(
+    country_question = "Q13",
+    city_question = "Q14",
+    city_radius_km = 75) |>
+  # 12. External logical checks (requires a checklist dataframe)
   validate_logical_with_list(
     list_of_check = logical_list,
     check_id_column = "check_id",
@@ -135,6 +144,102 @@ checked_data <- raw_data |>
 print(checked_data$duration_log)
 print(checked_data$back_to_back_log)
 ```
+
+### Logical Checks
+
+Logical checks are the consistency rules of the questionnaire — the
+“this answer cannot go together with that answer” rules, such as a
+respondent being interviewed in their own country of nationality. They
+are **not** written in R. They live in an Excel checklist so that
+research staff can add, edit or retire a check without touching any
+code, and
+[`validate_logical_with_list()`](reference/validate_logical_with_list.md)
+runs every row of that checklist against the dataset.
+
+**Where to find the template.** A ready-made checklist containing the
+standard MMC core checks ships with the package. Copy it into your
+project’s `resources/` folder and edit it there:
+
+``` r
+
+# where the template lives on your machine
+template_path <- system.file(
+  "extdata", "logical_checklist_example.xlsx", package = "cleaningkit"
+)
+
+# copy it into your project so you can edit it
+file.copy(template_path, "./resources/logical_checks_mmc.xlsx")
+```
+
+You can also browse it on GitHub under
+[`inst/extdata/logical_checklist_example.xlsx`](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx).
+
+**How the checklist is structured.** Each row is one check. Four columns
+are read by the function (`module` is optional and only helps you
+organise the sheet):
+
+| Column | What it holds |
+|----|----|
+| `check_id` | Unique id for the check, e.g. `check_01`. Duplicates raise an error. Used in the log and in `check_binding`. |
+| `description` | Plain-language explanation of what is wrong — this is what the reviewer reads in the cleaning log. |
+| `check_to_perform` | An R expression, written as text, that is `TRUE` for the records to flag, e.g. `Q13 == Q31`. |
+| `columns_to_clean` | Comma-separated list of the columns the reviewer should look at, e.g. `Q13, Q31`. One log row is produced per flagged record **per column**. Leave blank if there is no specific column to clean. |
+
+An example row would look like this:
+
+| module | check_id | description | check_to_perform | columns_to_clean |
+|----|----|----|----|----|
+| core | check_01 | Country of nationality matches current country of interview. Verify respondent’s nationality. | `Q13 == Q31` | `Q13, Q31` |
+
+**Writing `check_to_perform`.** The expression is evaluated inside
+[`dplyr::filter()`](https://dplyr.tidyverse.org/reference/filter.html),
+so column names are written bare (no quotes, no `df$`) and any `dplyr`
+or `stringr` verb can be used:
+
+``` r
+
+# straightforward comparison of two questions
+Q13 == Q31
+
+# either of two conditions
+(Q92 == Q31) | (Q92 == Q41)
+
+# select_multiple questions are exported as one space-separated string,
+# so test them with str_detect() + fixed(), never with ==
+str_detect(Q78, fixed("Natural disaster or environmental factors")) & Q86_a == "No"
+```
+
+**Running the checks.**
+
+``` r
+
+logical_list <- openxlsx::read.xlsx("./resources/logical_checks_mmc.xlsx", sheet = 1)
+
+logical_check_log <- raw_data |>
+  validate_logical_with_list(
+    list_of_check = logical_list,
+    check_id_column = "check_id",
+    check_to_perform_column = "check_to_perform",
+    columns_to_clean_column = "columns_to_clean",
+    description_column = "description"
+  )
+
+# all checks stacked into one log
+logical_check_log$logical_log
+
+# a flag column is also added to the dataset for every check
+table(logical_check_log$checked_dataset$check_01)
+```
+
+By default all checks are stacked into a single `logical_log`. Set
+`bind_checks = FALSE` to store each check in its own log named after its
+`check_id` (`logical_check_log$check_01`), which is useful when a single
+check needs to be inspected on its own. If a check is written badly the
+function stops and prints both the `check_id` and the offending
+expression, so you know exactly which row of the Excel sheet to fix.
+
+For a fuller walkthrough see the [Data Cleaning and Validation
+guide](https://mixedmigrationcentre.github.io/cleaningkit/articles/2-cleaning_and_validation.html#validate-logical).
 
 ### Combining and Exporting Logs
 

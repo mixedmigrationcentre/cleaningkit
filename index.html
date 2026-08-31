@@ -123,6 +123,8 @@
 <strong><code><a href="reference/validate_outliers.html">validate_outliers()</a></code></strong>: Flags interviews whose integer values are of much larger or smaller that the set for that column</li>
 <li>
 <strong><code><a href="reference/validate_spatial_proximity.html">validate_spatial_proximity()</a></code></strong>: Flags interviews whose distances from another is less than the threshhold distance provided</li>
+<li>
+<strong><code><a href="reference/validate_interview_location.html">validate_interview_location()</a></code></strong>: Flags interviews whose GPS point is missing, falls outside the claimed country of interview, or sits too far from the claimed city of interview</li>
 </ul>
 <p>Here is a quick look at how you can load your data and run a few validation checks:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -155,14 +157,19 @@
 <span>  <span class="co"># 9. Implausible back-to-back interviews (gap &lt; 10 minutes)</span></span>
 <span>  <span class="fu"><a href="reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span>threshold_mins <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="co"># 10. Spatial distance between two interviews per enumerator or for the entire dataset</span></span>
-<span>  <span class="fu"><a href="reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="reference/validate_spatial_proximity.html">validate_spatial_proximity</a></span><span class="op">(</span></span>
 <span>    lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
 <span>    lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
 <span>    uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>    enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
 <span>    log_name <span class="op">=</span> <span class="st">"spatial_proximity_log"</span>,</span>
 <span>    distance_threshold_m <span class="op">=</span> <span class="fl">50</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 11. External logical checks (requires a checklist dataframe)</span></span>
+<span>  <span class="co"># 11. GPS point matches the claimed country and city of interview</span></span>
+<span>  <span class="fu"><a href="reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
+<span>    country_question <span class="op">=</span> <span class="st">"Q13"</span>,</span>
+<span>    city_question <span class="op">=</span> <span class="st">"Q14"</span>,</span>
+<span>    city_radius_km <span class="op">=</span> <span class="fl">75</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co"># 12. External logical checks (requires a checklist dataframe)</span></span>
 <span>  <span class="fu"><a href="reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
 <span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
 <span>    check_id_column <span class="op">=</span> <span class="st">"check_id"</span>,</span>
@@ -175,10 +182,109 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">checked_data</span><span class="op">$</span><span class="va">back_to_back_log</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="logical-checks">Logical Checks<a class="anchor" aria-label="anchor" href="#logical-checks"></a>
+</h3>
+<p>Logical checks are the consistency rules of the questionnaire — the “this answer cannot go together with that answer” rules, such as a respondent being interviewed in their own country of nationality. They are <strong>not</strong> written in R. They live in an Excel checklist so that research staff can add, edit or retire a check without touching any code, and <code><a href="reference/validate_logical_with_list.html">validate_logical_with_list()</a></code> runs every row of that checklist against the dataset.</p>
+<p><strong>Where to find the template.</strong> A ready-made checklist containing the standard MMC core checks ships with the package. Copy it into your project’s <code>resources/</code> folder and edit it there:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># where the template lives on your machine</span></span>
+<span><span class="va">template_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
+<span>  <span class="st">"extdata"</span>, <span class="st">"logical_checklist_example.xlsx"</span>, package <span class="op">=</span> <span class="st">"cleaningkit"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># copy it into your project so you can edit it</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.copy</a></span><span class="op">(</span><span class="va">template_path</span>, <span class="st">"./resources/logical_checks_mmc.xlsx"</span><span class="op">)</span></span></code></pre></div>
+<p>You can also browse it on GitHub under <a href="https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx" class="external-link"><code>inst/extdata/logical_checklist_example.xlsx</code></a>.</p>
+<p><strong>How the checklist is structured.</strong> Each row is one check. Four columns are read by the function (<code>module</code> is optional and only helps you organise the sheet):</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Column</th>
+<th>What it holds</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>check_id</code></td>
+<td>Unique id for the check, e.g. <code>check_01</code>. Duplicates raise an error. Used in the log and in <code>check_binding</code>.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>Plain-language explanation of what is wrong — this is what the reviewer reads in the cleaning log.</td>
+</tr>
+<tr>
+<td><code>check_to_perform</code></td>
+<td>An R expression, written as text, that is <code>TRUE</code> for the records to flag, e.g. <code>Q13 == Q31</code>.</td>
+</tr>
+<tr>
+<td><code>columns_to_clean</code></td>
+<td>Comma-separated list of the columns the reviewer should look at, e.g. <code>Q13, Q31</code>. One log row is produced per flagged record <strong>per column</strong>. Leave blank if there is no specific column to clean.</td>
+</tr>
+</tbody>
+</table>
+<p>An example row would look like this:</p>
+<table class="table">
+<colgroup>
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+</colgroup>
+<thead><tr>
+<th>module</th>
+<th>check_id</th>
+<th>description</th>
+<th>check_to_perform</th>
+<th>columns_to_clean</th>
+</tr></thead>
+<tbody><tr>
+<td>core</td>
+<td>check_01</td>
+<td>Country of nationality matches current country of interview. Verify respondent’s nationality.</td>
+<td><code>Q13 == Q31</code></td>
+<td><code>Q13, Q31</code></td>
+</tr></tbody>
+</table>
+<p><strong>Writing <code>check_to_perform</code>.</strong> The expression is evaluated inside <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter()</a></code>, so column names are written bare (no quotes, no <code>df$</code>) and any <code>dplyr</code> or <code>stringr</code> verb can be used:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># straightforward comparison of two questions</span></span>
+<span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
+<span></span>
+<span><span class="co"># either of two conditions</span></span>
+<span><span class="op">(</span><span class="va">Q92</span> <span class="op">==</span> <span class="va">Q31</span><span class="op">)</span> <span class="op">|</span> <span class="op">(</span><span class="va">Q92</span> <span class="op">==</span> <span class="va">Q41</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># select_multiple questions are exported as one space-separated string,</span></span>
+<span><span class="co"># so test them with str_detect() + fixed(), never with ==</span></span>
+<span><span class="fu">str_detect</span><span class="op">(</span><span class="va">Q78</span>, <span class="fu">fixed</span><span class="op">(</span><span class="st">"Natural disaster or environmental factors"</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">Q86_a</span> <span class="op">==</span> <span class="st">"No"</span></span></code></pre></div>
+<p><strong>Running the checks.</strong></p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span><span class="st">"./resources/logical_checks_mmc.xlsx"</span>, sheet <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
+<span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
+<span>    check_id_column <span class="op">=</span> <span class="st">"check_id"</span>,</span>
+<span>    check_to_perform_column <span class="op">=</span> <span class="st">"check_to_perform"</span>,</span>
+<span>    columns_to_clean_column <span class="op">=</span> <span class="st">"columns_to_clean"</span>,</span>
+<span>    description_column <span class="op">=</span> <span class="st">"description"</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span><span class="co"># all checks stacked into one log</span></span>
+<span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">logical_log</span></span>
+<span></span>
+<span><span class="co"># a flag column is also added to the dataset for every check</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">checked_dataset</span><span class="op">$</span><span class="va">check_01</span><span class="op">)</span></span></code></pre></div>
+<p>By default all checks are stacked into a single <code>logical_log</code>. Set <code>bind_checks = FALSE</code> to store each check in its own log named after its <code>check_id</code> (<code>logical_check_log$check_01</code>), which is useful when a single check needs to be inspected on its own. If a check is written badly the function stops and prints both the <code>check_id</code> and the offending expression, so you know exactly which row of the Excel sheet to fix.</p>
+<p>For a fuller walkthrough see the <a href="https://mixedmigrationcentre.github.io/cleaningkit/articles/2-cleaning_and_validation.html#validate-logical" class="external-link">Data Cleaning and Validation guide</a>.</p>
+</div>
+<div class="section level3">
 <h3 id="combining-and-exporting-logs">Combining and Exporting Logs<a class="anchor" aria-label="anchor" href="#combining-and-exporting-logs"></a>
 </h3>
 <p>After running the validation checks, you can combine all the individual logs and save them into an Excel file for review and follow-up:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># combine logs</span></span>
 <span><span class="co">#----------------------------------</span></span>
@@ -213,7 +319,7 @@
 <li>
 <strong><code><a href="reference/save_other_responses.html">save_other_responses()</a></code></strong>: This function saves the prepared other responses into an Excel workbook with specific formatting and data validation.</li>
 </ul>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare the other responses dataframe</span></span>
 <span><span class="va">other_responses_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
 <span>  raw_data <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -249,7 +355,7 @@
 <li>
 <strong><code><a href="reference/export_final_output.html">export_final_output()</a></code></strong>: Creates a final Excel workbook containing the raw data, clean data, and the comprehensive cleaning log.</li>
 </ul>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># apply cleaning</span></span>
 <span><span class="co">#----------------------------------</span></span>

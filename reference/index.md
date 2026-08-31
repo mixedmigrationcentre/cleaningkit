@@ -67,6 +67,8 @@
   Similarities (Soft Duplicates)
 - [`validate_duration()`](validate_duration.md) : Validate Survey
   Duration
+- [`validate_interview_location()`](validate_interview_location.md) :
+  Validate Interview Location Against Claimed Country and City
 - [`validate_interview_time()`](validate_interview_time.md) : Validate
   Interview Time
 - [`validate_logical_with_list()`](validate_logical_with_list.md) :

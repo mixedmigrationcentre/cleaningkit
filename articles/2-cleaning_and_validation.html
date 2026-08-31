@@ -280,7 +280,7 @@ similarity.</p>
 <p>Outliers in all integer columns in the dataset or particular
 columns</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<code class="sourceCode R"><span><span class="va">outliers_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
 <span>    columns_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q141_3"</span><span class="op">)</span>,</span>
 <span>    strongness_factor <span class="op">=</span> <span class="fl">3</span>,</span>
@@ -293,8 +293,8 @@ columns</p>
 <p>Spatial distance between two interviews per enumerator or for the
 entire dataset</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">spatial_proximity_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_spatial_proximity.html">validate_spatial_proximity</a></span><span class="op">(</span></span>
 <span>    lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
 <span>    lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
 <span>    uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -304,11 +304,136 @@ entire dataset</p>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="validate-interview-location">Validate interview location<a class="anchor" aria-label="anchor" href="#validate-interview-location"></a>
+</h2>
+<p>Checks the GPS point recorded during each in-person interview against
+the country and the city the respondent claims the interview took place
+in. Three separate flags can be raised: a missing or invalid GPS point,
+a GPS point that falls outside the claimed country, and a GPS point
+further than <code>city_radius_km</code> from the centre of the claimed
+city.</p>
+<p>The country check uses country polygons from
+<code>rnaturalearthdata</code>. The city check geocodes each unique city
++ country pair <strong>once</strong> through the OpenStreetMap Nominatim
+API, so an internet connection is needed and the check takes a little
+longer the first time it runs on a new dataset. City names in the data
+should be spelled in English and reasonably match OpenStreetMap
+(e.g. “Kampala”, “Addis Ababa”); any city that cannot be geocoded is
+skipped with a warning.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
+<span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
+<span>  lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
+<span>  lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
+<span>  country_question <span class="op">=</span> <span class="st">"Q13"</span>,</span>
+<span>  city_question <span class="op">=</span> <span class="st">"Q14"</span>,</span>
+<span>  log_name <span class="op">=</span> <span class="st">"interview_location_log"</span>,</span>
+<span>  city_radius_km <span class="op">=</span> <span class="fl">75</span>,</span>
+<span>  check_country <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  check_city <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  flag_missing_gps <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  nominatim_delay_s <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Either check can be switched off, which is useful when there is no
+internet connection or when only one of the two is relevant:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># country check only - no internet needed</span></span>
+<span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
+<span>  check_city <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="validate-logical">Validate logical<a class="anchor" aria-label="anchor" href="#validate-logical"></a>
 </h2>
-<p>Reads the logical excel sheets and uses that for validating the
-survey.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<p>Logical checks are the consistency rules of the 4Mi questionnaire -
+the “this answer cannot go together with that answer” rules. Rather than
+being written in R, they are maintained in an Excel checklist so that
+research staff can add, edit or retire a check without touching the
+code. <code><a href="../reference/validate_logical_with_list.html">validate_logical_with_list()</a></code> reads that checklist and
+runs every row of it against the dataset.</p>
+<div class="section level3">
+<h3 id="the-checklist-file">The checklist file<a class="anchor" aria-label="anchor" href="#the-checklist-file"></a>
+</h3>
+<p>Each row of the checklist is one check. Four columns are used by the
+function (a fifth, <code>module</code>, is optional and only helps
+organise the sheet):</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Column</th>
+<th>What it holds</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>check_id</code></td>
+<td>A unique id for the check, e.g. <code>check_01</code>. Must be
+unique - duplicates raise an error. It is written into the log and into
+<code>check_binding</code>.</td>
+</tr>
+<tr class="even">
+<td><code>description</code></td>
+<td>A plain-language explanation of what is wrong. This is what the
+reviewer reads in the cleaning log.</td>
+</tr>
+<tr class="odd">
+<td><code>check_to_perform</code></td>
+<td>An R expression, written as text, that is <code>TRUE</code> for the
+records that should be flagged, e.g. <code>Q13 == Q31</code>.</td>
+</tr>
+<tr class="even">
+<td><code>columns_to_clean</code></td>
+<td>A comma-separated list of the columns the reviewer should look at,
+e.g. <code>Q13, Q31</code>. One log row is produced per flagged record
+<strong>per column</strong>. Leave blank if there is no specific column
+to clean.</td>
+</tr>
+</tbody>
+</table>
+<p>Some worked examples of <code>check_to_perform</code>:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># a straightforward comparison of two questions</span></span>
+<span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
+<span></span>
+<span><span class="co"># either of two conditions</span></span>
+<span><span class="op">(</span><span class="va">Q92</span> <span class="op">==</span> <span class="va">Q31</span><span class="op">)</span> <span class="op">|</span> <span class="op">(</span><span class="va">Q92</span> <span class="op">==</span> <span class="va">Q41</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># a select_multiple: use str_detect() with fixed() on the concatenated string</span></span>
+<span><span class="fu">str_detect</span><span class="op">(</span><span class="va">Q78</span>, <span class="fu">fixed</span><span class="op">(</span><span class="st">"Natural disaster or environmental factors"</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">Q86_a</span> <span class="op">==</span> <span class="st">"No"</span></span></code></pre></div>
+<p>The expression is evaluated inside <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter()</a></code>, so
+any <code>dplyr</code> or <code>stringr</code> verb can be used and
+column names are written bare (no quotes, no <code>df$</code>). Because
+a select_multiple question is exported as one space-separated string,
+always test it with <code>str_detect(..., fixed("choice label"))</code>
+rather than <code>==</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="where-to-find-the-checklist-template">Where to find the checklist template<a class="anchor" aria-label="anchor" href="#where-to-find-the-checklist-template"></a>
+</h3>
+<p>A ready-made checklist with the standard MMC core checks ships with
+the package. Copy it into the project’s <code>resources/</code> folder
+and edit it there:</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># where the template lives</span></span>
+<span><span class="va">template_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
+<span>  <span class="st">"extdata"</span>,</span>
+<span>  <span class="st">"logical_checklist_example.xlsx"</span>,</span>
+<span>  package <span class="op">=</span> <span class="st">"cleaningkit"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># copy it into the project so it can be edited</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.copy</a></span><span class="op">(</span><span class="va">template_path</span>, <span class="st">"./resources/logical_checks_mmc.xlsx"</span><span class="op">)</span></span></code></pre></div>
+<p>It can also be browsed on GitHub under <a href="https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx" class="external-link"><code>inst/extdata/logical_checklist_example.xlsx</code></a>.</p>
+</div>
+<div class="section level3">
+<h3 id="running-the-checks">Running the checks<a class="anchor" aria-label="anchor" href="#running-the-checks"></a>
+</h3>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span></span>
 <span>  <span class="st">"./resources/logical_checks_mmc.xlsx"</span>,</span>
 <span>  sheet <span class="op">=</span> <span class="fl">1</span></span>
@@ -322,11 +447,38 @@ survey.</p>
 <span>    columns_to_clean_column <span class="op">=</span> <span class="st">"columns_to_clean"</span>,</span>
 <span>    description_column <span class="op">=</span> <span class="st">"description"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
+<p>By default every check is stacked into a single
+<code>logical_log</code>. Setting <code>bind_checks = FALSE</code>
+stores each check in its own log named after its <code>check_id</code>,
+which is handy when one check needs to be inspected on its own:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
+<span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
+<span>    check_id_column <span class="op">=</span> <span class="st">"check_id"</span>,</span>
+<span>    check_to_perform_column <span class="op">=</span> <span class="st">"check_to_perform"</span>,</span>
+<span>    columns_to_clean_column <span class="op">=</span> <span class="st">"columns_to_clean"</span>,</span>
+<span>    description_column <span class="op">=</span> <span class="st">"description"</span>,</span>
+<span>    bind_checks <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  <span class="op">)</span></span>
+<span></span>
+<span><span class="co"># inspect one check on its own</span></span>
+<span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">check_01</span></span></code></pre></div>
+<p>A logical flag column is also added to <code>checked_dataset</code>
+for every check (named after the <code>check_id</code>,
+<code>TRUE</code> = flagged), so the number of records each check caught
+can be reviewed before the log is exported:</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">checked_dataset</span><span class="op">$</span><span class="va">check_01</span><span class="op">)</span></span></code></pre></div>
+<p>If a check is written badly the function stops and prints both the
+<code>check_id</code> and the offending expression, so the row in the
+Excel sheet can be corrected and the checklist re-read.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="combine-logs">Combine logs<a class="anchor" aria-label="anchor" href="#combine-logs"></a>
 </h2>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">list_of_log_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="va">duration_log</span>,</span>
 <span>  <span class="va">completeness_log</span>,</span>
@@ -334,6 +486,7 @@ survey.</p>
 <span>  <span class="va">back_to_back_log</span>,</span>
 <span>  <span class="va">country_of_interview_log</span>,</span>
 <span>  <span class="va">interview_time_log</span>,</span>
+<span>  <span class="va">interview_location_log</span>,</span>
 <span>  <span class="va">logical_check_log</span>,</span>
 <span>  <span class="va">duplicate_log</span>,</span>
 <span>  <span class="va">duplicate_questions_log</span></span>
@@ -347,7 +500,7 @@ survey.</p>
 <div class="section level2">
 <h2 id="create-cleaning-log">Create cleaning log<a class="anchor" aria-label="anchor" href="#create-cleaning-log"></a>
 </h2>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
