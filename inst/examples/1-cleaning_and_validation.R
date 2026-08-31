@@ -209,10 +209,40 @@ outliers_log <- raw_data %>%
   )
 
 #----------------------------------
+# validate interview location
+# checks the GPS point of each in-person interview against the country
+# and the city the respondent claims the interview took place in.
+# the country check needs the {rnaturalearthdata} package, and the city
+# check geocodes each unique city + country pair once via OpenStreetMap
+# (Nominatim), so an internet connection is required
+#----------------------------------
+
+interview_location_log <- cleaningkit::validate_interview_location(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  lat_column = "_location_latitude",
+  lon_column = "_location_longitude",
+  country_question = "Q13",
+  city_question = "Q14",
+  log_name = "interview_location_log",
+  city_radius_km = 75,
+  check_country = TRUE,
+  check_city = TRUE,
+  flag_missing_gps = TRUE,
+  nominatim_delay_s = 1,
+  skip_label_row = TRUE
+)
+
+#----------------------------------
 # validate logical
 # reads the logical excel sheets and uses that for validating the survey
+# a ready-made template of the checklist ships with the package, see:
+# system.file("extdata", "logical_checklist_example.xlsx", package = "cleaningkit")
 #----------------------------------
-logical_list <- read.xlsx("./resources/logical_checks_mmc.xlsx", sheet = 1)
+logical_list <- read.xlsx(
+  "./resources/logical_checklist_example.xlsx",
+  sheet = 1
+)
 
 logical_check_log <- raw_data %>%
   cleaningkit::validate_logical_with_list(
@@ -234,6 +264,7 @@ list_of_log_all <- c(
   back_to_back_log,
   country_of_interview_log,
   interview_time_log,
+  interview_location_log,
   logical_check_log,
   duplicate_log,
   duplicate_questions_log
