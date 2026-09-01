@@ -12,6 +12,8 @@ create_cleaning_log(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
+  color_mode = "on",
+  color_columns = NULL,
   include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
@@ -40,6 +42,14 @@ create_cleaning_log(
 log rows that share a binding (e.g. several questions flagged by one check for the same
 record) get the same colour. The column is written but kept hidden in the output. Set to
 \code{NULL} to disable colouring.}
+
+\item{color_mode}{One of \code{"on"} (default, colour the full row), \code{"partial"} (colour
+only \code{color_columns}) or \code{"off"} (no colouring). \code{TRUE}/\code{FALSE} work as
+shorthand for \code{"on"}/\code{"off"}. Never affects the header formatting.}
+
+\item{color_columns}{Columns to fill when \code{color_mode = "partial"}, e.g.
+\code{"old_value"} or \code{c("Old value", "Issue")}. Matching ignores case, spaces and
+underscores; numeric column positions are also accepted. Default \code{NULL}.}
 
 \item{include_dataset}{Logical. If \code{TRUE} (the default), the checked dataset is written to
 a sheet named \code{"dataset"} so reviewers can refer back to the raw data.}
@@ -82,4 +92,29 @@ be completed during review.
 
 The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
 \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+
+\strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
+with the same light MMC shade across the whole row. \code{color_mode} changes that:
+\code{"on"} keeps the default, \code{"partial"} fills only the columns listed in
+\code{color_columns}, and \code{"off"} writes the log with no fills at all. Header
+formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
+\code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
+underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
+}
+\examples{
+\dontrun{
+# default: full-row colouring by check_binding
+create_cleaning_log(write_list, output_path = "cleaning_log.xlsx")
+
+# colour only the "Old value" column
+create_cleaning_log(
+  write_list,
+  color_mode = "partial",
+  color_columns = "old_value",
+  output_path = "cleaning_log.xlsx"
+)
+
+# no colouring at all
+create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+}
 }

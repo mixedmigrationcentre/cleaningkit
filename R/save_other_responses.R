@@ -59,6 +59,9 @@
 #' @return A dataframe formatted for \code{save_other_responses()}. It carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
+#'   The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
+#'   (earlier versions wrote three numbered slots), \strong{INVALID other},
+#'   \strong{FOLLOW-UP message} and \strong{Explanation}.
 #' @export
 prepare_other_responses <- function(
   raw_data,
@@ -194,9 +197,7 @@ prepare_other_responses <- function(
     select(all_of(select_cols)) %>%
     mutate(
       "TRUE other (copy response_en or provide a better translation)" = NA,
-      "EXISTING other 1 (select the most appropriate choice)" = NA,
-      "EXISTING other 2 (select the most appropriate choice)" = NA,
-      "EXISTING other 3 (select the most appropriate choice)" = NA,
+      "EXISTING other (select the most appropriate choice)" = NA,
       "INVALID other (select yes or leave blank)" = NA,
       "FOLLOW-UP message (what is unclear about this response?)" = NA,
       "Explanation" = NA,
@@ -525,6 +526,34 @@ prepare_other_responses <- function(
 #'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
 #'   dropped. Only when \code{df} has no such provenance is its first row dropped,
 #'   with a message. Set to \code{FALSE} to always keep every row.
+#' @param header_front_size Header font size (default is 12).
+#' @param header_front_color Hexcode for header font color (default is white).
+#' @param header_fill_color Hexcode for header fill color (default is MMC blue
+#'   \code{"#00A2A5"}, the same header as the cleaning log).
+#' @param header_border_color Hexcode for the header border (default \code{"#fafafa"}).
+#' @param header_front Font name for the header (default is Arial Narrow).
+#' @param body_front Font name for the body (default is Arial Narrow).
+#' @param body_front_size Font size for the body (default is 11).
+#' @param body_border_color Hexcode for the body cell borders (default is MMC light
+#'   teal \code{"#AFDFE4"}).
+#' @param reference_fill_color Fill for the read-only reference columns (uuid,
+#'   enumerator, question_name, list_name, full_label, selected_choices,
+#'   response_en). Default MMC light teal \code{"#D5EEF0"}. Set to \code{NA} for
+#'   no fill.
+#' @param true_other_fill_color Fill for the \strong{TRUE other} column. Default is a
+#'   light tint of MMC green \code{"#BBD876"}.
+#' @param existing_other_fill_color Fill for the \strong{EXISTING other} column.
+#'   Default is a light tint of MMC yellow \code{"#FFE07C"}.
+#' @param invalid_other_fill_color Fill for the \strong{INVALID other} column. Default
+#'   is a light tint of MMC salmon \code{"#F8AB9E"}.
+#' @param follow_up_fill_color Fill for the \strong{FOLLOW-UP message} /
+#'   \strong{Explanation} columns. Default is a light tint of MMC mauve
+#'   \code{"#B88AAB"}.
+#' @param header_row_height Height of the header row (default is 45, so the long
+#'   instruction headers wrap and stay readable).
+#' @param freeze_header Logical. Freeze the header row (default \code{TRUE}).
+#' @param add_filter Logical. Add a column filter on the header row (default
+#'   \code{TRUE}).
 #' @return NULL. Saves an Excel file.
 #' @export
 save_other_responses <- function(
@@ -534,7 +563,23 @@ save_other_responses <- function(
   save_location = "output",
   other_db = NULL,
   apply_styles = TRUE,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  header_front_size = 12,
+  header_front_color = "#FFFFFF",
+  header_fill_color = "#00A2A5",
+  header_border_color = "#fafafa",
+  header_front = "Arial Narrow",
+  body_front = "Arial Narrow",
+  body_front_size = 11,
+  body_border_color = "#AFDFE4",
+  reference_fill_color = "#D5EEF0",
+  true_other_fill_color = "#E4EFC8",
+  existing_other_fill_color = "#FFF1C4",
+  invalid_other_fill_color = "#FCD9D3",
+  follow_up_fill_color = "#E3D0DD",
+  header_row_height = 45,
+  freeze_header = TRUE,
+  add_filter = TRUE
 ) {
   get_column_letter <- function(r) {
     result <- character(length(r))
@@ -606,113 +651,136 @@ save_other_responses <- function(
 
   wb <- createWorkbook()
 
-  style.col.color <- createStyle(
-    fgFill = "#E5FFCC",
-    border = "TopBottomLeftRight",
-    borderColour = "#000000",
-    valign = "top",
-    wrapText = TRUE
-  )
-  style.col.color1 <- createStyle(
-    fgFill = "#E5FFEC",
-    border = "TopBottomLeftRight",
-    borderColour = "#000000",
-    valign = "top",
-    wrapText = TRUE
-  )
-  style.col.color2 <- createStyle(
-    fgFill = "#CCE5FF",
-    border = "TopBottomLeftRight",
-    borderColour = "#000000",
-    valign = "top",
-    wrapText = TRUE
-  )
-  style.col.color.first <- createStyle(
+  # --- MMC styling -----------------------------------------------------------
+  # The header is identical to the cleaning log header: MMC blue fill, white
+  # bold Arial Narrow, centred, wrapped, hair-line borders. Each block of body
+  # columns then gets its own light tint of an MMC brand colour, so a reviewer
+  # can tell the read-only reference columns from the columns they are meant to
+  # fill in:
+  #   reference columns      light teal   #D5EEF0 (MMC light teal)
+  #   TRUE other             light green  tint of #BBD876
+  #   EXISTING other         light yellow tint of #FFE07C
+  #   INVALID other          light salmon tint of #F8AB9E
+  #   FOLLOW-UP / Explanation light mauve tint of #B88AAB
+  build_body_style <- function(fill) {
+    if (is.null(fill) || length(fill) == 0 || is.na(fill) || !nzchar(fill)) {
+      createStyle(
+        fontName = body_front,
+        fontSize = body_front_size,
+        border = "TopBottomLeftRight",
+        borderColour = body_border_color,
+        valign = "top",
+        wrapText = TRUE
+      )
+    } else {
+      createStyle(
+        fgFill = fill,
+        fontName = body_front,
+        fontSize = body_front_size,
+        border = "TopBottomLeftRight",
+        borderColour = body_border_color,
+        valign = "top",
+        wrapText = TRUE
+      )
+    }
+  }
+
+  style.header <- createStyle(
+    fontSize = header_front_size,
+    fontColour = header_front_color,
+    fontName = header_front,
     textDecoration = "bold",
-    fgFill = "#E5FFCC",
-    valign = "top",
+    fgFill = header_fill_color,
+    halign = "center",
+    valign = "center",
     border = "TopBottomLeftRight",
-    borderColour = "#000000",
+    borderColour = header_border_color,
     wrapText = TRUE
   )
-  style.col.color.first1 <- createStyle(
-    textDecoration = "bold",
-    fgFill = "#E5FFEC",
-    valign = "top",
-    border = "TopBottomLeftRight",
-    borderColour = "#000000",
-    wrapText = TRUE
-  )
-  style.col.color.first2 <- createStyle(
-    textDecoration = "bold",
-    fgFill = "#CCE5FF",
-    valign = "top",
-    border = "TopBottomLeftRight",
-    borderColour = "#000000",
-    wrapText = TRUE
-  )
-  style.default.body <- createStyle(valign = "top", wrapText = TRUE)
-  style.default.header <- createStyle(textDecoration = "bold")
+
+  style.reference <- build_body_style(reference_fill_color)
+  style.true_other <- build_body_style(true_other_fill_color)
+  style.existing_other <- build_body_style(existing_other_fill_color)
+  style.invalid_other <- build_body_style(invalid_other_fill_color)
+  style.follow_up <- build_body_style(follow_up_fill_color)
 
   addWorksheet(wb, "Sheet1")
   writeData(wb = wb, x = df, sheet = "Sheet1", startRow = 1)
 
-  exist_cols <- which(
-    names(df) %in%
-      c(
-        "EXISTING other 1 (select the most appropriate choice)",
-        "EXISTING other 2 (select the most appropriate choice)",
-        "EXISTING other 3 (select the most appropriate choice)"
-      )
-  )
-  invalid_col <- which(names(df) == "INVALID other (select yes or leave blank)")
+  # Column groups are found from the start of the header rather than the full
+  # string, so the number of "EXISTING other" columns does not matter: the
+  # current single column is picked up, and an older log that still carries
+  # "EXISTING other 1/2/3" keeps working unchanged.
+  exist_cols <- grep("^EXISTING other", names(df))
+  invalid_col <- grep("^INVALID other", names(df))
+  true_other_cols <- grep("^TRUE other", names(df))
+  follow_up_cols <- grep("^(FOLLOW-UP|Explanation)", names(df))
 
   # --- Styling: assign a category per column, then style in batches -----------
   # Batching with gridExpand = TRUE reduces ~2*ncol addStyle calls to a handful,
   # which matters a lot when there are many columns.
   if (isTRUE(apply_styles)) {
-    category <- rep("default", n_cols)
-    category[exist_cols] <- "exist"
-    category[invalid_col] <- "invalid"
+    category <- rep("reference", n_cols)
+    if (length(true_other_cols) > 0) category[true_other_cols] <- "trueother"
+    if (length(exist_cols) > 0) category[exist_cols] <- "exist"
+    if (length(invalid_col) > 0) category[invalid_col] <- "invalid"
+    if (length(follow_up_cols) > 0) category[follow_up_cols] <- "postinvalid"
 
-    if (length(exist_cols) > 0) {
+    # fallback if the "TRUE other" header was renamed: the column immediately
+    # before the first "EXISTING other" column is the translation column
+    if (length(true_other_cols) == 0 && length(exist_cols) > 0) {
       pre <- min(exist_cols) - 1L
-      if (pre >= 1L && category[pre] == "default") category[pre] <- "trueother"
+      if (pre >= 1L && category[pre] == "reference") category[pre] <- "trueother"
     }
+    # any extra column added after "INVALID other" belongs to the follow-up block
     if (length(invalid_col) > 0) {
-      post <- which(seq_len(n_cols) > max(invalid_col) & category == "default")
+      post <- which(seq_len(n_cols) > max(invalid_col) & category == "reference")
       category[post] <- "postinvalid"
     }
 
-    apply_cat <- function(cat_name, body_style, header_style) {
+    body_styles <- list(
+      reference = style.reference,
+      trueother = style.true_other,
+      exist = style.existing_other,
+      invalid = style.invalid_other,
+      postinvalid = style.follow_up
+    )
+
+    for (cat_name in names(body_styles)) {
       cols <- which(category == cat_name)
       if (length(cols) == 0) {
-        return(invisible())
+        next
       }
       addStyle(
         wb,
         "Sheet1",
-        body_style,
+        body_styles[[cat_name]],
         rows = seq_len(n_rows + 1L),
         cols = cols,
         gridExpand = TRUE
       )
-      addStyle(
-        wb,
-        "Sheet1",
-        header_style,
-        rows = 1,
-        cols = cols,
-        gridExpand = TRUE
-      )
     }
-
-    apply_cat("exist", style.col.color1, style.col.color.first1)
-    apply_cat("invalid", style.col.color, style.col.color.first)
-    apply_cat("trueother", style.col.color, style.col.color.first)
-    apply_cat("postinvalid", style.col.color2, style.col.color.first2)
-    apply_cat("default", style.default.body, style.default.header)
   }
+
+  # The header keeps the MMC formatting even when apply_styles = FALSE: it is a
+  # single addStyle call, so it costs nothing on a large export.
+  if (n_cols > 0) {
+    addStyle(
+      wb,
+      "Sheet1",
+      style.header,
+      rows = 1,
+      cols = seq_len(n_cols),
+      gridExpand = TRUE
+    )
+    if (isTRUE(add_filter)) {
+      addFilter(wb, "Sheet1", row = 1, cols = seq_len(n_cols))
+    }
+  }
+  if (isTRUE(freeze_header)) {
+    freezePane(wb, "Sheet1", firstRow = TRUE)
+  }
+  setRowHeights(wb, "Sheet1", rows = 1, heights = header_row_height)
 
   addWorksheet(wb, "Dropdown_values")
   if (!is.null(other_db) && nrow(other_db) > 0) {
@@ -777,7 +845,12 @@ save_other_responses <- function(
   setColWidths(wb, "Sheet1", cols = seq_len(n_cols), widths = 25)
   setColWidths(wb, "Sheet1", cols = seq_len(min(5L, n_cols)), widths = 15)
 
-  modifyBaseFont(wb, fontSize = 12, fontColour = "black", fontName = "Calibri")
+  modifyBaseFont(
+    wb,
+    fontSize = body_front_size,
+    fontColour = "black",
+    fontName = body_front
+  )
 
   sub.filename <- paste0(Sys.Date(), "_other_responses.xlsx")
   if (!dir.exists(save_location)) {

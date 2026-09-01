@@ -1,8 +1,122 @@
+#' Normalise a column name for tolerant matching
+#'
+#' Lower-cases and strips every non-alphanumeric character so that
+#' \code{"old_value"}, \code{"Old value"} and \code{"OLD-VALUE"} all resolve to the
+#' same key.
+#'
+#' @param x Character vector of column names.
+#'
+#' @return Character vector of normalised keys.
+#' @noRd
+normalize_column_key <- function(x) {
+  gsub("[^a-z0-9]", "", tolower(as.character(x)))
+}
+
+#' Resolve the requested colouring mode
+#'
+#' Accepts the three documented modes plus a few common synonyms (including
+#' \code{TRUE}/\code{FALSE}) so the argument is forgiving in interactive use.
+#'
+#' @param color_mode One of \code{"on"}, \code{"partial"}, \code{"off"} (or a synonym /
+#'   logical).
+#'
+#' @return One of \code{"on"}, \code{"partial"} or \code{"off"}.
+#' @noRd
+resolve_color_mode <- function(color_mode) {
+  if (is.null(color_mode) || length(color_mode) == 0) {
+    return("on")
+  }
+  if (is.logical(color_mode)) {
+    return(if (isTRUE(color_mode[1])) "on" else "off")
+  }
+
+  mode_value <- tolower(trimws(as.character(color_mode[1])))
+
+  on_words <- c("on", "all", "full", "default", "true", "t", "yes", "y")
+  off_words <- c("off", "none", "no_color", "false", "f", "no", "n")
+  partial_words <- c("partial", "part", "some", "column", "columns", "selected")
+
+  if (mode_value %in% on_words) {
+    return("on")
+  }
+  if (mode_value %in% off_words) {
+    return("off")
+  }
+  if (mode_value %in% partial_words) {
+    return("partial")
+  }
+
+  stop(
+    "`color_mode` must be one of \"on\", \"partial\" or \"off\" (got \"",
+    mode_value,
+    "\")."
+  )
+}
+
+#' Resolve requested colour columns to column positions
+#'
+#' Matching ignores case, spaces, underscores and punctuation, so both the raw log
+#' names (\code{"old_value"}) and the reviewer-facing headers (\code{"Old value"})
+#' are accepted. Numeric positions are also allowed.
+#'
+#' @param color_columns Character vector of column names or numeric positions.
+#' @param dataset_names Character vector of the sheet's column names.
+#' @param sheet_name Sheet name, used only in the warning message.
+#'
+#' @return Integer vector of column positions (possibly empty).
+#' @noRd
+resolve_color_columns <- function(
+  color_columns,
+  dataset_names,
+  sheet_name = NULL
+) {
+  if (is.null(color_columns) || length(color_columns) == 0) {
+    return(integer(0))
+  }
+
+  if (is.numeric(color_columns)) {
+    positions <- as.integer(color_columns)
+    positions <- positions[
+      !is.na(positions) & positions >= 1 & positions <= length(dataset_names)
+    ]
+    return(unique(positions))
+  }
+
+  positions <- match(
+    normalize_column_key(color_columns),
+    normalize_column_key(dataset_names)
+  )
+
+  if (any(is.na(positions))) {
+    warning(paste0(
+      "Column(s) not found",
+      if (is.null(sheet_name)) "" else paste0(" in sheet '", sheet_name, "'"),
+      " and skipped for colouring: ",
+      paste(as.character(color_columns)[is.na(positions)], collapse = ", "),
+      "."
+    ))
+  }
+
+  unique(positions[!is.na(positions)])
+}
+
 #' Creates formatted workbook with openxlsx
 #'
 #' @param write_list List of dataframe (one worksheet per element).
 #' @param column_for_color Column name used to colourise rows. Rows sharing the same value get
 #'   the same fill. Sheets that do not contain this column are left un-coloured. Default \code{NULL}.
+#' @param color_mode Controls how much of each row is filled. One of:
+#'   \describe{
+#'     \item{\code{"on"}}{(default) the whole row is filled, i.e. the original behaviour.}
+#'     \item{\code{"partial"}}{only the columns named in \code{color_columns} are filled; every
+#'       other cell keeps the plain body style.}
+#'     \item{\code{"off"}}{no row fills at all.}
+#'   }
+#'   \code{TRUE}/\code{FALSE} are accepted as shorthand for \code{"on"}/\code{"off"}.
+#'   Header formatting is unaffected by this argument in every mode.
+#' @param color_columns Columns to fill when \code{color_mode = "partial"}. Character vector of
+#'   column names (matching ignores case, spaces and underscores) or numeric column positions.
+#'   Ignored in the other two modes. Default \code{NULL}.
 #' @param color_palette Character vector of hex colours used to derive the row fills. Defaults to
 #'   the MMC palette; light shade variations are generated from it so many groups stay distinct
 #'   while remaining "in range" of the brand colours.
@@ -18,6 +132,8 @@
 create_formated_wb <- function(
   write_list,
   column_for_color = NULL,
+  color_mode = "on",
+  color_columns = NULL,
   color_palette = c(
     "#003D58",
     "#00A2A5",
@@ -40,6 +156,14 @@ create_formated_wb <- function(
   body_front = "Arial Narrow",
   body_front_size = 11
 ) {
+  color_mode <- resolve_color_mode(color_mode)
+
+  if (color_mode == "partial" && length(color_columns) == 0) {
+    warning(
+      "`color_mode = \"partial\"` was requested but `color_columns` is empty; no colouring will be applied."
+    )
+  }
+
   # Generate n light shade-variations of the supplied palette. Base hues are cycled and
   # each is blended toward white by a random light fraction, so repeated hues still differ.
   generate_shades <- function(n, palette) {
@@ -112,32 +236,52 @@ create_formated_wb <- function(
     openxlsx::setColWidths(wb, i, cols = 1:ncol(dataset), widths = 25)
     openxlsx::setRowHeights(wb, i, 1, 20)
 
-    if (!is.null(column_for_color) && column_for_color %in% names(dataset)) {
-      u <- unique(dataset[[column_for_color]])
-      shades <- generate_shades(length(u), color_palette)
+    # Row colouring. "off" skips it entirely; "partial" limits the fill to the requested
+    # columns; "on" fills the whole row (original behaviour). The header style above is
+    # never touched by any of the three modes.
+    color_this_sheet <- color_mode != "off" &&
+      !is.null(column_for_color) &&
+      column_for_color %in% names(dataset) &&
+      nrow(dataset) > 0
 
-      for (k in seq_along(u)) {
-        x <- u[k]
-        y <- which(dataset[[column_for_color]] == x)
-
-        style <- openxlsx::createStyle(
-          fgFill = shades[k],
-          fontSize = body_front_size,
-          fontName = body_front,
-          border = "TopBottomLeftRight ",
-          borderColour = "#4F81BD",
-          valign = "center",
-          halign = "left"
+    if (color_this_sheet) {
+      if (color_mode == "partial") {
+        fill_cols <- resolve_color_columns(
+          color_columns,
+          names(dataset),
+          dataset_name
         )
+      } else {
+        fill_cols <- 1:ncol(dataset)
+      }
 
-        openxlsx::addStyle(
-          wb,
-          sheet = i,
-          style,
-          rows = y + 1,
-          cols = 1:ncol(dataset),
-          gridExpand = TRUE
-        )
+      if (length(fill_cols) > 0) {
+        u <- unique(dataset[[column_for_color]])
+        shades <- generate_shades(length(u), color_palette)
+
+        for (k in seq_along(u)) {
+          x <- u[k]
+          y <- which(dataset[[column_for_color]] == x)
+
+          style <- openxlsx::createStyle(
+            fgFill = shades[k],
+            fontSize = body_front_size,
+            fontName = body_front,
+            border = "TopBottomLeftRight ",
+            borderColour = "#4F81BD",
+            valign = "center",
+            halign = "left"
+          )
+
+          openxlsx::addStyle(
+            wb,
+            sheet = i,
+            style,
+            rows = y + 1,
+            cols = fill_cols,
+            gridExpand = TRUE
+          )
+        }
       }
     }
   }
@@ -164,6 +308,14 @@ create_formated_wb <- function(
 #' The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
 #' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
 #'
+#' \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
+#' with the same light MMC shade across the whole row. \code{color_mode} changes that:
+#' \code{"on"} keeps the default, \code{"partial"} fills only the columns listed in
+#' \code{color_columns}, and \code{"off"} writes the log with no fills at all. Header
+#' formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
+#' \code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
+#' underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
+#'
 #' @param write_list A list containing the combined log and the checked dataset.
 #' @param cleaning_log_name Name of the combined-log element in \code{write_list}. Default \code{"cleaning_log"}.
 #' @param dataset_name Name of the checked-dataset element in \code{write_list}. Default \code{"checked_dataset"}.
@@ -174,6 +326,12 @@ create_formated_wb <- function(
 #'   log rows that share a binding (e.g. several questions flagged by one check for the same
 #'   record) get the same colour. The column is written but kept hidden in the output. Set to
 #'   \code{NULL} to disable colouring.
+#' @param color_mode One of \code{"on"} (default, colour the full row), \code{"partial"} (colour
+#'   only \code{color_columns}) or \code{"off"} (no colouring). \code{TRUE}/\code{FALSE} work as
+#'   shorthand for \code{"on"}/\code{"off"}. Never affects the header formatting.
+#' @param color_columns Columns to fill when \code{color_mode = "partial"}, e.g.
+#'   \code{"old_value"} or \code{c("Old value", "Issue")}. Matching ignores case, spaces and
+#'   underscores; numeric column positions are also accepted. Default \code{NULL}.
 #' @param include_dataset Logical. If \code{TRUE} (the default), the checked dataset is written to
 #'   a sheet named \code{"dataset"} so reviewers can refer back to the raw data.
 #' @param header_front_size Header font size (default is 12).
@@ -190,6 +348,23 @@ create_formated_wb <- function(
 #'
 #' @return A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
 #' @export
+#'
+#' @examples
+#' \dontrun{
+#' # default: full-row colouring by check_binding
+#' create_cleaning_log(write_list, output_path = "cleaning_log.xlsx")
+#'
+#' # colour only the "Old value" column
+#' create_cleaning_log(
+#'   write_list,
+#'   color_mode = "partial",
+#'   color_columns = "old_value",
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # no colouring at all
+#' create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+#' }
 create_cleaning_log <- function(
   write_list,
   cleaning_log_name = "cleaning_log",
@@ -198,6 +373,8 @@ create_cleaning_log <- function(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
+  color_mode = "on",
+  color_columns = NULL,
   include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
@@ -243,6 +420,8 @@ create_cleaning_log <- function(
       "The list already has an element named `validation_rules`. Please rename it."
     )
   }
+
+  color_mode <- resolve_color_mode(color_mode)
 
   cl <- as.data.frame(write_list[[cleaning_log_name]], stringsAsFactors = FALSE)
   raw <- as.data.frame(write_list[[dataset_name]], stringsAsFactors = FALSE)
@@ -342,6 +521,40 @@ create_cleaning_log <- function(
     "check_binding" = as.character(cl$check_binding)
   )
 
+  # ---- translate colour columns given with the raw log names ----
+  # A user may ask for "old_value" (log name) or "Old value" (reviewer header); both must
+  # resolve to the header actually written to the sheet.
+  if (color_mode == "partial" && length(color_columns) > 0) {
+    if (!is.numeric(color_columns)) {
+      log_aliases <- c(
+        "uuid" = "Survey UUID",
+        "surveyuuid" = "Survey UUID",
+        "question" = "Question number",
+        "questionnumber" = "Question number",
+        "questiontext" = "Question text",
+        "issue" = "Issue",
+        "oldvalue" = "Old value",
+        "newvalue" = "New value",
+        "action" = "Action taken",
+        "actiontaken" = "Action taken",
+        "date" = "Date",
+        "enumerator" = "Enumerator",
+        "section" = "Section",
+        "identifiedby" = "Identified by",
+        "comments" = "Comments",
+        "pofeedback" = "PO feedback",
+        "surveyregistrationdate" = "Survey Registration Date",
+        "checkbinding" = "check_binding"
+      )
+
+      requested <- as.character(color_columns)
+      keys <- normalize_column_key(requested)
+      matched <- keys %in% names(log_aliases)
+      requested[matched] <- unname(log_aliases[keys[matched]])
+      color_columns <- unique(requested)
+    }
+  }
+
   # ---- readme and (hidden) validation sheets ----
   readme_df <- data.frame(
     check.names = FALSE,
@@ -367,6 +580,8 @@ create_cleaning_log <- function(
   workbook <- out_list |>
     create_formated_wb(
       column_for_color = column_for_color,
+      color_mode = color_mode,
+      color_columns = color_columns,
       header_front_size = header_front_size,
       header_front_color = header_front_color,
       header_fill_color = header_fill_color,

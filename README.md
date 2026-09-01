@@ -257,6 +257,68 @@ cleaningkit::create_cleaning_log(
 )
 ```
 
+#### Controlling the colours in the cleaning log
+
+By default the log is colour-coded by `check_binding`: every row
+belonging to the same check-and-record gets the same light MMC shade, so
+a reviewer can see at a glance which flagged questions belong together.
+`color_mode` gives you three options:
+
+| `color_mode` | What it does |
+|----|----|
+| `"on"` | **Default.** The whole row is filled, one shade per `check_binding`. |
+| `"partial"` | Only the columns listed in `color_columns` are filled; every other cell stays plain. |
+| `"off"` | No fills at all. |
+
+The header row is unaffected in all three modes — it keeps the same MMC
+blue fill, white bold Arial Narrow text, borders, filter and frozen
+pane. `color_mode` only changes the body of the log.
+
+``` r
+#----------------------------------
+# 1. colours on (default)
+#----------------------------------
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "on",
+  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
+)
+
+#----------------------------------
+# 2. colours partial - only the columns you name
+#----------------------------------
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "partial",
+  color_columns = "old_value",
+  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
+)
+
+#----------------------------------
+# 3. colours off
+#----------------------------------
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "off",
+  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
+)
+```
+
+`color_columns` is only read when `color_mode = "partial"`. It takes one
+or more columns, written either the way they appear in the log header or
+the way they appear in the raw log — matching ignores case, spaces and
+underscores, so both of these do the same thing:
+
+``` r
+color_columns = c("old_value", "issue", "question")          # raw log names
+color_columns = c("Old value", "Issue", "Question number")   # log headers
+```
+
+If you ask for `"partial"` without any valid `color_columns`, the log is
+written with no colouring and a warning tells you which columns were not
+found. `TRUE` and `FALSE` also work as shorthand for `"on"` and `"off"`,
+and `column_for_color = NULL` still switches colouring off entirely.
+
 ### Creating Other Responses
 
 You can extract and prepare “other” responses from your dataset using
