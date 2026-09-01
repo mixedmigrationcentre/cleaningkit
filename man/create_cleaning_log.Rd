@@ -22,7 +22,8 @@ create_cleaning_log(
   body_front = "Arial Narrow",
   body_front_size = 11,
   skip_label_row = TRUE,
-  output_path = NULL
+  output_path = NULL,
+  group_by_uuid = TRUE
 )
 }
 \arguments{
@@ -72,6 +73,12 @@ the actual records are taken from row 2 onward. If \code{FALSE}, every row is tr
 record and \strong{Question text} is left blank (no label row to read from).}
 
 \item{output_path}{Output path. Default \code{NULL} returns a workbook instead of writing a file.}
+
+\item{group_by_uuid}{Logical. If \code{TRUE} (the default), the log rows are regrouped so all
+rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
+another. Blocks keep the order in which their uuid is first met in the combined log, and
+rows keep their original order inside a block. \code{FALSE} keeps the incoming
+check-by-check order.}
 }
 \value{
 A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
@@ -92,6 +99,18 @@ be completed during review.
 
 The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
 \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+
+\strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
+\strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
+headers stay visible while a reviewer scrolls right and down.
+
+\strong{Row order.} The combined log arrives stacked check by check, so the rows for one
+interview are scattered down the sheet. By default the reviewer log is regrouped so that
+every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
+after another. Blocks appear in the order the uuids are first met in the combined log, and
+the original order is kept inside each block, so the rows themselves are untouched - only
+their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
+order.
 
 \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 with the same light MMC shade across the whole row. \code{color_mode} changes that:
@@ -116,5 +135,12 @@ create_cleaning_log(
 
 # no colouring at all
 create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+
+# keep the old check-by-check row order instead of grouping by survey
+create_cleaning_log(
+  write_list,
+  group_by_uuid = FALSE,
+  output_path = "cleaning_log.xlsx"
+)
 }
 }

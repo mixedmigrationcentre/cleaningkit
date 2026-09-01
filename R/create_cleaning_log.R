@@ -308,6 +308,18 @@ create_formated_wb <- function(
 #' The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
 #' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
 #'
+#' \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
+#' \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
+#' headers stay visible while a reviewer scrolls right and down.
+#'
+#' \strong{Row order.} The combined log arrives stacked check by check, so the rows for one
+#' interview are scattered down the sheet. By default the reviewer log is regrouped so that
+#' every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
+#' after another. Blocks appear in the order the uuids are first met in the combined log, and
+#' the original order is kept inside each block, so the rows themselves are untouched - only
+#' their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
+#' order.
+#'
 #' \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 #' with the same light MMC shade across the whole row. \code{color_mode} changes that:
 #' \code{"on"} keeps the default, \code{"partial"} fills only the columns listed in
@@ -345,6 +357,11 @@ create_formated_wb <- function(
 #'   the actual records are taken from row 2 onward. If \code{FALSE}, every row is treated as a
 #'   record and \strong{Question text} is left blank (no label row to read from).
 #' @param output_path Output path. Default \code{NULL} returns a workbook instead of writing a file.
+#' @param group_by_uuid Logical. If \code{TRUE} (the default), the log rows are regrouped so all
+#'   rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
+#'   another. Blocks keep the order in which their uuid is first met in the combined log, and
+#'   rows keep their original order inside a block. \code{FALSE} keeps the incoming
+#'   check-by-check order.
 #'
 #' @return A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
 #' @export
@@ -364,6 +381,13 @@ create_formated_wb <- function(
 #'
 #' # no colouring at all
 #' create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+#'
+#' # keep the old check-by-check row order instead of grouping by survey
+#' create_cleaning_log(
+#'   write_list,
+#'   group_by_uuid = FALSE,
+#'   output_path = "cleaning_log.xlsx"
+#' )
 #' }
 create_cleaning_log <- function(
   write_list,
@@ -383,7 +407,8 @@ create_cleaning_log <- function(
   body_front = "Arial Narrow",
   body_front_size = 11,
   skip_label_row = TRUE,
-  output_path = NULL
+  output_path = NULL,
+  group_by_uuid = TRUE
 ) {
   # ---- action codes shared by the drop-down and the readme ----
   action_codes <- c(
@@ -503,8 +528,9 @@ create_cleaning_log <- function(
   final_log <- data.frame(
     check.names = FALSE,
     stringsAsFactors = FALSE,
-    "Date" = lookup(date_lookup, cl_uuid),
+    # Survey UUID first so it lands in column A, which is the frozen column
     "Survey UUID" = cl_uuid,
+    "Date" = lookup(date_lookup, cl_uuid),
     "Survey Registration Date" = NA_character_,
     "Enumerator" = lookup(enum_lookup, cl_uuid),
     "Section" = NA_character_,
@@ -520,6 +546,22 @@ create_cleaning_log <- function(
     # trailing helper column used only to colour related rows; hidden in the output
     "check_binding" = as.character(cl$check_binding)
   )
+
+  # ---- group the log by survey ----
+  # The combined log arrives stacked check by check, which scatters the rows of one
+  # interview down the sheet. Ordering by the first appearance of each uuid puts every
+  # row of a survey in one block while keeping the original order inside the block, so
+  # the rows are exactly the same rows - only their arrangement changes. Rows sharing a
+  # check_binding stay adjacent, so the colour blocks still read correctly.
+  if (isTRUE(group_by_uuid) && nrow(final_log) > 1) {
+    uuid_values <- final_log[["Survey UUID"]]
+    block_rank <- match(uuid_values, unique(uuid_values))
+    final_log <- final_log[
+      order(block_rank, seq_along(block_rank)), ,
+      drop = FALSE
+    ]
+    rownames(final_log) <- NULL
+  }
 
   # ---- translate colour columns given with the raw log names ----
   # A user may ask for "old_value" (log name) or "Old value" (reviewer header); both must
