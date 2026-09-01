@@ -8,6 +8,8 @@ Creates formatted workbook with openxlsx
 create_formated_wb(
   write_list,
   column_for_color = NULL,
+  color_mode = "on",
+  color_columns = NULL,
   color_palette = c("#003D58", "#00A2A5", "#AFDFE4", "#D5EEF0", "#FFE07C", "#B88AAB",
     "#BBD876", "#FBBC75", "#F8AB9E", "#5B9E62", "#009BD9", "#F15B5B", "#63193B"),
   header_front_size = 12,
@@ -30,6 +32,33 @@ create_formated_wb(
   Column name used to colourise rows. Rows sharing the same value get
   the same fill. Sheets that do not contain this column are left
   un-coloured. Default `NULL`.
+
+- color_mode:
+
+  Controls how much of each row is filled. One of:
+
+  `"on"`
+
+  :   (default) the whole row is filled, i.e. the original behaviour.
+
+  `"partial"`
+
+  :   only the columns named in `color_columns` are filled; every other
+      cell keeps the plain body style.
+
+  `"off"`
+
+  :   no row fills at all.
+
+  `TRUE`/`FALSE` are accepted as shorthand for `"on"`/`"off"`. Header
+  formatting is unaffected by this argument in every mode.
+
+- color_columns:
+
+  Columns to fill when `color_mode = "partial"`. Character vector of
+  column names (matching ignores case, spaces and underscores) or
+  numeric column positions. Ignored in the other two modes. Default
+  `NULL`.
 
 - color_palette:
 

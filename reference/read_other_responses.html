@@ -150,7 +150,8 @@ Overwrites the <code>_other</code> text column with the value in
 
 <dt><code>recode</code></dt>
 <dd><p>The response actually matches an existing choice.
-One or more of the <code>EXISTING other ...</code> columns is filled. For
+The <code>EXISTING other ...</code> column is filled (older logs with several
+numbered <code>EXISTING other</code> columns are still read and merged). For
 <code>select_one</code>: blanks the <code>_other</code> text column, sets the parent
 to the matched choice code. For <code>select_multiple</code>: blanks the
 <code>_other</code> text column, removes the <code>other</code> option from the

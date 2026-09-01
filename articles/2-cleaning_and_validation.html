@@ -500,6 +500,11 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <div class="section level2">
 <h2 id="create-cleaning-log">Create cleaning log<a class="anchor" aria-label="anchor" href="#create-cleaning-log"></a>
 </h2>
+<p><code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> turns the combined log into the
+reviewer-facing Excel workbook: the log itself on the first sheet, the
+checked dataset on a <code>dataset</code> sheet, a <code>readme</code>
+sheet listing the action codes, and a drop-down on the <strong>Action
+taken</strong> column.</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
@@ -509,6 +514,226 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <span>    <span class="st">"_follow-ups.xlsx"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="controlling-the-row-colours">Controlling the row colours<a class="anchor" aria-label="anchor" href="#controlling-the-row-colours"></a>
+</h3>
+<p>The log is colour-coded so that a reviewer can see which flagged
+questions belong together. The colouring is driven by
+<code>column_for_color</code>, which defaults to
+<code>check_binding</code>: all the rows produced by one check for one
+record share a <code>check_binding</code>, and therefore share a light
+MMC shade. The shades are generated from the MMC palette, so a log with
+many bindings still stays in range of the brand colours.</p>
+<p>How much of each row is filled is controlled by
+<code>color_mode</code>:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th><code>color_mode</code></th>
+<th>What it does</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>"on"</code></td>
+<td>
+<strong>Default.</strong> The whole row is filled, one shade per
+<code>check_binding</code>.</td>
+</tr>
+<tr class="even">
+<td><code>"partial"</code></td>
+<td>Only the columns listed in <code>color_columns</code> are filled;
+every other cell keeps the plain body style.</td>
+</tr>
+<tr class="odd">
+<td><code>"off"</code></td>
+<td>No fills at all.</td>
+</tr>
+</tbody>
+</table>
+<p><code>color_mode</code> never touches the header. In all three modes
+the header row keeps the MMC blue fill, the white bold Arial Narrow
+text, the borders, the column filter and the frozen first row and
+column, and the body keeps its borders and fonts — only the row fills
+change.</p>
+<div class="section level4">
+<h4 id="colours-on-the-default">Colours on (the default)<a class="anchor" aria-label="anchor" href="#colours-on-the-default"></a>
+</h4>
+<p>Nothing needs to be passed; <code>color_mode = "on"</code> is shown
+here only to make the option explicit.</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"on"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level4">
+<h4 id="colours-on-selected-columns-only">Colours on selected columns only<a class="anchor" aria-label="anchor" href="#colours-on-selected-columns-only"></a>
+</h4>
+<p>Pass <code>color_mode = "partial"</code> together with the column or
+columns that should carry the colour. This is useful when the colour is
+only needed as a pointer to the value under review, and a fully coloured
+row makes the sheet harder to read or to print.</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># colour only the "Old value" column</span></span>
+<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"partial"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="st">"old_value"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># colour several columns</span></span>
+<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"partial"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"old_value"</span>, <span class="st">"issue"</span>, <span class="st">"question"</span><span class="op">)</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Column names can be written either the way they appear in the log
+header or the way they appear in the raw log, because matching ignores
+case, spaces, underscores and punctuation. Column positions
+(e.g. <code>color_columns = c(8, 9)</code>) are accepted too. These are
+the columns of the log and the names that resolve to each one:</p>
+<table class="table">
+<thead><tr class="header">
+<th>Log header</th>
+<th>Also accepted as</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>Date</code></td>
+<td><code>date</code></td>
+</tr>
+<tr class="even">
+<td><code>Survey UUID</code></td>
+<td>
+<code>uuid</code>, <code>survey_uuid</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>Survey Registration Date</code></td>
+<td><code>survey_registration_date</code></td>
+</tr>
+<tr class="even">
+<td><code>Enumerator</code></td>
+<td><code>enumerator</code></td>
+</tr>
+<tr class="odd">
+<td><code>Section</code></td>
+<td><code>section</code></td>
+</tr>
+<tr class="even">
+<td><code>Question number</code></td>
+<td>
+<code>question</code>, <code>question_number</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>Question text</code></td>
+<td><code>question_text</code></td>
+</tr>
+<tr class="even">
+<td><code>Issue</code></td>
+<td><code>issue</code></td>
+</tr>
+<tr class="odd">
+<td><code>Old value</code></td>
+<td><code>old_value</code></td>
+</tr>
+<tr class="even">
+<td><code>Action taken</code></td>
+<td>
+<code>action</code>, <code>action_taken</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>New value</code></td>
+<td><code>new_value</code></td>
+</tr>
+<tr class="even">
+<td><code>Identified by</code></td>
+<td><code>identified_by</code></td>
+</tr>
+<tr class="odd">
+<td><code>Comments</code></td>
+<td><code>comments</code></td>
+</tr>
+<tr class="even">
+<td><code>PO feedback</code></td>
+<td><code>po_feedback</code></td>
+</tr>
+</tbody>
+</table>
+<p>If <code>color_mode = "partial"</code> is used without any valid
+<code>color_columns</code>, the workbook is still written but with no
+colouring, and a warning names the columns that could not be found.</p>
+</div>
+<div class="section level4">
+<h4 id="colours-off">Colours off<a class="anchor" aria-label="anchor" href="#colours-off"></a>
+</h4>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"off"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><code>TRUE</code> and <code>FALSE</code> work as shorthand for
+<code>"on"</code> and <code>"off"</code>:</p>
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Setting <code>column_for_color = NULL</code> also switches the
+colouring off, since there is then no column left to group the rows
+by.</p>
+</div>
+<div class="section level4">
+<h4 id="colouring-by-something-other-than-check_binding">Colouring by something other than <code>check_binding</code><a class="anchor" aria-label="anchor" href="#colouring-by-something-other-than-check_binding"></a>
+</h4>
+<p><code>column_for_color</code> can point at any column of the log,
+which is occasionally useful for review workflows that are organised
+differently — for example one shade per interview rather than one shade
+per check:</p>
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  column_for_color <span class="op">=</span> <span class="st">"Survey UUID"</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"partial"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="st">"old_value"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

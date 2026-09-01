@@ -104,12 +104,13 @@ A dataframe with columns `uuid`, `question`, `action_taken`,
 
 - `recode`:
 
-  The response actually matches an existing choice. One or more of the
-  `EXISTING other ...` columns is filled. For `select_one`: blanks the
-  `_other` text column, sets the parent to the matched choice code. For
-  `select_multiple`: blanks the `_other` text column, removes the
-  `other` option from the parent concatenation, and adds the matched
-  choice(s).
+  The response actually matches an existing choice. The
+  `EXISTING other ...` column is filled (older logs with several
+  numbered `EXISTING other` columns are still read and merged). For
+  `select_one`: blanks the `_other` text column, sets the parent to the
+  matched choice code. For `select_multiple`: blanks the `_other` text
+  column, removes the `other` option from the parent concatenation, and
+  adds the matched choice(s).
 
 - `remove`:
 

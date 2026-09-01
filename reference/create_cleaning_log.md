@@ -16,6 +16,8 @@ create_cleaning_log(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
+  color_mode = "on",
+  color_columns = NULL,
   include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
@@ -64,6 +66,19 @@ create_cleaning_log(
   rows that share a binding (e.g. several questions flagged by one check
   for the same record) get the same colour. The column is written but
   kept hidden in the output. Set to `NULL` to disable colouring.
+
+- color_mode:
+
+  One of `"on"` (default, colour the full row), `"partial"` (colour only
+  `color_columns`) or `"off"` (no colouring). `TRUE`/`FALSE` work as
+  shorthand for `"on"`/`"off"`. Never affects the header formatting.
+
+- color_columns:
+
+  Columns to fill when `color_mode = "partial"`, e.g. `"old_value"` or
+  `c("Old value", "Issue")`. Matching ignores case, spaces and
+  underscores; numeric column positions are also accepted. Default
+  `NULL`.
 
 - include_dataset:
 
@@ -124,3 +139,32 @@ taken**, **Comments**, **PO feedback**, **Survey Registration Date**,
 
 The **Action taken** drop-down and the `readme` sheet share these five
 codes: `recoded`, `delete_data_point`, `discard`, `addition`, `other`.
+
+**Row colouring.** By default every log row that shares a
+`check_binding` is filled with the same light MMC shade across the whole
+row. `color_mode` changes that: `"on"` keeps the default, `"partial"`
+fills only the columns listed in `color_columns`, and `"off"` writes the
+log with no fills at all. Header formatting (MMC blue fill, white bold
+Arial Narrow) is identical in all three modes. `color_columns` accepts
+either the reviewer-facing headers (`"Old value"`) or the underlying log
+names (`"old_value"`, `"uuid"`, `"question"`, `"issue"`).
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# default: full-row colouring by check_binding
+create_cleaning_log(write_list, output_path = "cleaning_log.xlsx")
+
+# colour only the "Old value" column
+create_cleaning_log(
+  write_list,
+  color_mode = "partial",
+  color_columns = "old_value",
+  output_path = "cleaning_log.xlsx"
+)
+
+# no colouring at all
+create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+} # }
+```

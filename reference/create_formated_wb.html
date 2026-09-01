@@ -46,6 +46,8 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">create_formated_wb</span><span class="op">(</span></span>
 <span>  <span class="va">write_list</span>,</span>
 <span>  column_for_color <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"on"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  color_palette <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#003D58"</span>, <span class="st">"#00A2A5"</span>, <span class="st">"#AFDFE4"</span>, <span class="st">"#D5EEF0"</span>, <span class="st">"#FFE07C"</span>, <span class="st">"#B88AAB"</span>,</span>
 <span>    <span class="st">"#BBD876"</span>, <span class="st">"#FBBC75"</span>, <span class="st">"#F8AB9E"</span>, <span class="st">"#5B9E62"</span>, <span class="st">"#009BD9"</span>, <span class="st">"#F15B5B"</span>, <span class="st">"#63193B"</span><span class="op">)</span>,</span>
 <span>  header_front_size <span class="op">=</span> <span class="fl">12</span>,</span>
@@ -68,6 +70,28 @@
 <dt id="arg-column-for-color">column_for_color<a class="anchor" aria-label="anchor" href="#arg-column-for-color"></a></dt>
 <dd><p>Column name used to colourise rows. Rows sharing the same value get
 the same fill. Sheets that do not contain this column are left un-coloured. Default <code>NULL</code>.</p></dd>
+
+
+<dt id="arg-color-mode">color_mode<a class="anchor" aria-label="anchor" href="#arg-color-mode"></a></dt>
+<dd><p>Controls how much of each row is filled. One of:</p><dl><dt><code>"on"</code></dt>
+<dd><p>(default) the whole row is filled, i.e. the original behaviour.</p></dd>
+
+<dt><code>"partial"</code></dt>
+<dd><p>only the columns named in <code>color_columns</code> are filled; every
+other cell keeps the plain body style.</p></dd>
+
+<dt><code>"off"</code></dt>
+<dd><p>no row fills at all.</p></dd>
+
+
+</dl><p><code>TRUE</code>/<code>FALSE</code> are accepted as shorthand for <code>"on"</code>/<code>"off"</code>.
+Header formatting is unaffected by this argument in every mode.</p></dd>
+
+
+<dt id="arg-color-columns">color_columns<a class="anchor" aria-label="anchor" href="#arg-color-columns"></a></dt>
+<dd><p>Columns to fill when <code>color_mode = "partial"</code>. Character vector of
+column names (matching ignores case, spaces and underscores) or numeric column positions.
+Ignored in the other two modes. Default <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-color-palette">color_palette<a class="anchor" aria-label="anchor" href="#arg-color-palette"></a></dt>

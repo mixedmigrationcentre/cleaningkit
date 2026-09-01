@@ -100,4 +100,6 @@ A dataframe formatted for
 [`save_other_responses()`](save_other_responses.md). It carries an
 attribute `"ona_label_row_skipped"` recording whether the label row was
 dropped, so [`save_other_responses()`](save_other_responses.md) does not
-drop a row a second time.
+drop a row a second time. The reviewer columns are **TRUE other**, a
+single **EXISTING other** (earlier versions wrote three numbered slots),
+**INVALID other**, **FOLLOW-UP message** and **Explanation**.
