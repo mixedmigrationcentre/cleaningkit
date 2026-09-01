@@ -426,9 +426,164 @@ combined_log <- cleaningkit::create_combined_log(
 
 ## Create cleaning log
 
+`create_cleaning_log()` turns the combined log into the reviewer-facing Excel
+workbook: the log itself on the first sheet, the checked dataset on a `dataset`
+sheet, a `readme` sheet listing the action codes, and a drop-down on the
+**Action taken** column.
+
 ```{r}
 cleaningkit::create_cleaning_log(
   write_list = combined_log,
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+### Controlling the row colours
+
+The log is colour-coded so that a reviewer can see which flagged questions
+belong together. The colouring is driven by `column_for_color`, which defaults
+to `check_binding`: all the rows produced by one check for one record share a
+`check_binding`, and therefore share a light MMC shade. The shades are
+generated from the MMC palette, so a log with many bindings still stays in
+range of the brand colours.
+
+How much of each row is filled is controlled by `color_mode`:
+
+| `color_mode` | What it does |
+|---|---|
+| `"on"` | **Default.** The whole row is filled, one shade per `check_binding`. |
+| `"partial"` | Only the columns listed in `color_columns` are filled; every other cell keeps the plain body style. |
+| `"off"` | No fills at all. |
+
+`color_mode` never touches the header. In all three modes the header row keeps
+the MMC blue fill, the white bold Arial Narrow text, the borders, the column
+filter and the frozen first row and column, and the body keeps its borders and
+fonts — only the row fills change.
+
+#### Colours on (the default)
+
+Nothing needs to be passed; `color_mode = "on"` is shown here only to make the
+option explicit.
+
+```{r}
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "on",
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+#### Colours on selected columns only
+
+Pass `color_mode = "partial"` together with the column or columns that should
+carry the colour. This is useful when the colour is only needed as a pointer to
+the value under review, and a fully coloured row makes the sheet harder to read
+or to print.
+
+```{r}
+# colour only the "Old value" column
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "partial",
+  color_columns = "old_value",
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+
+# colour several columns
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "partial",
+  color_columns = c("old_value", "issue", "question"),
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+Column names can be written either the way they appear in the log header or the
+way they appear in the raw log, because matching ignores case, spaces,
+underscores and punctuation. Column positions (e.g. `color_columns = c(8, 9)`)
+are accepted too. These are the columns of the log and the names that resolve to
+each one:
+
+| Log header | Also accepted as |
+|---|---|
+| `Date` | `date` |
+| `Survey UUID` | `uuid`, `survey_uuid` |
+| `Survey Registration Date` | `survey_registration_date` |
+| `Enumerator` | `enumerator` |
+| `Section` | `section` |
+| `Question number` | `question`, `question_number` |
+| `Question text` | `question_text` |
+| `Issue` | `issue` |
+| `Old value` | `old_value` |
+| `Action taken` | `action`, `action_taken` |
+| `New value` | `new_value` |
+| `Identified by` | `identified_by` |
+| `Comments` | `comments` |
+| `PO feedback` | `po_feedback` |
+
+If `color_mode = "partial"` is used without any valid `color_columns`, the
+workbook is still written but with no colouring, and a warning names the columns
+that could not be found.
+
+#### Colours off
+
+```{r}
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = "off",
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+`TRUE` and `FALSE` work as shorthand for `"on"` and `"off"`:
+
+```{r}
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  color_mode = FALSE,
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+Setting `column_for_color = NULL` also switches the colouring off, since there
+is then no column left to group the rows by.
+
+#### Colouring by something other than `check_binding`
+
+`column_for_color` can point at any column of the log, which is occasionally
+useful for review workflows that are organised differently — for example one
+shade per interview rather than one shade per check:
+
+```{r}
+cleaningkit::create_cleaning_log(
+  write_list = combined_log,
+  column_for_color = "Survey UUID",
+  color_mode = "partial",
+  color_columns = "old_value",
   output_path = paste0(
     "output/follow_ups/",
     Sys.Date(),

@@ -277,13 +277,57 @@ combined_log <- cleaningkit::create_combined_log(
 
 #----------------------------------
 # create cleaning log
+# the row colours are controlled with `color_mode`:
+#   "on"      -> default, the whole row is coloured by check_binding
+#   "partial" -> only the columns listed in `color_columns` are coloured
+#   "off"     -> no colouring at all
+# the header keeps the same MMC formatting in all three cases
+# uncomment the option you want to use
+#----------------------------------
+
+#----------------------------------
+# 1. colours on (default)
+# every row that shares a check_binding gets the same shade
 #----------------------------------
 
 cleaningkit::create_cleaning_log(
   write_list = combined_log,
+  color_mode = "on",
   output_path = paste0(
     "output/follow_ups/",
     Sys.Date(),
     "_follow-ups.xlsx"
   )
 )
+
+#----------------------------------
+# 2. colours partial
+# only the columns passed to `color_columns` are coloured, the rest stay plain
+# the raw log names ("old_value") and the log headers ("Old value") both work
+#----------------------------------
+
+# cleaningkit::create_cleaning_log(
+#   write_list = combined_log,
+#   color_mode = "partial",
+#   color_columns = c("old_value"),
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsx"
+#   )
+# )
+
+#----------------------------------
+# 3. colours off
+# no colouring at all, header formatting is kept
+#----------------------------------
+
+# cleaningkit::create_cleaning_log(
+#   write_list = combined_log,
+#   color_mode = "off",
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsx"
+#   )
+# )

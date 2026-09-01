@@ -13,7 +13,8 @@
 #'     Overwrites the \code{_other} text column with the value in
 #'     \code{TRUE other ...}. The parent question is not touched.}
 #'   \item{\code{recode}}{The response actually matches an existing choice.
-#'     One or more of the \code{EXISTING other ...} columns is filled. For
+#'     The \code{EXISTING other ...} column is filled (older logs with several
+#'     numbered \code{EXISTING other} columns are still read and merged). For
 #'     \code{select_one}: blanks the \code{_other} text column, sets the parent
 #'     to the matched choice code. For \code{select_multiple}: blanks the
 #'     \code{_other} text column, removes the \code{other} option from the
@@ -139,11 +140,16 @@ read_other_responses <- function(
   }
   or <- or |>
     rename_starts("TRUE", "true_other") |>
-    rename_starts("EXISTING other 1", "existing_other_1") |>
-    rename_starts("EXISTING other 2", "existing_other_2") |>
-    rename_starts("EXISTING other 3", "existing_other_3") |>
     rename_starts("INVALID", "invalid_other") |>
     rename_starts("FOLLOW", "fu_message")
+
+  # "EXISTING other" columns are numbered by the order they appear in the file,
+  # so both layouts are handled: the current single "EXISTING other" column, and
+  # older logs that still carry "EXISTING other 1/2/3".
+  exist_hits <- which(stringr::str_starts(names(or), "EXISTING"))
+  if (length(exist_hits) > 0) {
+    names(or)[exist_hits] <- paste0("existing_other_", seq_along(exist_hits))
+  }
 
   # ---- check the uuid column exists in the log ----
   if (!(log_uuid_col %in% names(or))) {
@@ -158,6 +164,8 @@ read_other_responses <- function(
     ))
   }
 
+  # only one "EXISTING other" column is required; any further ones (from older
+  # three-slot logs) are optional and merged in below
   required_cols <- c(
     log_uuid_col,
     "question_name",
@@ -165,8 +173,6 @@ read_other_responses <- function(
     "response_en",
     "true_other",
     "existing_other_1",
-    "existing_other_2",
-    "existing_other_3",
     "invalid_other"
   )
   missing_cols <- setdiff(required_cols, names(or))
