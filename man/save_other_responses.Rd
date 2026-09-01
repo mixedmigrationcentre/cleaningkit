@@ -11,7 +11,24 @@ save_other_responses(
   save_location = "output",
   other_db = NULL,
   apply_styles = TRUE,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  header_front_size = 12,
+  header_front_color = "#FFFFFF",
+  header_fill_color = "#00A2A5",
+  header_border_color = "#fafafa",
+  header_front = "Arial Narrow",
+  body_front = "Arial Narrow",
+  body_front_size = 11,
+  body_border_color = "#AFDFE4",
+  reference_fill_color = NA,
+  true_other_fill_color = "#E4EFC8",
+  existing_other_fill_color = "#FFF1C4",
+  invalid_other_fill_color = "#FCD9D3",
+  follow_up_fill_color = "#E3D0DD",
+  header_row_height = 45,
+  freeze_header = TRUE,
+  add_filter = TRUE,
+  file_name = NULL
 )
 }
 \arguments{
@@ -38,6 +55,56 @@ comes from \code{prepare_other_responses()} the label row was already handled
 (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
 dropped. Only when \code{df} has no such provenance is its first row dropped,
 with a message. Set to \code{FALSE} to always keep every row.}
+
+\item{header_front_size}{Header font size (default is 12).}
+
+\item{header_front_color}{Hexcode for header font color (default is white).}
+
+\item{header_fill_color}{Hexcode for header fill color (default is MMC blue
+\code{"#00A2A5"}, the same header as the cleaning log).}
+
+\item{header_border_color}{Hexcode for the header border (default \code{"#fafafa"}).}
+
+\item{header_front}{Font name for the header (default is Arial Narrow).}
+
+\item{body_front}{Font name for the body (default is Arial Narrow).}
+
+\item{body_front_size}{Font size for the body (default is 11).}
+
+\item{body_border_color}{Hexcode for the body cell borders (default is MMC light
+teal \code{"#AFDFE4"}).}
+
+\item{reference_fill_color}{Fill for the reference columns (uuid, enumerator,
+question_name, list_name, full_label, selected_choices, response_en).
+Default \code{NA}, i.e. no fill - these columns are left the default Excel
+white so the eye goes to the columns the reviewer has to fill in. Pass a
+hexcode (e.g. MMC light teal \code{"#D5EEF0"}) to tint them.}
+
+\item{true_other_fill_color}{Fill for the \strong{TRUE other} column. Default is a
+light tint of MMC green \code{"#BBD876"}.}
+
+\item{existing_other_fill_color}{Fill for the \strong{EXISTING other} column.
+Default is a light tint of MMC yellow \code{"#FFE07C"}.}
+
+\item{invalid_other_fill_color}{Fill for the \strong{INVALID other} column. Default
+is a light tint of MMC salmon \code{"#F8AB9E"}.}
+
+\item{follow_up_fill_color}{Fill for the \strong{FOLLOW-UP message} /
+\strong{Explanation} columns. Default is a light tint of MMC mauve
+\code{"#B88AAB"}.}
+
+\item{header_row_height}{Height of the header row (default is 45, so the long
+instruction headers wrap and stay readable).}
+
+\item{freeze_header}{Logical. Freeze the header row (default \code{TRUE}).}
+
+\item{add_filter}{Logical. Add a column filter on the header row (default
+\code{TRUE}).}
+
+\item{file_name}{Name of the output file. Default \code{NULL} keeps the
+standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
+passed without the \code{.xlsx} extension gets it appended. The name is
+written inside \code{save_location}.}
 }
 \value{
 NULL. Saves an Excel file.

@@ -69,6 +69,9 @@ with no label in any language is displayed as the raw code itself, so no
 A dataframe formatted for \code{save_other_responses()}. It carries an
 attribute \code{"ona_label_row_skipped"} recording whether the label row was
 dropped, so \code{save_other_responses()} does not drop a row a second time.
+The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
+(earlier versions wrote three numbered slots), \strong{INVALID other},
+\strong{FOLLOW-UP message} and \strong{Explanation}.
 }
 \description{
 Combines other responses from all sheets/loops into a single dataframe

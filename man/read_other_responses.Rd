@@ -77,7 +77,8 @@ cleaning-log dataframe ready for \code{apply_other_responses()}.
 Overwrites the \code{_other} text column with the value in
 \code{TRUE other ...}. The parent question is not touched.}
 \item{\code{recode}}{The response actually matches an existing choice.
-One or more of the \code{EXISTING other ...} columns is filled. For
+The \code{EXISTING other ...} column is filled (older logs with several
+numbered \code{EXISTING other} columns are still read and merged). For
 \code{select_one}: blanks the \code{_other} text column, sets the parent
 to the matched choice code. For \code{select_multiple}: blanks the
 \code{_other} text column, removes the \code{other} option from the

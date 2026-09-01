@@ -536,10 +536,11 @@ prepare_other_responses <- function(
 #' @param body_front_size Font size for the body (default is 11).
 #' @param body_border_color Hexcode for the body cell borders (default is MMC light
 #'   teal \code{"#AFDFE4"}).
-#' @param reference_fill_color Fill for the read-only reference columns (uuid,
-#'   enumerator, question_name, list_name, full_label, selected_choices,
-#'   response_en). Default MMC light teal \code{"#D5EEF0"}. Set to \code{NA} for
-#'   no fill.
+#' @param reference_fill_color Fill for the reference columns (uuid, enumerator,
+#'   question_name, list_name, full_label, selected_choices, response_en).
+#'   Default \code{NA}, i.e. no fill - these columns are left the default Excel
+#'   white so the eye goes to the columns the reviewer has to fill in. Pass a
+#'   hexcode (e.g. MMC light teal \code{"#D5EEF0"}) to tint them.
 #' @param true_other_fill_color Fill for the \strong{TRUE other} column. Default is a
 #'   light tint of MMC green \code{"#BBD876"}.
 #' @param existing_other_fill_color Fill for the \strong{EXISTING other} column.
@@ -554,6 +555,10 @@ prepare_other_responses <- function(
 #' @param freeze_header Logical. Freeze the header row (default \code{TRUE}).
 #' @param add_filter Logical. Add a column filter on the header row (default
 #'   \code{TRUE}).
+#' @param file_name Name of the output file. Default \code{NULL} keeps the
+#'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
+#'   passed without the \code{.xlsx} extension gets it appended. The name is
+#'   written inside \code{save_location}.
 #' @return NULL. Saves an Excel file.
 #' @export
 save_other_responses <- function(
@@ -572,14 +577,15 @@ save_other_responses <- function(
   body_front = "Arial Narrow",
   body_front_size = 11,
   body_border_color = "#AFDFE4",
-  reference_fill_color = "#D5EEF0",
+  reference_fill_color = NA,
   true_other_fill_color = "#E4EFC8",
   existing_other_fill_color = "#FFF1C4",
   invalid_other_fill_color = "#FCD9D3",
   follow_up_fill_color = "#E3D0DD",
   header_row_height = 45,
   freeze_header = TRUE,
-  add_filter = TRUE
+  add_filter = TRUE,
+  file_name = NULL
 ) {
   get_column_letter <- function(r) {
     result <- character(length(r))
@@ -657,11 +663,11 @@ save_other_responses <- function(
   # columns then gets its own light tint of an MMC brand colour, so a reviewer
   # can tell the read-only reference columns from the columns they are meant to
   # fill in:
-  #   reference columns      light teal   #D5EEF0 (MMC light teal)
-  #   TRUE other             light green  tint of #BBD876
-  #   EXISTING other         light yellow tint of #FFE07C
-  #   INVALID other          light salmon tint of #F8AB9E
-  #   FOLLOW-UP / Explanation light mauve tint of #B88AAB
+  #   reference columns       no fill (default Excel white)
+  #   TRUE other              light green  tint of #BBD876
+  #   EXISTING other          light yellow tint of #FFE07C
+  #   INVALID other           light salmon tint of #F8AB9E
+  #   FOLLOW-UP / Explanation light mauve  tint of #B88AAB
   build_body_style <- function(fill) {
     if (is.null(fill) || length(fill) == 0 || is.na(fill) || !nzchar(fill)) {
       createStyle(
@@ -852,7 +858,16 @@ save_other_responses <- function(
     fontName = body_front
   )
 
-  sub.filename <- paste0(Sys.Date(), "_other_responses.xlsx")
+  # Output file name: the standard dated name unless the caller supplies one.
+  sub.filename <- if (is.null(file_name) || !nzchar(trimws(file_name[1]))) {
+    paste0(Sys.Date(), "_other_responses.xlsx")
+  } else {
+    given <- trimws(as.character(file_name[1]))
+    if (!grepl("\\.xlsx$", given, ignore.case = TRUE)) {
+      given <- paste0(given, ".xlsx")
+    }
+    given
+  }
   if (!dir.exists(save_location)) {
     dir.create(save_location, recursive = TRUE)
   }
