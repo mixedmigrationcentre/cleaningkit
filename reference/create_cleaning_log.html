@@ -67,7 +67,8 @@ sheet explaining the action codes, and a drop-down on the <strong>Action taken</
 <span>  body_front <span class="op">=</span> <span class="st">"Arial Narrow"</span>,</span>
 <span>  body_front_size <span class="op">=</span> <span class="fl">11</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_path <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  output_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  group_by_uuid <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -157,6 +158,14 @@ record and <strong>Question text</strong> is left blank (no label row to read fr
 <dt id="arg-output-path">output_path<a class="anchor" aria-label="anchor" href="#arg-output-path"></a></dt>
 <dd><p>Output path. Default <code>NULL</code> returns a workbook instead of writing a file.</p></dd>
 
+
+<dt id="arg-group-by-uuid">group_by_uuid<a class="anchor" aria-label="anchor" href="#arg-group-by-uuid"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), the log rows are regrouped so all
+rows from the same <strong>Survey UUID</strong> form one contiguous block, surveys following one
+another. Blocks keep the order in which their uuid is first met in the combined log, and
+rows keep their original order inside a block. <code>FALSE</code> keeps the incoming
+check-by-check order.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -173,6 +182,16 @@ from <code>date_column</code> and <code>enumerator_column</code>. The remaining 
 be completed during review.</p>
 <p>The <strong>Action taken</strong> drop-down and the <code>readme</code> sheet share these five codes:
 <code>recoded</code>, <code>delete_data_point</code>, <code>discard</code>, <code>addition</code>, <code>other</code>.</p>
+<p><strong>Column layout.</strong> <strong>Survey UUID</strong> is the first column (column A) and
+<strong>Date</strong> the second. Column A and the header row are both frozen, so the uuid and the
+headers stay visible while a reviewer scrolls right and down.</p>
+<p><strong>Row order.</strong> The combined log arrives stacked check by check, so the rows for one
+interview are scattered down the sheet. By default the reviewer log is regrouped so that
+every row belonging to one <strong>Survey UUID</strong> sits together in a single block, one survey
+after another. Blocks appear in the order the uuids are first met in the combined log, and
+the original order is kept inside each block, so the rows themselves are untouched - only
+their arrangement changes. Set <code>group_by_uuid = FALSE</code> to keep the old check-by-check
+order.</p>
 <p><strong>Row colouring.</strong> By default every log row that shares a <code>check_binding</code> is filled
 with the same light MMC shade across the whole row. <code>color_mode</code> changes that:
 <code>"on"</code> keeps the default, <code>"partial"</code> fills only the columns listed in
@@ -198,6 +217,13 @@ underlying log names (<code>"old_value"</code>, <code>"uuid"</code>, <code>"ques
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># no colouring at all</span></span></span>
 <span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span><span class="va">write_list</span>, color_mode <span class="op">=</span> <span class="st">"off"</span>, output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># keep the old check-by-check row order instead of grouping by survey</span></span></span>
+<span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
+<span class="r-in"><span>  group_by_uuid <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
+<span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

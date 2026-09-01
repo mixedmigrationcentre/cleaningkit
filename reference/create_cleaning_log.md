@@ -26,7 +26,8 @@ create_cleaning_log(
   body_front = "Arial Narrow",
   body_front_size = 11,
   skip_label_row = TRUE,
-  output_path = NULL
+  output_path = NULL,
+  group_by_uuid = TRUE
 )
 ```
 
@@ -122,6 +123,14 @@ create_cleaning_log(
   Output path. Default `NULL` returns a workbook instead of writing a
   file.
 
+- group_by_uuid:
+
+  Logical. If `TRUE` (the default), the log rows are regrouped so all
+  rows from the same **Survey UUID** form one contiguous block, surveys
+  following one another. Blocks keep the order in which their uuid is
+  first met in the combined log, and rows keep their original order
+  inside a block. `FALSE` keeps the incoming check-by-check order.
+
 ## Value
 
 A workbook object, or (when `output_path` is given) writes a `.xlsx`
@@ -139,6 +148,20 @@ taken**, **Comments**, **PO feedback**, **Survey Registration Date**,
 
 The **Action taken** drop-down and the `readme` sheet share these five
 codes: `recoded`, `delete_data_point`, `discard`, `addition`, `other`.
+
+**Column layout.** **Survey UUID** is the first column (column A) and
+**Date** the second. Column A and the header row are both frozen, so the
+uuid and the headers stay visible while a reviewer scrolls right and
+down.
+
+**Row order.** The combined log arrives stacked check by check, so the
+rows for one interview are scattered down the sheet. By default the
+reviewer log is regrouped so that every row belonging to one **Survey
+UUID** sits together in a single block, one survey after another. Blocks
+appear in the order the uuids are first met in the combined log, and the
+original order is kept inside each block, so the rows themselves are
+untouched - only their arrangement changes. Set `group_by_uuid = FALSE`
+to keep the old check-by-check order.
 
 **Row colouring.** By default every log row that shares a
 `check_binding` is filled with the same light MMC shade across the whole
@@ -166,5 +189,12 @@ create_cleaning_log(
 
 # no colouring at all
 create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
+
+# keep the old check-by-check row order instead of grouping by survey
+create_cleaning_log(
+  write_list,
+  group_by_uuid = FALSE,
+  output_path = "cleaning_log.xlsx"
+)
 } # }
 ```
