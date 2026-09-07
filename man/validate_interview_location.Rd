@@ -13,9 +13,11 @@ validate_interview_location(
   city_question = "Q14",
   log_name = "interview_location_log",
   city_radius_km = 75,
+  border_tolerance_km = 10,
   check_country = TRUE,
   check_city = TRUE,
   flag_missing_gps = TRUE,
+  treat_blank_gps_as_phone = TRUE,
   nominatim_delay_s = 1,
   skip_label_row = TRUE
 )
@@ -48,16 +50,28 @@ that are clearly in the wrong location. Adjust per context: use a smaller
 value (e.g. 30) for small cities, larger (e.g. 150) for sprawling
 metropolitan areas.}
 
+\item{border_tolerance_km}{Numeric. How far outside the claimed country's
+border a GPS point may fall before it is flagged, in kilometres. Absorbs
+ordinary GPS error and coarse border geometry. Default \code{10}.}
+
 \item{check_country}{Logical. If \code{TRUE} (the default), perform the
 country-level polygon containment check. Requires the
 \code{rnaturalearthdata} and \code{sf} packages.}
 
 \item{check_city}{Logical. If \code{TRUE} (the default), perform the
 city-level distance check via Nominatim geocoding. Requires an internet
-connection.}
+connection and the \code{httr} and \code{jsonlite} packages.}
 
 \item{flag_missing_gps}{Logical. If \code{TRUE} (the default), surveys
-with missing or invalid GPS coordinates are flagged in the log.}
+whose GPS coordinates are present but unusable are flagged in the log.
+Phone interviews (both coordinate columns empty) are governed by
+\code{treat_blank_gps_as_phone}, not by this argument.}
+
+\item{treat_blank_gps_as_phone}{Logical. If \code{TRUE} (the default), a
+survey with \emph{both} coordinate columns empty is taken to be a phone
+interview and is excluded from every check, including the missing-GPS
+flag. Set to \code{FALSE} for a round known to be entirely in person, so
+that a completely absent geopoint is flagged instead.}
 
 \item{nominatim_delay_s}{Numeric. Seconds to wait between Nominatim API
 requests. Must be at least 1 to comply with the usage policy. Default
@@ -87,16 +101,23 @@ the interview was conducted in. Two independent checks are performed:
 \details{
 \enumerate{
 \item \strong{Country check} (requires \code{rnaturalearthdata}): tests
-whether the GPS point falls inside the polygon of the claimed country.
+whether the GPS point falls inside the polygon of the claimed country,
+allowing a small tolerance for points just outside the border.
 \item \strong{City check}: geocodes each unique city+country combination
 in the dataset once via the Nominatim/OpenStreetMap API, then checks
 whether the GPS point is within \code{city_radius_km} kilometres of the
 city centre. Requires an internet connection.
 }
 
-Surveys with no GPS coordinates are flagged separately — in an in-person
-survey a missing GPS point may indicate the interview was not actually
-conducted at the claimed location, or that the device GPS was disabled.
+\strong{Phone interviews are skipped.} A survey conducted by phone records
+no geopoint, so both coordinate columns come back empty. Those surveys are
+identified up front and excluded from all three checks — there is nothing
+to validate and flagging them would bury the real problems. Surveys whose
+GPS is present but unusable are a different matter and are still flagged:
+one coordinate filled and the other empty, non-numeric text, out-of-range
+values, or the \code{(0, 0)} device default. Set
+\code{treat_blank_gps_as_phone = FALSE} to flag fully-empty coordinates
+too, which is appropriate for a round that was entirely face-to-face.
 
 \strong{Nominatim usage policy:} this function respects the
 \href{https://operations.osmfoundation.org/policies/nominatim/}{Nominatim
@@ -107,7 +128,20 @@ unique city combinations, geocoding may take a few minutes.
 
 \strong{City matching}: city names are passed to Nominatim as-is from the
 dataset. Spelling must be in English and must reasonably match OSM data
-(e.g. "Kampala", "Nairobi", "Addis Ababa"). Minor variations are usually
-handled by OSM's search engine. If a city cannot be geocoded, those surveys
+(e.g. "Kampala", "Nairobi", "Addis Ababa"). Each pair is first tried as a
+structured query (\code{city=} + \code{country=}); if that returns nothing
+the pair is retried as a free-form query (\code{q="city, country"}), which
+resolves many small towns, border crossings and settlements that are not
+tagged as cities in OSM. If a pair still cannot be geocoded, those surveys
 are excluded from the city check and a warning is issued.
+
+\strong{Country matching}: the claimed country is matched
+case-insensitively against several Natural Earth name fields
+(\code{admin}, \code{name}, \code{name_long}, \code{sovereignt},
+\code{formal_en}, \code{name_en}) as well as the ISO2 and ISO3 code
+columns, so either a country name or an ISO code works. A small alias
+table covers common humanitarian variants (e.g. "DRC", "Ivory Coast",
+"Syria", "UAE"). Field names in \code{rnaturalearthdata} are resolved
+case-insensitively, so both the older lower-case and any upper-case
+variants of the package are supported.
 }
