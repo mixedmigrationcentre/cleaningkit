@@ -8,8 +8,8 @@
 #   1. the SOURCE files in this folder produce exactly ONE "EXISTING other"
 #      column (named "EXISTING other (select the most appropriate choice)")
 #   2. the saved .xlsx really has that single column in its header row
-#   3. the MMC colours: MMC blue header, no fill on uuid -> response_en,
-#      tinted reviewer columns
+#   3. the colours: bold headers tinted to match their block, no fill on
+#      uuid -> response_en, the three original reviewer-column fills
 #   4. the `file_name` argument
 #   5. what the INSTALLED cleaningkit package produces, for comparison
 #
@@ -178,9 +178,9 @@ for (s in wb$styleObjects) {
     "\n", sep = ""
   )
 }
-cat("   expected: header row = FF00A2A5, cols 1-7 = no fill,\n")
-cat("             TRUE other = FFE4EFC8, EXISTING other = FFFFF1C4,\n")
-cat("             INVALID other = FFFCD9D3, FOLLOW-UP/Explanation = FFE3D0DD\n")
+cat("   expected: cols 1-7 = no fill, TRUE other + INVALID other = FFE5FFCC,\n")
+cat("             EXISTING other = FFE5FFEC, FOLLOW-UP/Explanation = FFCCE5FF,\n")
+cat("             header row = the same fill as its block, bold\n")
 
 # ---------------------------------------------------------------------------
 # 5. file_name argument
