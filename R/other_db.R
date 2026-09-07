@@ -81,7 +81,19 @@
 #'   bare \code{label} column, then the first label column found.
 #' @param other_text_types Optional character vector of additional text question
 #'   names to include (e.g. \code{c("Q31_2", "Q45_3")}). Default \code{NULL}.
-#' @return A dataframe containing the corresponding other labels.
+#' @return A dataframe with one row per "other" text question and the columns
+#'   \code{name}, \code{ref_question} and \code{full_label}.
+#'
+#' @details
+#' The parent question (\code{ref_question}) is resolved from the question
+#' \emph{name} first - \code{Q32_1} belongs to \code{Q32}, \code{Q86_b_1} to
+#' \code{Q86_b} - and only falls back to parsing the relevance expression when
+#' the name does not resolve to a question that exists in the survey sheet.
+#' Reading the relevance expression first is what used to produce wrong
+#' parents: a compound expression such as
+#' \code{${Q31} = 'kenya' and selected(${Q32}, 'other')} references \code{Q31}
+#' before \code{Q32}, so \code{Q32_1} was attributed to \code{Q31}. See
+#' \code{.resolve_ref_question()} for the full resolution order.
 #' @export
 get_other_labels <- function(
   tool_survey,
@@ -95,17 +107,50 @@ get_other_labels <- function(
     stringsAsFactors = FALSE
   )
 
-  other_labels <- tool_survey %>%
+  other_questions <- tool_survey %>%
     dplyr::filter(
       type == "text" &
         (stringr::str_detect(name, "_1$") | name %in% other_text_types)
-    ) %>%
-    dplyr::mutate(
-      ref_question = as.character(lapply(relevant, get_ref_question))
-    ) %>%
-    dplyr::mutate(
-      ref_question = ifelse(is.na(ref_question), name, ref_question)
-    ) %>%
+    )
+
+  # `relevant` is optional in an XLSForm; treat a missing column as all-NA
+  # rather than failing, since the name convention resolves most forms anyway.
+  relevant_expr <- if ("relevant" %in% names(other_questions)) {
+    as.character(other_questions$relevant)
+  } else {
+    rep(NA_character_, nrow(other_questions))
+  }
+
+  resolved <- .resolve_ref_question(
+    name = as.character(other_questions$name),
+    relevant = relevant_expr,
+    tool_survey = tool_survey
+  )
+
+  # Flag anything the survey sheet could not confirm, so a mis-named "other"
+  # question is visible instead of silently pointing at the wrong column.
+  unconfirmed <- resolved[resolved$resolved_via %in% c("relevance", "self"), ]
+  if (nrow(unconfirmed) > 0) {
+    warning(
+      "get_other_labels(): could not confirm the parent question from the ",
+      "question name for ",
+      nrow(unconfirmed),
+      " 'other' question(s); ",
+      "fell back to the relevance expression or the question itself: ",
+      paste0(
+        unconfirmed$name,
+        " -> ",
+        unconfirmed$ref_question,
+        " (",
+        unconfirmed$resolved_via,
+        ")",
+        collapse = "; "
+      ),
+      call. = FALSE
+    )
+  }
+
+  other_labels <- resolved %>%
     dplyr::select(name, ref_question) %>%
     dplyr::left_join(survey_labels, by = "ref_question")
 
@@ -159,11 +204,12 @@ get_other_db <- function(
       by = "name"
     ) %>%
     dplyr::mutate(
-      option_other = stringr::str_replace_all(
-        stringr::str_extract(relevant, "\'.*\'"),
-        "'",
-        ""
-      )
+      # Take the option that `ref_question` is actually compared against in the
+      # relevance expression. The previous greedy str_extract(relevant, "'.*'")
+      # over-captured on compound expressions: for
+      # ${Q31} = 'kenya' and selected(${Q32}, 'other') it returned
+      # "kenya' and selected(${Q32}, 'other" instead of "other".
+      option_other = .relevant_option_for_ref(relevant, ref_question)
     ) %>%
     dplyr::select(-relevant)
 
