@@ -291,8 +291,10 @@ prepare_other_responses <- function(
       #     other_db$choices (the ";;"-separated labels), case-insensitively.
       # Tokens that match nothing are kept as-is (e.g. an "other" code, which the
       # downstream resolver then turns into its label).
-      vocab_by_list <- if (!is.null(tool_choices) &&
-        all(c("list_name", "name") %in% names(tool_choices))) {
+      vocab_by_list <- if (
+        !is.null(tool_choices) &&
+          all(c("list_name", "name") %in% names(tool_choices))
+      ) {
         split(
           as.character(tool_choices$name),
           as.character(tool_choices$list_name)
@@ -303,8 +305,10 @@ prepare_other_responses <- function(
 
       # list_name -> vector of label phrases, taken from other_db$choices ("A;;B").
       label_vocab_by_list <- list()
-      if (!is.null(other_db) &&
-        all(c("list_name", "choices") %in% names(other_db))) {
+      if (
+        !is.null(other_db) &&
+          all(c("list_name", "choices") %in% names(other_db))
+      ) {
         ldf <- other_db[
           !is.na(other_db$list_name) & !is.na(other_db$choices),
           c("list_name", "choices"),
@@ -312,7 +316,9 @@ prepare_other_responses <- function(
         ]
         ldf <- ldf[!duplicated(ldf$list_name), , drop = FALSE]
         for (i in seq_len(nrow(ldf))) {
-          labs <- strsplit(as.character(ldf$choices[i]), ";;", fixed = TRUE)[[1]]
+          labs <- strsplit(as.character(ldf$choices[i]), ";;", fixed = TRUE)[[
+            1
+          ]]
           labs <- trimws(labs)
           labs <- labs[nzchar(labs)]
           label_vocab_by_list[[as.character(ldf$list_name[i])]] <- labs
@@ -331,7 +337,9 @@ prepare_other_responses <- function(
 
         # fast path: proper single-token codes
         name_vn <- if (!is.na(ln)) vocab_by_list[[ln]] else NULL
-        if (!is.null(name_vn) && length(name_vn) > 0 && all(toks %in% name_vn)) {
+        if (
+          !is.null(name_vn) && length(name_vn) > 0 && all(toks %in% name_vn)
+        ) {
           return(toks)
         }
 
@@ -354,8 +362,10 @@ prepare_other_responses <- function(
           matched <- NA_character_
           for (j in seq_along(lab_vn)) {
             L <- length(lab_words_lc[[j]])
-            if (i + L - 1L <= n &&
-              identical(toks_lc[i:(i + L - 1L)], lab_words_lc[[j]])) {
+            if (
+              i + L - 1L <= n &&
+                identical(toks_lc[i:(i + L - 1L)], lab_words_lc[[j]])
+            ) {
               matched <- lab_vn[j] # canonical label from other_db
               i <- i + L
               break
@@ -400,13 +410,17 @@ prepare_other_responses <- function(
       # "label::Arabic (ar)"). When preferred_language is set, that column is put
       # first so the fallback also prefers it; otherwise columns keep their order.
       choice_fallback_map <- NULL
-      if (isTRUE(label_language_fallback) &&
-        !is.null(tool_choices) &&
-        all(c("list_name", "name") %in% names(tool_choices)) &&
-        nrow(tool_choices) > 0) {
+      if (
+        isTRUE(label_language_fallback) &&
+          !is.null(tool_choices) &&
+          all(c("list_name", "name") %in% names(tool_choices)) &&
+          nrow(tool_choices) > 0
+      ) {
         label_cols <- grep(
-          "^label", names(tool_choices),
-          ignore.case = TRUE, value = TRUE
+          "^label",
+          names(tool_choices),
+          ignore.case = TRUE,
+          value = TRUE
         )
         if (!is.null(preferred_language) && length(label_cols) > 0) {
           pref <- label_cols[
@@ -427,7 +441,8 @@ prepare_other_responses <- function(
             sep = "\u0001"
           )
           choice_fallback_map <- stats::setNames(
-            as.character(first_nonempty), ck
+            as.character(first_nonempty),
+            ck
           )
         }
       }
@@ -438,7 +453,9 @@ prepare_other_responses <- function(
       resolve_label <- function(list_name, code) {
         lab <- tryCatch(
           as.character(get_label_from_name(
-            list_name, code, tool_choices,
+            list_name,
+            code,
+            tool_choices,
             label_column = preferred_language
           ))[1],
           error = function(e) NA_character_
@@ -526,35 +543,11 @@ prepare_other_responses <- function(
 #'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
 #'   dropped. Only when \code{df} has no such provenance is its first row dropped,
 #'   with a message. Set to \code{FALSE} to always keep every row.
-#' @param header_front_size Header font size (default is 12).
-#' @param header_front_color Hexcode for header font color (default is white).
-#' @param header_fill_color Hexcode for header fill color (default is MMC blue
-#'   \code{"#00A2A5"}, the same header as the cleaning log).
-#' @param header_border_color Hexcode for the header border (default \code{"#fafafa"}).
-#' @param header_front Font name for the header (default is Arial Narrow).
-#' @param body_front Font name for the body (default is Arial Narrow).
-#' @param body_front_size Font size for the body (default is 11).
-#' @param body_border_color Hexcode for the body cell borders (default is MMC light
-#'   teal \code{"#AFDFE4"}).
-#' @param reference_fill_color Fill for the reference columns (uuid, enumerator,
-#'   question_name, list_name, full_label, selected_choices, response_en).
-#'   Default \code{NA}, i.e. no fill - these columns are left the default Excel
-#'   white so the eye goes to the columns the reviewer has to fill in. Pass a
-#'   hexcode (e.g. MMC light teal \code{"#D5EEF0"}) to tint them.
-#' @param true_other_fill_color Fill for the \strong{TRUE other} column. Default is a
-#'   light tint of MMC green \code{"#BBD876"}.
-#' @param existing_other_fill_color Fill for the \strong{EXISTING other} column.
-#'   Default is a light tint of MMC yellow \code{"#FFE07C"}.
-#' @param invalid_other_fill_color Fill for the \strong{INVALID other} column. Default
-#'   is a light tint of MMC salmon \code{"#F8AB9E"}.
-#' @param follow_up_fill_color Fill for the \strong{FOLLOW-UP message} /
-#'   \strong{Explanation} columns. Default is a light tint of MMC mauve
-#'   \code{"#B88AAB"}.
-#' @param header_row_height Height of the header row (default is 45, so the long
-#'   instruction headers wrap and stay readable).
-#' @param freeze_header Logical. Freeze the header row (default \code{TRUE}).
+#' @param freeze_header Logical. Freeze the header row so it stays visible while
+#'   scrolling (default \code{TRUE}). Navigation only - it does not change the
+#'   cell styling.
 #' @param add_filter Logical. Add a column filter on the header row (default
-#'   \code{TRUE}).
+#'   \code{TRUE}). Navigation only - it does not change the cell styling.
 #' @param file_name Name of the output file. Default \code{NULL} keeps the
 #'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
 #'   passed without the \code{.xlsx} extension gets it appended. The name is
@@ -569,20 +562,6 @@ save_other_responses <- function(
   other_db = NULL,
   apply_styles = TRUE,
   skip_label_row = TRUE,
-  header_front_size = 12,
-  header_front_color = "#FFFFFF",
-  header_fill_color = "#00A2A5",
-  header_border_color = "#fafafa",
-  header_front = "Arial Narrow",
-  body_front = "Arial Narrow",
-  body_front_size = 11,
-  body_border_color = "#AFDFE4",
-  reference_fill_color = NA,
-  true_other_fill_color = "#E4EFC8",
-  existing_other_fill_color = "#FFF1C4",
-  invalid_other_fill_color = "#FCD9D3",
-  follow_up_fill_color = "#E3D0DD",
-  header_row_height = 45,
   freeze_header = TRUE,
   add_filter = TRUE,
   file_name = NULL
@@ -607,9 +586,11 @@ save_other_responses <- function(
   # If df carries the "ona_label_row_skipped" attribute it already went through
   # that step, so we must NOT drop again (that would delete a real response).
   # Only when provenance is unknown (no attribute) do we drop the first row.
-  if (isTRUE(skip_label_row) &&
-    is.null(attr(df, "ona_label_row_skipped")) &&
-    nrow(df) > 0) {
+  if (
+    isTRUE(skip_label_row) &&
+      is.null(attr(df, "ona_label_row_skipped")) &&
+      nrow(df) > 0
+  ) {
     message(
       "save_other_responses(): dropping the first row as the ONA label row ",
       "(df did not come from prepare_other_responses(); set skip_label_row = FALSE to keep it)."
@@ -657,58 +638,53 @@ save_other_responses <- function(
 
   wb <- createWorkbook()
 
-  # --- MMC styling -----------------------------------------------------------
-  # The header is identical to the cleaning log header: MMC blue fill, white
-  # bold Arial Narrow, centred, wrapped, hair-line borders. Each block of body
-  # columns then gets its own light tint of an MMC brand colour, so a reviewer
-  # can tell the read-only reference columns from the columns they are meant to
-  # fill in:
-  #   reference columns       no fill (default Excel white)
-  #   TRUE other              light green  tint of #BBD876
-  #   EXISTING other          light yellow tint of #FFE07C
-  #   INVALID other           light salmon tint of #F8AB9E
-  #   FOLLOW-UP / Explanation light mauve  tint of #B88AAB
-  build_body_style <- function(fill) {
-    if (is.null(fill) || length(fill) == 0 || is.na(fill) || !nzchar(fill)) {
-      createStyle(
-        fontName = body_front,
-        fontSize = body_front_size,
-        border = "TopBottomLeftRight",
-        borderColour = body_border_color,
-        valign = "top",
-        wrapText = TRUE
-      )
-    } else {
-      createStyle(
-        fgFill = fill,
-        fontName = body_front,
-        fontSize = body_front_size,
-        border = "TopBottomLeftRight",
-        borderColour = body_border_color,
-        valign = "top",
-        wrapText = TRUE
-      )
-    }
-  }
-
-  style.header <- createStyle(
-    fontSize = header_front_size,
-    fontColour = header_front_color,
-    fontName = header_front,
-    textDecoration = "bold",
-    fgFill = header_fill_color,
-    halign = "center",
-    valign = "center",
+  style.col.color <- createStyle(
+    fgFill = "#E5FFCC",
     border = "TopBottomLeftRight",
-    borderColour = header_border_color,
+    borderColour = "#000000",
+    valign = "top",
     wrapText = TRUE
   )
-
-  style.reference <- build_body_style(reference_fill_color)
-  style.true_other <- build_body_style(true_other_fill_color)
-  style.existing_other <- build_body_style(existing_other_fill_color)
-  style.invalid_other <- build_body_style(invalid_other_fill_color)
-  style.follow_up <- build_body_style(follow_up_fill_color)
+  style.col.color1 <- createStyle(
+    fgFill = "#E5FFEC",
+    border = "TopBottomLeftRight",
+    borderColour = "#000000",
+    valign = "top",
+    wrapText = TRUE
+  )
+  style.col.color2 <- createStyle(
+    fgFill = "#CCE5FF",
+    border = "TopBottomLeftRight",
+    borderColour = "#000000",
+    valign = "top",
+    wrapText = TRUE
+  )
+  style.col.color.first <- createStyle(
+    textDecoration = "bold",
+    fgFill = "#E5FFCC",
+    valign = "top",
+    border = "TopBottomLeftRight",
+    borderColour = "#000000",
+    wrapText = TRUE
+  )
+  style.col.color.first1 <- createStyle(
+    textDecoration = "bold",
+    fgFill = "#E5FFEC",
+    valign = "top",
+    border = "TopBottomLeftRight",
+    borderColour = "#000000",
+    wrapText = TRUE
+  )
+  style.col.color.first2 <- createStyle(
+    textDecoration = "bold",
+    fgFill = "#CCE5FF",
+    valign = "top",
+    border = "TopBottomLeftRight",
+    borderColour = "#000000",
+    wrapText = TRUE
+  )
+  style.default.body <- createStyle(valign = "top", wrapText = TRUE)
+  style.default.header <- createStyle(textDecoration = "bold")
 
   addWorksheet(wb, "Sheet1")
   writeData(wb = wb, x = df, sheet = "Sheet1", startRow = 1)
@@ -726,67 +702,70 @@ save_other_responses <- function(
   # Batching with gridExpand = TRUE reduces ~2*ncol addStyle calls to a handful,
   # which matters a lot when there are many columns.
   if (isTRUE(apply_styles)) {
-    category <- rep("reference", n_cols)
-    if (length(true_other_cols) > 0) category[true_other_cols] <- "trueother"
-    if (length(exist_cols) > 0) category[exist_cols] <- "exist"
-    if (length(invalid_col) > 0) category[invalid_col] <- "invalid"
-    if (length(follow_up_cols) > 0) category[follow_up_cols] <- "postinvalid"
+    category <- rep("default", n_cols)
+    if (length(true_other_cols) > 0) {
+      category[true_other_cols] <- "trueother"
+    }
+    if (length(exist_cols) > 0) {
+      category[exist_cols] <- "exist"
+    }
+    if (length(invalid_col) > 0) {
+      category[invalid_col] <- "invalid"
+    }
+    if (length(follow_up_cols) > 0) {
+      category[follow_up_cols] <- "postinvalid"
+    }
 
     # fallback if the "TRUE other" header was renamed: the column immediately
     # before the first "EXISTING other" column is the translation column
     if (length(true_other_cols) == 0 && length(exist_cols) > 0) {
       pre <- min(exist_cols) - 1L
-      if (pre >= 1L && category[pre] == "reference") category[pre] <- "trueother"
+      if (pre >= 1L && category[pre] == "default") category[pre] <- "trueother"
     }
     # any extra column added after "INVALID other" belongs to the follow-up block
     if (length(invalid_col) > 0) {
-      post <- which(seq_len(n_cols) > max(invalid_col) & category == "reference")
+      post <- which(seq_len(n_cols) > max(invalid_col) & category == "default")
       category[post] <- "postinvalid"
     }
 
-    body_styles <- list(
-      reference = style.reference,
-      trueother = style.true_other,
-      exist = style.existing_other,
-      invalid = style.invalid_other,
-      postinvalid = style.follow_up
-    )
-
-    for (cat_name in names(body_styles)) {
+    apply_cat <- function(cat_name, body_style, header_style) {
       cols <- which(category == cat_name)
       if (length(cols) == 0) {
-        next
+        return(invisible())
       }
       addStyle(
         wb,
         "Sheet1",
-        body_styles[[cat_name]],
+        body_style,
         rows = seq_len(n_rows + 1L),
         cols = cols,
         gridExpand = TRUE
       )
+      addStyle(
+        wb,
+        "Sheet1",
+        header_style,
+        rows = 1,
+        cols = cols,
+        gridExpand = TRUE
+      )
     }
+
+    apply_cat("exist", style.col.color1, style.col.color.first1)
+    apply_cat("invalid", style.col.color, style.col.color.first)
+    apply_cat("trueother", style.col.color, style.col.color.first)
+    apply_cat("postinvalid", style.col.color2, style.col.color.first2)
+    apply_cat("default", style.default.body, style.default.header)
   }
 
-  # The header keeps the MMC formatting even when apply_styles = FALSE: it is a
-  # single addStyle call, so it costs nothing on a large export.
-  if (n_cols > 0) {
-    addStyle(
-      wb,
-      "Sheet1",
-      style.header,
-      rows = 1,
-      cols = seq_len(n_cols),
-      gridExpand = TRUE
-    )
-    if (isTRUE(add_filter)) {
-      addFilter(wb, "Sheet1", row = 1, cols = seq_len(n_cols))
-    }
+  # Frozen header row and a column filter. Navigation only - neither touches the
+  # cell styling above.
+  if (n_cols > 0 && isTRUE(add_filter)) {
+    addFilter(wb, "Sheet1", row = 1, cols = seq_len(n_cols))
   }
   if (isTRUE(freeze_header)) {
     freezePane(wb, "Sheet1", firstRow = TRUE)
   }
-  setRowHeights(wb, "Sheet1", rows = 1, heights = header_row_height)
 
   addWorksheet(wb, "Dropdown_values")
   if (!is.null(other_db) && nrow(other_db) > 0) {
@@ -851,12 +830,7 @@ save_other_responses <- function(
   setColWidths(wb, "Sheet1", cols = seq_len(n_cols), widths = 25)
   setColWidths(wb, "Sheet1", cols = seq_len(min(5L, n_cols)), widths = 15)
 
-  modifyBaseFont(
-    wb,
-    fontSize = body_front_size,
-    fontColour = "black",
-    fontName = body_front
-  )
+  modifyBaseFont(wb, fontSize = 12, fontColour = "black", fontName = "Calibri")
 
   # Output file name: the standard dated name unless the caller supplies one.
   sub.filename <- if (is.null(file_name) || !nzchar(trimws(file_name[1]))) {
