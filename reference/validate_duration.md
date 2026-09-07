@@ -57,4 +57,8 @@ validate_duration(
 
 ## Value
 
-A list containing the original dataset and the new log dataframe.
+A list containing the original dataset and the new log dataframe. The
+`issue` column states the direction of the breach:
+`"Duration is lower than the thresholds"` when the duration falls below
+`lower_bound`, and `"Duration is higher than the thresholds"` when it
+exceeds `upper_bound`.
