@@ -57,20 +57,6 @@ name, allowing flexibility such as adding an <code>enumerator_id</code>.</p>
 <span>  other_db <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  apply_styles <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  header_front_size <span class="op">=</span> <span class="fl">12</span>,</span>
-<span>  header_front_color <span class="op">=</span> <span class="st">"#FFFFFF"</span>,</span>
-<span>  header_fill_color <span class="op">=</span> <span class="st">"#00A2A5"</span>,</span>
-<span>  header_border_color <span class="op">=</span> <span class="st">"#fafafa"</span>,</span>
-<span>  header_front <span class="op">=</span> <span class="st">"Arial Narrow"</span>,</span>
-<span>  body_front <span class="op">=</span> <span class="st">"Arial Narrow"</span>,</span>
-<span>  body_front_size <span class="op">=</span> <span class="fl">11</span>,</span>
-<span>  body_border_color <span class="op">=</span> <span class="st">"#AFDFE4"</span>,</span>
-<span>  reference_fill_color <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  true_other_fill_color <span class="op">=</span> <span class="st">"#E4EFC8"</span>,</span>
-<span>  existing_other_fill_color <span class="op">=</span> <span class="st">"#FFF1C4"</span>,</span>
-<span>  invalid_other_fill_color <span class="op">=</span> <span class="st">"#FCD9D3"</span>,</span>
-<span>  follow_up_fill_color <span class="op">=</span> <span class="st">"#E3D0DD"</span>,</span>
-<span>  header_row_height <span class="op">=</span> <span class="fl">45</span>,</span>
 <span>  freeze_header <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  add_filter <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  file_name <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -119,81 +105,15 @@ dropped. Only when <code>df</code> has no such provenance is its first row dropp
 with a message. Set to <code>FALSE</code> to always keep every row.</p></dd>
 
 
-<dt id="arg-header-front-size">header_front_size<a class="anchor" aria-label="anchor" href="#arg-header-front-size"></a></dt>
-<dd><p>Header font size (default is 12).</p></dd>
-
-
-<dt id="arg-header-front-color">header_front_color<a class="anchor" aria-label="anchor" href="#arg-header-front-color"></a></dt>
-<dd><p>Hexcode for header font color (default is white).</p></dd>
-
-
-<dt id="arg-header-fill-color">header_fill_color<a class="anchor" aria-label="anchor" href="#arg-header-fill-color"></a></dt>
-<dd><p>Hexcode for header fill color (default is MMC blue
-<code>"#00A2A5"</code>, the same header as the cleaning log).</p></dd>
-
-
-<dt id="arg-header-border-color">header_border_color<a class="anchor" aria-label="anchor" href="#arg-header-border-color"></a></dt>
-<dd><p>Hexcode for the header border (default <code>"#fafafa"</code>).</p></dd>
-
-
-<dt id="arg-header-front">header_front<a class="anchor" aria-label="anchor" href="#arg-header-front"></a></dt>
-<dd><p>Font name for the header (default is Arial Narrow).</p></dd>
-
-
-<dt id="arg-body-front">body_front<a class="anchor" aria-label="anchor" href="#arg-body-front"></a></dt>
-<dd><p>Font name for the body (default is Arial Narrow).</p></dd>
-
-
-<dt id="arg-body-front-size">body_front_size<a class="anchor" aria-label="anchor" href="#arg-body-front-size"></a></dt>
-<dd><p>Font size for the body (default is 11).</p></dd>
-
-
-<dt id="arg-body-border-color">body_border_color<a class="anchor" aria-label="anchor" href="#arg-body-border-color"></a></dt>
-<dd><p>Hexcode for the body cell borders (default is MMC light
-teal <code>"#AFDFE4"</code>).</p></dd>
-
-
-<dt id="arg-reference-fill-color">reference_fill_color<a class="anchor" aria-label="anchor" href="#arg-reference-fill-color"></a></dt>
-<dd><p>Fill for the reference columns (uuid, enumerator,
-question_name, list_name, full_label, selected_choices, response_en).
-Default <code>NA</code>, i.e. no fill - these columns are left the default Excel
-white so the eye goes to the columns the reviewer has to fill in. Pass a
-hexcode (e.g. MMC light teal <code>"#D5EEF0"</code>) to tint them.</p></dd>
-
-
-<dt id="arg-true-other-fill-color">true_other_fill_color<a class="anchor" aria-label="anchor" href="#arg-true-other-fill-color"></a></dt>
-<dd><p>Fill for the <strong>TRUE other</strong> column. Default is a
-light tint of MMC green <code>"#BBD876"</code>.</p></dd>
-
-
-<dt id="arg-existing-other-fill-color">existing_other_fill_color<a class="anchor" aria-label="anchor" href="#arg-existing-other-fill-color"></a></dt>
-<dd><p>Fill for the <strong>EXISTING other</strong> column.
-Default is a light tint of MMC yellow <code>"#FFE07C"</code>.</p></dd>
-
-
-<dt id="arg-invalid-other-fill-color">invalid_other_fill_color<a class="anchor" aria-label="anchor" href="#arg-invalid-other-fill-color"></a></dt>
-<dd><p>Fill for the <strong>INVALID other</strong> column. Default
-is a light tint of MMC salmon <code>"#F8AB9E"</code>.</p></dd>
-
-
-<dt id="arg-follow-up-fill-color">follow_up_fill_color<a class="anchor" aria-label="anchor" href="#arg-follow-up-fill-color"></a></dt>
-<dd><p>Fill for the <strong>FOLLOW-UP message</strong> /
-<strong>Explanation</strong> columns. Default is a light tint of MMC mauve
-<code>"#B88AAB"</code>.</p></dd>
-
-
-<dt id="arg-header-row-height">header_row_height<a class="anchor" aria-label="anchor" href="#arg-header-row-height"></a></dt>
-<dd><p>Height of the header row (default is 45, so the long
-instruction headers wrap and stay readable).</p></dd>
-
-
 <dt id="arg-freeze-header">freeze_header<a class="anchor" aria-label="anchor" href="#arg-freeze-header"></a></dt>
-<dd><p>Logical. Freeze the header row (default <code>TRUE</code>).</p></dd>
+<dd><p>Logical. Freeze the header row so it stays visible while
+scrolling (default <code>TRUE</code>). Navigation only - it does not change the
+cell styling.</p></dd>
 
 
 <dt id="arg-add-filter">add_filter<a class="anchor" aria-label="anchor" href="#arg-add-filter"></a></dt>
 <dd><p>Logical. Add a column filter on the header row (default
-<code>TRUE</code>).</p></dd>
+<code>TRUE</code>). Navigation only - it does not change the cell styling.</p></dd>
 
 
 <dt id="arg-file-name">file_name<a class="anchor" aria-label="anchor" href="#arg-file-name"></a></dt>

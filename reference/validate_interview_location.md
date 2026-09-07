@@ -17,9 +17,11 @@ validate_interview_location(
   city_question = "Q14",
   log_name = "interview_location_log",
   city_radius_km = 75,
+  border_tolerance_km = 10,
   check_country = TRUE,
   check_city = TRUE,
   flag_missing_gps = TRUE,
+  treat_blank_gps_as_phone = TRUE,
   nominatim_delay_s = 1,
   skip_label_row = TRUE
 )
@@ -65,6 +67,12 @@ validate_interview_location(
   (e.g. 30) for small cities, larger (e.g. 150) for sprawling
   metropolitan areas.
 
+- border_tolerance_km:
+
+  Numeric. How far outside the claimed country's border a GPS point may
+  fall before it is flagged, in kilometres. Absorbs ordinary GPS error
+  and coarse border geometry. Default `10`.
+
 - check_country:
 
   Logical. If `TRUE` (the default), perform the country-level polygon
@@ -73,12 +81,23 @@ validate_interview_location(
 - check_city:
 
   Logical. If `TRUE` (the default), perform the city-level distance
-  check via Nominatim geocoding. Requires an internet connection.
+  check via Nominatim geocoding. Requires an internet connection and the
+  `httr` and `jsonlite` packages.
 
 - flag_missing_gps:
 
-  Logical. If `TRUE` (the default), surveys with missing or invalid GPS
-  coordinates are flagged in the log.
+  Logical. If `TRUE` (the default), surveys whose GPS coordinates are
+  present but unusable are flagged in the log. Phone interviews (both
+  coordinate columns empty) are governed by `treat_blank_gps_as_phone`,
+  not by this argument.
+
+- treat_blank_gps_as_phone:
+
+  Logical. If `TRUE` (the default), a survey with *both* coordinate
+  columns empty is taken to be a phone interview and is excluded from
+  every check, including the missing-GPS flag. Set to `FALSE` for a
+  round known to be entirely in person, so that a completely absent
+  geopoint is flagged instead.
 
 - nominatim_delay_s:
 
@@ -109,16 +128,23 @@ A list containing:
 ## Details
 
 1.  **Country check** (requires `rnaturalearthdata`): tests whether the
-    GPS point falls inside the polygon of the claimed country.
+    GPS point falls inside the polygon of the claimed country, allowing
+    a small tolerance for points just outside the border.
 
 2.  **City check**: geocodes each unique city+country combination in the
     dataset once via the Nominatim/OpenStreetMap API, then checks
     whether the GPS point is within `city_radius_km` kilometres of the
     city centre. Requires an internet connection.
 
-Surveys with no GPS coordinates are flagged separately — in an in-person
-survey a missing GPS point may indicate the interview was not actually
-conducted at the claimed location, or that the device GPS was disabled.
+**Phone interviews are skipped.** A survey conducted by phone records no
+geopoint, so both coordinate columns come back empty. Those surveys are
+identified up front and excluded from all three checks — there is
+nothing to validate and flagging them would bury the real problems.
+Surveys whose GPS is present but unusable are a different matter and are
+still flagged: one coordinate filled and the other empty, non-numeric
+text, out-of-range values, or the `(0, 0)` device default. Set
+`treat_blank_gps_as_phone = FALSE` to flag fully-empty coordinates too,
+which is appropriate for a round that was entirely face-to-face.
 
 **Nominatim usage policy:** this function respects the [Nominatim
 Acceptable Use
@@ -130,6 +156,18 @@ combinations, geocoding may take a few minutes.
 
 **City matching**: city names are passed to Nominatim as-is from the
 dataset. Spelling must be in English and must reasonably match OSM data
-(e.g. "Kampala", "Nairobi", "Addis Ababa"). Minor variations are usually
-handled by OSM's search engine. If a city cannot be geocoded, those
+(e.g. "Kampala", "Nairobi", "Addis Ababa"). Each pair is first tried as
+a structured query (`city=` + `country=`); if that returns nothing the
+pair is retried as a free-form query (`q="city, country"`), which
+resolves many small towns, border crossings and settlements that are not
+tagged as cities in OSM. If a pair still cannot be geocoded, those
 surveys are excluded from the city check and a warning is issued.
+
+**Country matching**: the claimed country is matched case-insensitively
+against several Natural Earth name fields (`admin`, `name`, `name_long`,
+`sovereignt`, `formal_en`, `name_en`) as well as the ISO2 and ISO3 code
+columns, so either a country name or an ISO code works. A small alias
+table covers common humanitarian variants (e.g. "DRC", "Ivory Coast",
+"Syria", "UAE"). Field names in `rnaturalearthdata` are resolved
+case-insensitively, so both the older lower-case and any upper-case
+variants of the package are supported.
