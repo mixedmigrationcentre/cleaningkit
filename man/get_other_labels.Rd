@@ -24,9 +24,21 @@ bare \code{label} column, then the first label column found.}
 names to include (e.g. \code{c("Q31_2", "Q45_3")}). Default \code{NULL}.}
 }
 \value{
-A dataframe containing the corresponding other labels.
+A dataframe with one row per "other" text question and the columns
+\code{name}, \code{ref_question} and \code{full_label}.
 }
 \description{
 Retrieves text labels for questions in the XLSForm survey sheet that
 correspond to "other" responses.
+}
+\details{
+The parent question (\code{ref_question}) is resolved from the question
+\emph{name} first - \code{Q32_1} belongs to \code{Q32}, \code{Q86_b_1} to
+\code{Q86_b} - and only falls back to parsing the relevance expression when
+the name does not resolve to a question that exists in the survey sheet.
+Reading the relevance expression first is what used to produce wrong
+parents: a compound expression such as
+\code{${Q31} = 'kenya' and selected(${Q32}, 'other')} references \code{Q31}
+before \code{Q32}, so \code{Q32_1} was attributed to \code{Q31}. See
+\code{.resolve_ref_question()} for the full resolution order.
 }

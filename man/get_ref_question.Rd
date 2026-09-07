@@ -5,23 +5,22 @@
 \title{Extract Referenced Question Name from Relevance Expression}
 \usage{
 get_ref_question(x)
-
-get_ref_question(x)
 }
 \arguments{
 \item{x}{A character vector containing relevance expressions.}
 }
 \value{
-The extracted question name, or \code{NA} if not found.
-
 A character vector of the extracted question names, or \code{NA} if not found.
 }
 \description{
-Parses a relevance expression string to extract the referenced
-question name enclosed in curly braces (e.g., \code{${question_name}}).
-
-Parses a relevance expression string to extract the referenced
+Parses a relevance expression string to extract the \strong{first} referenced
 question name enclosed in curly braces (e.g., \code{${question_name}}).
 This function is fully vectorized.
 }
-\keyword{internal}
+\details{
+Note that a compound relevance expression references more than one question,
+e.g. \code{${Q31} = 'kenya' and selected(${Q32}, 'other')} returns
+\code{"Q31"} because that is the first reference. To list every reference use
+\code{.relevant_refs()}, and to work out which reference is the parent of an
+"other" text question use \code{.resolve_ref_question()}.
+}
