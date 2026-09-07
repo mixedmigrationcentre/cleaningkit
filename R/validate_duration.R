@@ -13,7 +13,10 @@
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of the dataset is removed
 #'   before validation. ONA exports include a label/description row immediately after the header
 #'   that should not be treated as survey data.
-#' @return A list containing the original dataset and the new log dataframe.
+#' @return A list containing the original dataset and the new log dataframe. The `issue`
+#'   column states the direction of the breach: \code{"Duration is lower than the thresholds"}
+#'   when the duration falls below \code{lower_bound}, and
+#'   \code{"Duration is higher than the thresholds"} when it exceeds \code{upper_bound}.
 #' @export
 validate_duration <- function(
   dataset,
@@ -53,18 +56,27 @@ validate_duration <- function(
   log <- df %>%
     dplyr::mutate(
       duration_check = !!rlang::sym(column_to_check) < lower_bound |
-        !!rlang::sym(column_to_check) > upper_bound
+        !!rlang::sym(column_to_check) > upper_bound,
+      # Report the direction of the breach rather than a combined message
+      duration_issue = dplyr::case_when(
+        !!rlang::sym(column_to_check) < lower_bound ~
+          "Duration is lower than the thresholds",
+        !!rlang::sym(column_to_check) > upper_bound ~
+          "Duration is higher than the thresholds",
+        TRUE ~ NA_character_
+      )
     ) %>%
     dplyr::filter(duration_check) %>%
-    dplyr::select(dplyr::all_of(c(uuid_column, column_to_check))) %>%
-    dplyr::mutate(
-      question = column_to_check,
-      issue = "Duration is lower or higher than the thresholds"
+    dplyr::select(
+      dplyr::all_of(c(uuid_column, column_to_check, "duration_issue"))
     ) %>%
+    dplyr::mutate(question = column_to_check) %>%
     dplyr::rename(
       old_value = !!rlang::sym(column_to_check),
-      uuid = !!rlang::sym(uuid_column)
-    )
+      uuid = !!rlang::sym(uuid_column),
+      issue = "duration_issue"
+    ) %>%
+    dplyr::select(dplyr::all_of(c("uuid", "old_value", "question", "issue")))
 
   # Convert old_value to character to ensure consistency across logs if combined
   log$old_value <- as.character(log$old_value)
