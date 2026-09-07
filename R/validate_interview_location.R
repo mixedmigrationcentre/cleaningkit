@@ -602,7 +602,7 @@ validate_interview_location <- function(
   paste0(norm(city), " ~ ", norm(country))
 }
 
-#' Load Natural Earth country polygons as an sf object in EPSG:4326
+#' Load Natural Earth country polygons as an sf object, in EPSG:4326
 #' @keywords internal
 #' @noRd
 .load_world_polygons <- function() {
