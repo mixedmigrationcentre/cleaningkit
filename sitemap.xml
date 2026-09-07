@@ -29,7 +29,12 @@
 <url><loc>/reference/dot-get_vocab.html</loc></url>
 <url><loc>/reference/dot-make_selected_val_fn.html</loc></url>
 <url><loc>/reference/dot-normalise_label_col.html</loc></url>
+<url><loc>/reference/dot-parent_name_candidates.html</loc></url>
+<url><loc>/reference/dot-relevant_option_for_ref.html</loc></url>
+<url><loc>/reference/dot-relevant_ref_options.html</loc></url>
+<url><loc>/reference/dot-relevant_refs.html</loc></url>
 <url><loc>/reference/dot-remove_token.html</loc></url>
+<url><loc>/reference/dot-resolve_ref_question.html</loc></url>
 <url><loc>/reference/dot-sanitize_utf8.html</loc></url>
 <url><loc>/reference/dot-sm_sub_cols.html</loc></url>
 <url><loc>/reference/dot-split_concat.html</loc></url>

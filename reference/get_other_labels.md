@@ -35,4 +35,18 @@ get_other_labels(
 
 ## Value
 
-A dataframe containing the corresponding other labels.
+A dataframe with one row per "other" text question and the columns
+`name`, `ref_question` and `full_label`.
+
+## Details
+
+The parent question (`ref_question`) is resolved from the question
+*name* first - `Q32_1` belongs to `Q32`, `Q86_b_1` to `Q86_b` - and only
+falls back to parsing the relevance expression when the name does not
+resolve to a question that exists in the survey sheet. Reading the
+relevance expression first is what used to produce wrong parents: a
+compound expression such as
+`${Q31} = 'kenya' and selected(${Q32}, 'other')` references `Q31` before
+`Q32`, so `Q32_1` was attributed to `Q31`. See
+[`.resolve_ref_question()`](dot-resolve_ref_question.md) for the full
+resolution order.

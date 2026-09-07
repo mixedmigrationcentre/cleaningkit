@@ -1,10 +1,6 @@
 # Get Column Value by UUID
 
 Retrieves a value from a specific column for a given UUID. If the UUID
-contains an underscore (indicating a loop entry), it searches the loop
-dataset; otherwise it searches the main dataset.
-
-Retrieves a value from a specific column for a given UUID. If the UUID
 contains an underscore (indicating a loop/roster entry), it searches the
 loop dataset; otherwise it searches the main dataset. This function is
 fully vectorized, handles missing/empty values gracefully, and
@@ -14,14 +10,6 @@ provided.
 ## Usage
 
 ``` r
-get_value_from_uuid(
-  uuid,
-  column,
-  raw_data = NULL,
-  raw_roster = NULL,
-  raw_loop = NULL
-)
-
 get_value_from_uuid(
   uuid,
   column,
@@ -56,7 +44,5 @@ get_value_from_uuid(
   Optional loop dataset dataframe. Synonym for `raw_roster`.
 
 ## Value
-
-The value from the specified column for the matching UUID.
 
 A vector of values from the specified column for the matching UUIDs.

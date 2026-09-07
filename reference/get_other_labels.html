@@ -77,7 +77,20 @@ names to include (e.g. <code>c("Q31_2", "Q45_3")</code>). Default <code>NULL</co
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A dataframe containing the corresponding other labels.</p>
+    <p>A dataframe with one row per "other" text question and the columns
+<code>name</code>, <code>ref_question</code> and <code>full_label</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The parent question (<code>ref_question</code>) is resolved from the question
+<em>name</em> first - <code>Q32_1</code> belongs to <code>Q32</code>, <code>Q86_b_1</code> to
+<code>Q86_b</code> - and only falls back to parsing the relevance expression when
+the name does not resolve to a question that exists in the survey sheet.
+Reading the relevance expression first is what used to produce wrong
+parents: a compound expression such as
+<code>${Q31} = 'kenya' and selected(${Q32}, 'other')</code> references <code>Q31</code>
+before <code>Q32</code>, so <code>Q32_1</code> was attributed to <code>Q31</code>. See
+<code><a href="dot-resolve_ref_question.html">.resolve_ref_question()</a></code> for the full resolution order.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

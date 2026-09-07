@@ -458,10 +458,16 @@ export_final_output(
   Cleaning Output Workbook
 - [`get_cols_numeric()`](get_cols_numeric.md) : Get Numeric Column Names
   from XLSForm Survey
+- [`get_label_from_name()`](get_label_from_name.md) : Get Choice Label
+  from Choice Name
 - [`get_name_from_label()`](get_name_from_label.md) : Get Choice Name
   from Choice Label
 - [`get_other_db()`](get_other_db.md) : Get Other DB
 - [`get_other_labels()`](get_other_labels.md) : Get Other Labels
+- [`get_ref_question()`](get_ref_question.md) : Extract Referenced
+  Question Name from Relevance Expression
+- [`get_value_from_uuid()`](get_value_from_uuid.md) : Get Column Value
+  by UUID
 - [`load_packages()`](load_packages.md) : Load Required Packages
 - [`prepare_other_responses()`](prepare_other_responses.md) : Prepare
   Other Responses Dataframe
