@@ -37,6 +37,13 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
+<div class="section level3">
+<h3 id="round-to-round-data-preparation-development-version">Round-to-round data preparation<a class="anchor" aria-label="anchor" href="#round-to-round-data-preparation-development-version"></a></h3>
+<ul><li>Added <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> to reduce a cumulative ONA export to the records collected since the last validation round, so repeated rounds over a long data collection period do not regenerate cleaning log entries that were already reviewed. It compares the two files in <code>data/</code>, keeps a running <code>processed_uuids.csv</code> ledger so records from earlier rounds cannot reappear, preserves the ONA label row, archives the inputs and writes <code>data.xlsx</code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="2026.07.0" id="cleaningkit-2026070">cleaningkit 2026.07.0<a class="anchor" aria-label="anchor" href="#cleaningkit-2026070"></a></h2>
 <div class="section level3">
 <h3 id="new-features-and-validations-2026-07-0">New features and validations<a class="anchor" aria-label="anchor" href="#new-features-and-validations-2026-07-0"></a></h3>

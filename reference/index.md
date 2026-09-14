@@ -25,6 +25,8 @@
   Filled Cleaning Log
 - [`export_final_output()`](export_final_output.md) : Export Final Data
   Cleaning Output Workbook
+- [`filter_new_records()`](filter_new_records.md) : Keep Only Newly
+  Collected Records Before a Validation Round
 - [`get_cols_numeric()`](get_cols_numeric.md) : Get Numeric Column Names
   from XLSForm Survey
 - [`get_label_from_name()`](get_label_from_name.md) : Get Choice Label

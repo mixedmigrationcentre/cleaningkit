@@ -1,5 +1,18 @@
 # Changelog
 
+## cleaningkit (development version)
+
+### Round-to-round data preparation
+
+- Added [`filter_new_records()`](../reference/filter_new_records.md) to
+  reduce a cumulative ONA export to the records collected since the last
+  validation round, so repeated rounds over a long data collection
+  period do not regenerate cleaning log entries that were already
+  reviewed. It compares the two files in `data/`, keeps a running
+  `processed_uuids.csv` ledger so records from earlier rounds cannot
+  reappear, preserves the ONA label row, archives the inputs and writes
+  `data.xlsx`.
+
 ## cleaningkit 2026.07.0
 
 ### New features and validations

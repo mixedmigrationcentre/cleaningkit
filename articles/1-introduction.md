@@ -18,6 +18,11 @@ into two primary phases:
 
 This initial phase involves:
 
+- Preparing the raw export for the round. When validation is run several
+  times during one data collection period,
+  [`filter_new_records()`](../reference/filter_new_records.md) reduces
+  the cumulative ONA download to the records collected since the last
+  round, so the same surveys are not flagged again.
 - Running a suite of validation functions (all starting with
   `validate_`).
 - Each of these functions performs a specific check on your dataset and

@@ -97,6 +97,61 @@
 <span>  extra_folders <span class="op">=</span> <span class="cn">NULL</span> <span class="co"># any site-specific extras</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
+<h3 id="preparing-the-data-for-a-new-validation-round">Preparing the Data for a New Validation Round<a class="anchor" aria-label="anchor" href="#preparing-the-data-for-a-new-validation-round"></a>
+</h3>
+<p>When data collection runs over several weeks and validation is run more than once, every ONA download contains the whole dataset collected so far. Running the <code>validate_*</code> functions on the full download re-flags surveys that were already reviewed, so each follow-up workbook repeats the previous round’s issues.</p>
+<ul>
+<li>
+<strong><code><a href="reference/filter_new_records.html">filter_new_records()</a></code></strong>: Reduces a cumulative ONA export to the records collected since the last validation round.</li>
+</ul>
+<p>Drop the new download into <code>data/</code> next to the file the previous round left behind. The larger of the two files is treated as the new export, every <code>_uuid</code> found in the smaller one is removed, the inputs are archived to <code>data/archive/</code>, and the remaining records are written to <code>data/data.xlsx</code>. The ONA label row is kept as row one, so <code><a href="reference/read_raw_data.html">read_raw_data()</a></code> and the <code>validate_*</code> functions can keep their default <code>skip_label_row = TRUE</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/filter_new_records.html">filter_new_records</a></span><span class="op">(</span></span>
+<span>  data_folder <span class="op">=</span> <span class="st">"./data"</span>,</span>
+<span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
+<span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  archive <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Because <code>data.xlsx</code> is itself already filtered, comparing two files alone would only ever exclude the most recent round — from the third round onwards, records from the first round would quietly come back. To prevent this the function keeps a running <code>data/processed_uuids.csv</code> ledger of every uuid that has already been validated, and filters against the ledger as well as against the previous file. The ledger is ignored when the function looks for input files, so it can sit in <code>data/</code> without interfering. If it is lost, the function falls back to the plain two-file comparison and says so; if only the new export is in the folder, the ledger alone is used.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Argument</th>
+<th>What it does</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>data_folder</code></td>
+<td>Folder holding the raw exports. Default <code>"./data"</code>.</td>
+</tr>
+<tr>
+<td><code>uuid_column</code></td>
+<td>Unique survey identifier. Default <code>"_uuid"</code>.</td>
+</tr>
+<tr>
+<td><code>skip_label_row</code></td>
+<td>Treats row one as the ONA label row and writes it back to the output. Default <code>TRUE</code>.</td>
+</tr>
+<tr>
+<td><code>output_name</code></td>
+<td>Name of the filtered file. Default <code>"data.xlsx"</code>.</td>
+</tr>
+<tr>
+<td><code>use_ledger</code></td>
+<td>Filter against, and update, <code>processed_uuids.csv</code>. Default <code>TRUE</code>.</td>
+</tr>
+<tr>
+<td><code>archive</code></td>
+<td>Move the inputs to <code>data/archive/</code> instead of deleting them. Default <code>TRUE</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing is removed until the filtered file has been built, and nothing is removed at all if the filtering leaves zero new records — which usually means the same export was downloaded twice. Skip this step for the first round, or when the whole dataset is being validated in one go.</p>
+</div>
+<div class="section level3">
 <h3 id="data-cleaning-and-validation">Data Cleaning and Validation<a class="anchor" aria-label="anchor" href="#data-cleaning-and-validation"></a>
 </h3>
 <p>The package provides a suite of <code>validate_*</code> functions to run various data quality checks. Each function returns a list containing the checked dataset and a log of flagged issues.</p>
@@ -127,8 +182,12 @@
 <strong><code><a href="reference/validate_interview_location.html">validate_interview_location()</a></code></strong>: Flags interviews whose GPS point is missing, falls outside the claimed country of interview, or sits too far from the claimed city of interview</li>
 </ul>
 <p>Here is a quick look at how you can load your data and run a few validation checks:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">cleaningkit</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Optional: reduce a cumulative ONA export to the records collected</span></span>
+<span><span class="co"># since the last validation round (see the section above)</span></span>
+<span><span class="fu"><a href="reference/filter_new_records.html">filter_new_records</a></span><span class="op">(</span>data_folder <span class="op">=</span> <span class="st">"./data"</span>, uuid_column <span class="op">=</span> <span class="st">"_uuid"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Load your raw data and tool survey schema</span></span>
 <span><span class="va">raw_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_raw_data.html">read_raw_data</a></span><span class="op">(</span><span class="st">"path/to/data.xlsx"</span>, tool_survey <span class="op">=</span> <span class="va">survey_sheet</span><span class="op">)</span></span>
@@ -186,7 +245,7 @@
 </h3>
 <p>Logical checks are the consistency rules of the questionnaire — the “this answer cannot go together with that answer” rules, such as a respondent being interviewed in their own country of nationality. They are <strong>not</strong> written in R. They live in an Excel checklist so that research staff can add, edit or retire a check without touching any code, and <code><a href="reference/validate_logical_with_list.html">validate_logical_with_list()</a></code> runs every row of that checklist against the dataset.</p>
 <p><strong>Where to find the template.</strong> A ready-made checklist containing the standard MMC core checks ships with the package. Copy it into your project’s <code>resources/</code> folder and edit it there:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># where the template lives on your machine</span></span>
 <span><span class="va">template_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
 <span>  <span class="st">"extdata"</span>, <span class="st">"logical_checklist_example.xlsx"</span>, package <span class="op">=</span> <span class="st">"cleaningkit"</span></span>
@@ -249,7 +308,7 @@
 </tr></tbody>
 </table>
 <p><strong>Writing <code>check_to_perform</code>.</strong> The expression is evaluated inside <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter()</a></code>, so column names are written bare (no quotes, no <code>df$</code>) and any <code>dplyr</code> or <code>stringr</code> verb can be used:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># straightforward comparison of two questions</span></span>
 <span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
 <span></span>
@@ -260,7 +319,7 @@
 <span><span class="co"># so test them with str_detect() + fixed(), never with ==</span></span>
 <span><span class="fu">str_detect</span><span class="op">(</span><span class="va">Q78</span>, <span class="fu">fixed</span><span class="op">(</span><span class="st">"Natural disaster or environmental factors"</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">Q86_a</span> <span class="op">==</span> <span class="st">"No"</span></span></code></pre></div>
 <p><strong>Running the checks.</strong></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span><span class="st">"./resources/logical_checks_mmc.xlsx"</span>, sheet <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">|&gt;</span></span>
@@ -284,7 +343,7 @@
 <h3 id="combining-and-exporting-logs">Combining and Exporting Logs<a class="anchor" aria-label="anchor" href="#combining-and-exporting-logs"></a>
 </h3>
 <p>After running the validation checks, you can combine all the individual logs and save them into an Excel file for review and follow-up:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># combine logs</span></span>
 <span><span class="co">#----------------------------------</span></span>
@@ -338,7 +397,7 @@
 </tbody>
 </table>
 <p>The header row is unaffected in all three modes — it keeps the same MMC blue fill, white bold Arial Narrow text, borders, filter and frozen pane. <code>color_mode</code> only changes the body of the log.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># 1. colours on (default)</span></span>
 <span><span class="co">#----------------------------------</span></span>
@@ -367,7 +426,7 @@
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"path/to/output/"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"_follow-ups.xlsx"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code>color_columns</code> is only read when <code>color_mode = "partial"</code>. It takes one or more columns, written either the way they appear in the log header or the way they appear in the raw log — matching ignores case, spaces and underscores, so both of these do the same thing:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">color_columns</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"old_value"</span>, <span class="st">"issue"</span>, <span class="st">"question"</span><span class="op">)</span>          <span class="co"># raw log names</span></span>
 <span><span class="va">color_columns</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Old value"</span>, <span class="st">"Issue"</span>, <span class="st">"Question number"</span><span class="op">)</span>   <span class="co"># log headers</span></span></code></pre></div>
 <p>If you ask for <code>"partial"</code> without any valid <code>color_columns</code>, the log is written with no colouring and a warning tells you which columns were not found. <code>TRUE</code> and <code>FALSE</code> also work as shorthand for <code>"on"</code> and <code>"off"</code>, and <code>column_for_color = NULL</code> still switches colouring off entirely.</p>
@@ -383,7 +442,7 @@
 <li>
 <strong><code><a href="reference/save_other_responses.html">save_other_responses()</a></code></strong>: This function saves the prepared other responses into an Excel workbook with specific formatting and data validation.</li>
 </ul>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare the other responses dataframe</span></span>
 <span><span class="va">other_responses_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
 <span>  raw_data <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -419,7 +478,7 @@
 <li>
 <strong><code><a href="reference/export_final_output.html">export_final_output()</a></code></strong>: Creates a final Excel workbook containing the raw data, clean data, and the comprehensive cleaning log.</li>
 </ul>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># apply cleaning</span></span>
 <span><span class="co">#----------------------------------</span></span>

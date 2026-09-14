@@ -88,6 +88,11 @@ Output</strong></li>
 </h3>
 <p>This initial phase involves:</p>
 <ul>
+<li>Preparing the raw export for the round. When validation is run
+several times during one data collection period,
+<code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> reduces the cumulative ONA download to
+the records collected since the last round, so the same surveys are not
+flagged again.</li>
 <li>Running a suite of validation functions (all starting with
 <code>validate_</code>).</li>
 <li>Each of these functions performs a specific check on your dataset
