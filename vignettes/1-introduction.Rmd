@@ -27,9 +27,10 @@ The `cleaningkit` package is built to automate the process of survey data cleani
 
 ### 1. The Validation and Cleaning Process
 
-This initial phase involves: 
+This initial phase involves:
 
-* Running a suite of validation functions (all starting with `validate_`). 
+* Preparing the raw export for the round. When validation is run several times during one data collection period, `filter_new_records()` reduces the cumulative ONA download to the records collected since the last round, so the same surveys are not flagged again.
+* Running a suite of validation functions (all starting with `validate_`).
 * Each of these functions performs a specific check on your dataset and generates a corresponding log of flagged issues. 
 * After running the individual checks, you will combine all the generated logs into a single, comprehensive cleaning log that also includes a dataset to facilitate the review process. Concurrently, you will extract, prepare, and create a specialized cleaning log for handling "other" text responses.
 

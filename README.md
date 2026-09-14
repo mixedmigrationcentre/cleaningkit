@@ -44,6 +44,59 @@ setup_project_folders(
 )
 ```
 
+### Preparing the Data for a New Validation Round
+
+When data collection runs over several weeks and validation is run more
+than once, every ONA download contains the whole dataset collected so
+far. Running the `validate_*` functions on the full download re-flags
+surveys that were already reviewed, so each follow-up workbook repeats
+the previous round’s issues.
+
+- **`filter_new_records()`**: Reduces a cumulative ONA export to the
+  records collected since the last validation round.
+
+Drop the new download into `data/` next to the file the previous round
+left behind. The larger of the two files is treated as the new export,
+every `_uuid` found in the smaller one is removed, the inputs are
+archived to `data/archive/`, and the remaining records are written to
+`data/data.xlsx`. The ONA label row is kept as row one, so
+`read_raw_data()` and the `validate_*` functions can keep their default
+`skip_label_row = TRUE`.
+
+``` r
+filter_new_records(
+  data_folder = "./data",
+  uuid_column = "_uuid",
+  skip_label_row = TRUE,
+  archive = TRUE
+)
+```
+
+Because `data.xlsx` is itself already filtered, comparing two files
+alone would only ever exclude the most recent round — from the third
+round onwards, records from the first round would quietly come back. To
+prevent this the function keeps a running `data/processed_uuids.csv`
+ledger of every uuid that has already been validated, and filters
+against the ledger as well as against the previous file. The ledger is
+ignored when the function looks for input files, so it can sit in
+`data/` without interfering. If it is lost, the function falls back to
+the plain two-file comparison and says so; if only the new export is in
+the folder, the ledger alone is used.
+
+| Argument | What it does |
+|----|----|
+| `data_folder` | Folder holding the raw exports. Default `"./data"`. |
+| `uuid_column` | Unique survey identifier. Default `"_uuid"`. |
+| `skip_label_row` | Treats row one as the ONA label row and writes it back to the output. Default `TRUE`. |
+| `output_name` | Name of the filtered file. Default `"data.xlsx"`. |
+| `use_ledger` | Filter against, and update, `processed_uuids.csv`. Default `TRUE`. |
+| `archive` | Move the inputs to `data/archive/` instead of deleting them. Default `TRUE`. |
+
+Nothing is removed until the filtered file has been built, and nothing
+is removed at all if the filtering leaves zero new records — which
+usually means the same export was downloaded twice. Skip this step for
+the first round, or when the whole dataset is being validated in one go.
+
 ### Data Cleaning and Validation
 
 The package provides a suite of `validate_*` functions to run various
@@ -82,6 +135,10 @@ validation checks:
 
 ``` r
 library(cleaningkit)
+
+# Optional: reduce a cumulative ONA export to the records collected
+# since the last validation round (see the section above)
+filter_new_records(data_folder = "./data", uuid_column = "_uuid")
 
 # Load your raw data and tool survey schema
 raw_data <- read_raw_data("path/to/data.xlsx", tool_survey = survey_sheet)
