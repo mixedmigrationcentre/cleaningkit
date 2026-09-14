@@ -9,7 +9,8 @@ library(cleaningkit)
 cleaningkit::load_packages()
 
 #----------------------------------
-# Read tool data
+# Setup project folders
+# Run once
 #----------------------------------
 
 setup_project_folders(
