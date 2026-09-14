@@ -55,6 +55,70 @@ other_db <- cleaningkit::get_other_db(
 )
 ```
 
+## Keep only the newly collected records
+
+Data collection for a round usually runs over several weeks while validation is
+run twice a week, and every ONA download contains the whole dataset collected so
+far. Running the `validate_*` functions on the full download regenerates
+cleaning log entries for surveys that were already reviewed, so each follow-up
+workbook repeats the previous round's issues.
+
+`filter_new_records()` removes that duplication. Drop the new ONA download into
+`./data` next to the file the previous round left behind. The larger of the two
+files is treated as the new export, every `_uuid` found in the smaller one is
+removed, the two inputs are archived to `./data/archive/`, and the remaining
+records are written to `./data/data.xlsx`.
+
+```{r}
+cleaningkit::filter_new_records(
+  data_folder = "./data",
+  uuid_column = "_uuid",
+  skip_label_row = TRUE,
+  output_name = "data.xlsx",
+  archive = TRUE
+)
+```
+
+The ONA label row of the new export is written back as row one of the output, so
+`read_raw_data()` and every `validate_*` function can keep their default
+`skip_label_row = TRUE`.
+
+### Why a ledger is kept
+
+Because `data.xlsx` is itself already filtered, comparing the two files alone
+would only ever exclude the most recent round. From the third round onwards the
+records collected in the first round would quietly come back into the cleaning
+log. To prevent this, the function maintains `./data/processed_uuids.csv`, a
+running list of every uuid that has already been through validation, and filters
+against that ledger as well as against the previous file. The csv is ignored
+when the function looks for input files, so it can live in `./data` without
+interfering.
+
+If the ledger is deleted or unreadable the function falls back to the plain
+two-file comparison and warns. If only the new export is in the folder, the
+ledger is used on its own:
+
+```{r}
+# only the new ONA download is in ./data - filter against the ledger alone
+cleaningkit::filter_new_records(data_folder = "./data")
+```
+
+### What the function will not do
+
+Nothing is removed until the filtered file has been built successfully, and
+nothing is removed at all if the filtering leaves zero new records — which
+usually means the same export was downloaded twice. With `archive = TRUE` (the
+default) the inputs are moved to `./data/archive/` under a timestamped name
+rather than deleted, so a round can be redone if something goes wrong. Set
+`archive = FALSE` to delete them outright.
+
+More than two Excel files in `./data` is an error rather than a guess, and
+Excel's `~$` lock files are ignored. The call returns, invisibly, a summary of
+how many records were read, dropped and kept.
+
+Skip this section for the first round of a data collection, or when the whole
+dataset is being validated in one go.
+
 ## Read raw data
 
 ```{r}
