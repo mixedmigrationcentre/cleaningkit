@@ -40,6 +40,32 @@ other_db <- cleaningkit::get_other_db(
 )
 
 #----------------------------------
+# keep only the newly collected records
+# run this when validation happens several times during one data collection
+# round. drop the new ONA download into ./data next to the file left by the
+# previous round; the two are compared on `_uuid`, everything already
+# validated is removed, the inputs are archived to ./data/archive and the
+# new records are written to ./data/data.xlsx
+# a running ./data/processed_uuids.csv ledger makes sure records from earlier
+# rounds cannot come back from the third round onwards
+# skip this section for the first round, or when the whole dataset is being
+# validated in one go
+#----------------------------------
+
+cleaningkit::filter_new_records(
+  data_folder = "./data",
+  uuid_column = "_uuid",
+  skip_label_row = TRUE,
+  output_name = "data.xlsx",
+  sheet = 1,
+  use_ledger = TRUE,
+  ledger_name = "processed_uuids.csv",
+  archive = TRUE,
+  archive_folder = "archive",
+  verbose = TRUE
+)
+
+#----------------------------------
 # Read raw data
 #----------------------------------
 

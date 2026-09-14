@@ -12,6 +12,7 @@ export(create_combined_log)
 export(create_formated_wb)
 export(evaluate_cleaning_log)
 export(export_final_output)
+export(filter_new_records)
 export(get_label_from_name)
 export(get_name_from_label)
 export(get_other_db)
@@ -49,16 +50,29 @@ import(openxlsx)
 import(pak)
 import(stringr)
 import(tidyr)
-importFrom(crayon,green)
-importFrom(crayon,red)
-importFrom(crayon,yellow)
-importFrom(purrr,map)
-importFrom(purrr,map2)
-importFrom(purrr,map_lgl)
-importFrom(rlang,":=")
-importFrom(rlang,.data)
-importFrom(rlang,sym)
+importFrom(crayon,
+  green,
+  red,
+  yellow
+)
+importFrom(purrr,
+  map,
+  map2,
+  map_lgl
+)
+importFrom(rlang,
+  ":=",
+  .data,
+  sym
+)
 importFrom(stats,setNames)
-importFrom(stringr,fixed)
-importFrom(stringr,str_replace_all)
-importFrom(utils,install.packages)
+importFrom(stringr,
+  fixed,
+  str_replace_all
+)
+importFrom(utils,
+  head,
+  install.packages,
+  read.csv,
+  write.csv
+)

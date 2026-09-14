@@ -71,5 +71,5 @@ if (getRversion() >= "2.15.1") {
 #' @importFrom purrr map map_lgl map2
 #' @importFrom crayon green yellow red
 #' @importFrom stats setNames
-#' @importFrom utils install.packages
+#' @importFrom utils install.packages head read.csv write.csv
 NULL
