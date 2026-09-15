@@ -84,6 +84,20 @@ review_cleaning_log <- cleaningkit::evaluate_cleaning_log(
 )
 
 #----------------------------------
+# Filter surveys in raw data that exist in cleaning log
+#
+#----------------------------------
+# Keep label row
+label_row <- raw_data[1, ]
+
+# Apply filter
+raw_data <- raw_data[-1, ] %>%
+  filter(`_uuid` %in% cl$`Survey UUID`)
+
+# Bind back the label row
+raw_data <- bind_rows(label_row, raw_data)
+
+#----------------------------------
 # apply cleaning log
 # This function performs the actions to clean the data
 #----------------------------------
@@ -212,8 +226,11 @@ cleaningkit::export_final_output(
   raw_dataset = raw_data,
   clean_dataset = clean_data,
   combined_log = final_log,
-  output_path = "./output/final/final_output.xlsx",
+  output_path = paste0("./output/final/", Sys.Date(), "_4Mi_final_output.xlsx"),
   project_name = "4Mi East Africa — Round 12",
   data_collection_round = "Round 12 — Q1 2025",
-  prepared_by = "MMC Data Team"
+  prepared_by = "MMC Data Team",
+  project_description = paste0(
+    "Add project description here.",
+  ),
 )
