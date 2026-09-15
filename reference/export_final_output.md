@@ -94,8 +94,9 @@ export_final_output(
 
 - mmc_colors:
 
-  Character vector of hex colours used for readme styling. Defaults to
-  the full MMC colour palette.
+  Character vector of hex colours from the MMC palette. Kept for
+  backwards compatibility; the readme footer row is now left blank, so
+  this argument is no longer used for styling.
 
 - header_font:
 
