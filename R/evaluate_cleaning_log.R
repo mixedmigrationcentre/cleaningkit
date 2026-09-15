@@ -1,3 +1,27 @@
+#' Issue values from a cleaning log, whatever case the column carries
+#'
+#' \code{create_cleaning_log()} writes the reviewer-facing header
+#' \strong{Issue}, while the combined log that feeds it carries \code{issue}.
+#' Matching only the lower-case name meant that a log read back from a generated
+#' workbook was treated as having no issue column at all, so the deduplication
+#' key silently degraded from \code{uuid + question + issue} to
+#' \code{uuid + question} - collapsing rows that were meant to survive
+#' separately, including the repeat-edit rows the change-capture macro appends.
+#'
+#' @param df A cleaning log dataframe.
+#'
+#' @return Character vector of trimmed issue values, or empty strings when the
+#'   column is absent.
+#' @noRd
+ck_issue_values <- function(df) {
+  hit <- which(tolower(names(df)) == "issue")
+  if (length(hit) == 0) {
+    return(rep("", nrow(df)))
+  }
+  trimws(as.character(df[[hit[1]]]))
+}
+
+
 #' Read and Prepare Filled Cleaning Log(s)
 #'
 #' Reads one or more filled cleaning log Excel files from a directory (or a
@@ -58,7 +82,9 @@
 #' @param sheet Sheet to read from each Excel file. Accepts a name or integer.
 #'   Default \code{2}.
 #' @param file_pattern Regex pattern used to identify cleaning log files when
-#'   \code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xlsx$"}.
+#'   \code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xls[xm]$"},
+#'   which matches both plain and macro-enabled logs (see the \code{macro}
+#'   argument of \code{create_cleaning_log()}).
 #' @param extra_questions Optional character vector of additional question values
 #'   to allow through the question filter (e.g. computed columns that are not
 #'   in the raw dataset but are valid targets). Default \code{NULL}.
@@ -80,7 +106,7 @@ read_cleaning_log <- function(
   old_value_col = "Old value",
   new_value_col = "New value",
   sheet = 2,
-  file_pattern = "_follow-ups_edited\\.xlsx$",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -279,11 +305,7 @@ read_cleaning_log <- function(
 
   # -- non-discard rows: dedup by uuid + question + issue --
   if (nrow(other_rows) > 0) {
-    issue_vals <- if ("issue" %in% names(other_rows)) {
-      trimws(as.character(other_rows[["issue"]]))
-    } else {
-      rep("", nrow(other_rows))
-    }
+    issue_vals <- ck_issue_values(other_rows)
 
     other_rows[[".priority"]] <- vapply(
       other_rows[[action_col]],
@@ -336,11 +358,7 @@ read_cleaning_log <- function(
   # ---- final duplicate check ----
   # After deduplication, uuid + question + issue must be unique. If not, the
   # log is ambiguous and applying it would corrupt the dataset.
-  issue_res <- if ("issue" %in% names(result)) {
-    trimws(as.character(result[["issue"]]))
-  } else {
-    rep("", nrow(result))
-  }
+  issue_res <- ck_issue_values(result)
   dup_key_final <- paste(
     trimws(as.character(result[[uuid_col]])),
     trimws(as.character(result[[question_col]])),
@@ -668,11 +686,7 @@ evaluate_cleaning_log <- function(
   # (e.g. Q13 flagged by both check_country_02 and check_country_04); those
   # should not be flagged. Group by uuid + question + issue, matching the
   # deduplication key used in read_cleaning_log().
-  issue_vals_cl <- if ("issue" %in% names(cl)) {
-    trimws(as.character(cl[["issue"]]))
-  } else {
-    rep("", nrow(cl))
-  }
+  issue_vals_cl <- ck_issue_values(cl)
   dupe_key <- paste(
     cl[[uuid_col]],
     cl[[question_col]],

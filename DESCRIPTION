@@ -28,7 +28,8 @@ Imports:
     stringi,
     stringr,
     tidyr,
-    utils
+    utils,
+    zip
 Suggests: 
     here,
     knitr,
