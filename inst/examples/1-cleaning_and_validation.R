@@ -358,3 +358,81 @@ cleaningkit::create_cleaning_log(
 #     "_follow-ups.xlsx"
 #   )
 # )
+
+#----------------------------------
+# macro-enabled cleaning log (VBA)
+# same workbook, written as .xlsm with a change-capture macro attached.
+# the reviewer edits a value on the `dataset` sheet and the change is appended
+# to the bottom of the cleaning log automatically - old value, new value,
+# question, uuid, enumerator and a mapped "Action taken" - so nothing has to be
+# copied across by hand.
+#
+# create_cleaning_log() above is untouched by this and carries none of the macro
+# machinery, so the plain .xlsx route is always still available.
+#----------------------------------
+
+# cleaningkit::create_cleaning_log_vba(
+#   write_list = combined_log,
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsm"
+#   )
+# )
+
+#----------------------------------
+# every create_cleaning_log() argument works here too, except include_dataset,
+# which is forced to TRUE - without the `dataset` sheet there is nothing for the
+# macro to watch. an .xlsx extension is corrected to .xlsm with a message.
+#
+# repeat edits are APPENDED, not overwritten: editing the same cell again adds
+# another row, its "Old value" being the value immediately before that edit, and
+# the Issue column carries a per-cell sequence number (manual_edit_001,
+# manual_edit_002, ...). that keeps uuid + question + issue unique, so
+# read_cleaning_log() keeps every row rather than collapsing them to the first,
+# and apply_cleaning_log() writes the most recent value.
+#----------------------------------
+
+# cleaningkit::create_cleaning_log_vba(
+#   write_list = combined_log,
+#   color_mode = "partial",
+#   color_columns = c("old_value"),
+#   macro_issue_prefix = "reviewer_edit",
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsm"
+#   )
+# )
+
+#----------------------------------
+# one-time setup: the compiled VBA project
+# R cannot generate vbaProject.bin - it is built once in Excel from the sources
+# in inst/vba/ and shipped as inst/extdata/cleaningkit_vba.bin.
+# run this on Windows with Excel installed, and only again when the VBA changes.
+#----------------------------------
+
+# cleaningkit::load_packages(vba = TRUE)   # installs iAthmanMMC/RDCOMClient
+# source("dev/build_vba_bin.R")
+# build_vba_bin()
+
+#----------------------------------
+# if the binary cannot be found, create_cleaning_log_vba() stops and lists every
+# location it searched. point at it directly, or set the option once in a setup
+# script - handy when these functions are sourced into a project instead of
+# being used from the installed package.
+#----------------------------------
+
+# options(
+#   cleaningkit.vba_project = "resources/cleaningkit_vba.bin"
+# )
+
+# cleaningkit::create_cleaning_log_vba(
+#   write_list = combined_log,
+#   vba_project = "resources/cleaningkit_vba.bin",
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsm"
+#   )
+# )
