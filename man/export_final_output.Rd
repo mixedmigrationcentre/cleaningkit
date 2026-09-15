@@ -57,8 +57,9 @@ Default \code{NULL} (omitted).}
 \item{sheet_names}{Named character vector of length 4 giving the sheet tab
 names. Default \code{c(readme = "readme", raw = "raw_data", clean = "clean_data", log = "cleaning_log")}.}
 
-\item{mmc_colors}{Character vector of hex colours used for readme styling.
-Defaults to the full MMC colour palette.}
+\item{mmc_colors}{Character vector of hex colours from the MMC palette. Kept
+for backwards compatibility; the readme footer row is now left blank, so
+this argument is no longer used for styling.}
 
 \item{header_font}{Font name for column-header rows. Default \code{"Arial Narrow"}.}
 
