@@ -29,8 +29,9 @@
 #'   Default \code{NULL} (omitted).
 #' @param sheet_names Named character vector of length 4 giving the sheet tab
 #'   names. Default \code{c(readme = "readme", raw = "raw_data", clean = "clean_data", log = "cleaning_log")}.
-#' @param mmc_colors Character vector of hex colours used for readme styling.
-#'   Defaults to the full MMC colour palette.
+#' @param mmc_colors Character vector of hex colours from the MMC palette. Kept
+#'   for backwards compatibility; the readme footer row is now left blank, so
+#'   this argument is no longer used for styling.
 #' @param header_font Font name for column-header rows. Default \code{"Arial Narrow"}.
 #' @param body_font Font name for data rows. Default \code{"Arial Narrow"}.
 #' @param freeze_panes Logical. If \code{TRUE} (the default), the first row and
@@ -528,32 +529,8 @@ export_final_output <- function(
 
   push(wb, sn, "", fill = "#FFFFFF", row_height = 8)
 
-  # ---- MMC FOOTER STRIPE ----
-  # draw the palette as a colour stripe at the bottom
-  stripe_style <- function(col) {
-    openxlsx::createStyle(
-      fgFill = col,
-      border = "TopBottomLeftRight",
-      borderColour = "#FFFFFF"
-    )
-  }
-  for (col_i in seq_along(mmc_colors)) {
-    openxlsx::writeData(
-      wb,
-      sheet = sn,
-      x = "",
-      startRow = readme_row,
-      startCol = col_i,
-      colNames = FALSE
-    )
-    openxlsx::addStyle(
-      wb,
-      sheet = sn,
-      stripe_style(mmc_colors[col_i]),
-      rows = readme_row,
-      cols = col_i
-    )
-  }
+  # ---- FOOTER ROW ----
+  # left intentionally blank: no colour stripe is drawn here
   openxlsx::setRowHeights(wb, sheet = sn, rows = readme_row, heights = 10)
 
   # set column widths on readme
