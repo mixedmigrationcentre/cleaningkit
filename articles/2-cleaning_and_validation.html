@@ -799,6 +799,221 @@ per check:</p>
 </div>
 </div>
 </div>
+<div class="section level2">
+<h2 id="create-a-cleaning-log-that-records-edits-macro-enabled">Create a cleaning log that records edits (macro-enabled)<a class="anchor" aria-label="anchor" href="#create-a-cleaning-log-that-records-edits-macro-enabled"></a>
+</h2>
+<p><code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> writes the same workbook as
+<code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code>, as a macro-enabled
+<code>.xlsm</code> with a small VBA project attached. A reviewer can
+then change a value directly on the <code>dataset</code> sheet, and the
+edit is appended to the bottom of the cleaning log automatically. The
+point is that a correction never has to be copied across by hand: the
+reviewer stays in one workbook.</p>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsm"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The two functions are deliberately kept apart.
+<code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> carries none of the macro machinery
+and does not know this one exists, so if the macro route is unavailable
+on a given machine - the binary is missing, macros are blocked, Excel
+behaves unexpectedly - the plain <code>.xlsx</code> log is completely
+unaffected.</p>
+<p>Every argument of <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> works here too
+(<code>color_mode</code>, <code>color_columns</code>,
+<code>column_for_color</code>, <code>group_by_uuid</code>,
+<code>skip_label_row</code>, the fonts, and so on), with one exception:
+<code>include_dataset</code> is forced to <code>TRUE</code>, because
+without the <code>dataset</code> sheet there is nothing for the macro to
+watch. An <code>.xlsx</code> extension is corrected to
+<code>.xlsm</code> with a message.</p>
+<div class="section level3">
+<h3 id="what-an-edit-produces">What an edit produces<a class="anchor" aria-label="anchor" href="#what-an-edit-produces"></a>
+</h3>
+<p>Changing a cell on the <code>dataset</code> sheet appends one row to
+the cleaning log, filled in from the row and column the edit happened
+in:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Column</th>
+<th>Where it comes from</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><strong>Survey UUID</strong></td>
+<td>the uuid column of the edited row</td>
+</tr>
+<tr class="even">
+<td>
+<strong>Date</strong>, <strong>Enumerator</strong>
+</td>
+<td>the date and enumerator columns of that row</td>
+</tr>
+<tr class="odd">
+<td><strong>Question number</strong></td>
+<td>the column name, from row 1 of the <code>dataset</code> sheet</td>
+</tr>
+<tr class="even">
+<td><strong>Question text</strong></td>
+<td>the ONA label, from row 2</td>
+</tr>
+<tr class="odd">
+<td><strong>Old value</strong></td>
+<td>the value immediately before the edit</td>
+</tr>
+<tr class="even">
+<td><strong>New value</strong></td>
+<td>what the reviewer typed</td>
+</tr>
+<tr class="odd">
+<td><strong>Action taken</strong></td>
+<td>
+<code>addition</code> if the cell was empty,
+<code>delete_data_point</code> if it is cleared, <code>recoded</code>
+otherwise</td>
+</tr>
+<tr class="even">
+<td><strong>Identified by</strong></td>
+<td>the Excel user name</td>
+</tr>
+<tr class="odd">
+<td><strong>Issue</strong></td>
+<td>
+<code>manual_edit_001</code>, <code>manual_edit_002</code>, … (see
+below)</td>
+</tr>
+</tbody>
+</table>
+<p>Appended rows have their formatting cleared before they are written,
+so none of the <code>check_binding</code> row colours carry down onto
+them, and they are given the same <strong>Action taken</strong>
+drop-down as the rest of the log. The header and label rows and the uuid
+column are put back if a reviewer edits them, because the log refers to
+them.</p>
+</div>
+<div class="section level3">
+<h3 id="repeat-edits-are-appended-not-overwritten">Repeat edits are appended, not overwritten<a class="anchor" aria-label="anchor" href="#repeat-edits-are-appended-not-overwritten"></a>
+</h3>
+<p>Editing the same cell a second time adds <strong>another</strong> row
+rather than revising the first, so the log keeps the full history of
+what was done. Each row’s <strong>Old value</strong> is the value
+immediately before that particular edit, so successive rows chain raw
+-&gt; A -&gt; B.</p>
+<p>The <strong>Issue</strong> column carries a per-cell sequence number
+for this reason. The deduplication key in
+<code><a href="../reference/read_cleaning_log.html">read_cleaning_log()</a></code> is
+<code>uuid + question + issue</code>, and for rows sharing an action it
+keeps the <em>first</em> occurrence - so without a distinct issue per
+edit, a second edit of the same cell would be silently dropped and the
+reviewer’s final value lost. <code>manual_edit_001</code>,
+<code>manual_edit_002</code> and so on keep the key unique and sort in
+edit order, so every row survives and <code><a href="../reference/apply_cleaning_log.html">apply_cleaning_log()</a></code>
+writes the most recent value.</p>
+<p>Use <code>macro_issue_prefix</code> to change the prefix if
+<code>manual_edit</code> clashes with an issue name one of your checks
+already produces.</p>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  macro_issue_prefix <span class="op">=</span> <span class="st">"reviewer_edit"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsm"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="one-time-setup-building-the-vba-project">One-time setup: building the VBA project<a class="anchor" aria-label="anchor" href="#one-time-setup-building-the-vba-project"></a>
+</h3>
+<p>The compiled VBA project is not generated by R.
+<code>vbaProject.bin</code> is an OLE compound file holding compressed
+VBA source plus a p-code cache, so it is built once in Excel from the
+sources in <code>inst/vba/</code> and shipped as
+<code>inst/extdata/cleaningkit_vba.bin</code>. On Windows with Excel
+installed:</p>
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># installs the COM toolchain (the MMC fork of RDCOMClient)</span></span>
+<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/load_packages.html">load_packages</a></span><span class="op">(</span>vba <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"dev/build_vba_bin.R"</span><span class="op">)</span></span>
+<span><span class="fu">build_vba_bin</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>This needs <strong>Excel &gt; File &gt; Options &gt; Trust Center
+&gt; Trust Center Settings &gt; Macro Settings &gt; “Trust access to the
+VBA project object model”</strong> ticked, which is off by default. If
+it is locked down centrally, <code>inst/vba/README.md</code> has a
+manual procedure that takes about five minutes and produces an identical
+file.</p>
+<p>Rebuild only when the VBA sources change; the binary is otherwise
+static and serves every log the package produces.</p>
+</div>
+<div class="section level3">
+<h3 id="finding-the-compiled-project">Finding the compiled project<a class="anchor" aria-label="anchor" href="#finding-the-compiled-project"></a>
+</h3>
+<p><code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> looks for the binary in this
+order: the <code>cleaningkit.vba_project</code> option, the
+<code>CLEANINGKIT_VBA_PROJECT</code> environment variable, the installed
+package, then <code>inst/extdata/</code>, <code>resources/</code>,
+<code>functions/</code>, <code>dev/</code> and the working directory. If
+none of them has it, the function stops with a message listing every
+path it tried.</p>
+<p>The last few matter when the functions are sourced into an analysis
+project rather than used from the installed package - and note that
+<code><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file()</a></code> also comes up empty when the package
+<em>is</em> installed but was installed before the binary was built.
+Either point at it directly:</p>
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  vba_project <span class="op">=</span> <span class="st">"resources/cleaningkit_vba.bin"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsm"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>or set it once in a setup script:</p>
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span></span>
+<span>  cleaningkit.vba_project <span class="op">=</span> <span class="st">"C:/path/to/cleaningkit/inst/extdata/cleaningkit_vba.bin"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="before-you-roll-it-out">Before you roll it out<a class="anchor" aria-label="anchor" href="#before-you-roll-it-out"></a>
+</h3>
+<p>Check that macros actually run for your reviewers, on a real file,
+the way they normally receive it. Office blocks macros by default in
+files carrying the Mark of the Web, and the current banner is a red
+<strong>SECURITY RISK</strong> bar with no <em>Enable content</em>
+button:</p>
+<ul>
+<li>opened from SharePoint through <em>Open in Desktop App</em>, or
+reached through the OneDrive sync client - no Mark of the Web, macros
+run;</li>
+<li>downloaded through a browser, or received by email - blocked.</li>
+</ul>
+<p>If they are blocked, the fixes are central rather than per-file: a
+Trusted Location, adding the SharePoint/OneDrive domains to the Trusted
+Sites zone by policy, or signing the VBA project.
+<code>inst/vba/README.md</code> covers this, along with the smoke test
+to run after every rebuild.</p>
+<p>Reading the result back works exactly as for an <code>.xlsx</code> -
+<code>readxl</code> handles <code>.xlsm</code> the same way - but
+remember to widen <code>file_pattern</code> when scanning a directory
+with <code><a href="../reference/read_cleaning_log.html">read_cleaning_log()</a></code>, since the default only matches
+<code>_follow-ups_edited.xlsx</code> and
+<code>_follow-ups_edited.xlsm</code>.</p>
+</div>
+</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
