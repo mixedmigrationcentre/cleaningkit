@@ -19,7 +19,7 @@ read_cleaning_log(
   old_value_col = "Old value",
   new_value_col = "New value",
   sheet = 2,
-  file_pattern = "_follow-ups_edited\\.xlsx$",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -72,7 +72,9 @@ read_cleaning_log(
 - file_pattern:
 
   Regex pattern used to identify cleaning log files when `path` is a
-  directory. Default `"_follow-ups_edited\\.xlsx$"`.
+  directory. Default `"_follow-ups_edited\\.xls[xm]$"`, which matches
+  both plain and macro-enabled logs (see the `macro` argument of
+  [`create_cleaning_log()`](create_cleaning_log.md)).
 
 - extra_questions:
 

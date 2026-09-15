@@ -4,6 +4,8 @@
 
 - [`add_choice()`](add_choice.md) : Add a Choice to a Space-Separated
   Select Multiple String
+- [`add_vba_project()`](add_vba_project.md) : Turn a saved .xlsx into a
+  macro-enabled .xlsm
 - [`apply_cleaning_log()`](apply_cleaning_log.md) : Apply a Validated
   Cleaning Log to the Raw Dataset
 - [`apply_other_responses()`](apply_other_responses.md) : Apply Other
@@ -11,12 +13,16 @@
 - [`apply_tool_labels()`](apply_tool_labels.md) : Apply Tool Labels
 - [`check_constraints()`](check_constraints.md) : Check XLSForm Survey
   Constraints
+- [`ck_vba_project_path()`](ck_vba_project_path.md) : Path to the
+  compiled VBA project
 - [`combine_reviewed_logs()`](combine_reviewed_logs.md) : Combine
   Reviewed Logs into a Single Reviewer-Ready Log
 - [`combine_sm_questions()`](combine_sm_questions.md) : Combine multiple
   ONA select-multiple questions into a single consolidated column
 - [`create_cleaning_log()`](create_cleaning_log.md) : Creates the final
   cleaning log workbook
+- [`create_cleaning_log_vba()`](create_cleaning_log_vba.md) : Creates
+  the cleaning log workbook with the change-capture macro
 - [`create_combined_log()`](create_combined_log.md) : Combine Validation
   Logs into a Single Cleaning Log
 - [`create_formated_wb()`](create_formated_wb.md) : Creates formatted
