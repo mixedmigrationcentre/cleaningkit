@@ -1,7 +1,8 @@
 # The cleaning log change-capture macro
 
 These are the sources for the VBA project injected into macro-enabled cleaning
-logs by `create_cleaning_log(macro = TRUE)`.
+logs by `create_cleaning_log_vba()`. The plain `create_cleaning_log()`
+carries none of this and is unaffected by anything here.
 
 | File | Module | Notes |
 |---|---|---|
@@ -22,9 +23,18 @@ is the artefact to review and diff; the `.bin` is what ships.
 On Windows with Excel:
 
 ```r
+# once: the COM toolchain, from the MMC fork of RDCOMClient
+pak::pak("iAthmanMMC/RDCOMClient")      # or cleaningkit::load_packages(vba = TRUE)
+
 source("dev/build_vba_bin.R")
 build_vba_bin()
 ```
+
+Use the fork, not the upstream omegahat package, which has an issue. Note that
+`build_vba_bin()` attaches it with `library(RDCOMClient)` rather than calling
+`RDCOMClient::COMCreate()`: the package's native code resolves R callbacks such
+as `createCOMReference()` through the search path, so `::` alone fails on the
+first COM call.
 
 This needs **Excel > File > Options > Trust Center > Trust Center Settings >
 Macro Settings > "Trust access to the VBA project object model"** ticked. It is
@@ -57,7 +67,7 @@ Keep the authoring workbook: it is where the macro is debugged next time.
 The R side is covered by `tests/testthat/test-create_cleaning_log_macro.R`, but
 no R test can tell you whether Excel is happy. Run this once per rebuild:
 
-1. `create_cleaning_log(write_list, macro = TRUE, output_path = "smoke.xlsm")`
+1. `create_cleaning_log_vba(write_list, output_path = "smoke.xlsm")`
 2. Open `smoke.xlsm` in Excel. It must open **without** any "we found a problem
    with some content" repair prompt.
 3. Enable macros, go to the `dataset` sheet, change one value. A new row must

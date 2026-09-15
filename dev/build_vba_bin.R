@@ -3,8 +3,9 @@
 #
 # Run this once (and again whenever the VBA changes). It needs:
 #   * Windows with Excel installed
-#   * the RDCOMClient package        install.packages("RDCOMClient",
-#                                      repos = "http://www.omegahat.net/R")
+#   * the RDCOMClient package, from the MMC fork (the upstream omegahat
+#     package has an issue):          pak::pak("iAthmanMMC/RDCOMClient")
+#                                     or cleaningkit::load_packages(vba = TRUE)
 #   * Excel > File > Options > Trust Center > Trust Center Settings >
 #     Macro Settings > "Trust access to the VBA project object model" ticked
 #
@@ -38,11 +39,15 @@ build_vba_bin <- function(
   #   could not find function "createCOMReference"
   # even though the function is exported. Same reason the S4 methods for `$`
   # and `[[` on COM objects need the package on the search path.
+  # The MMC fork, not the upstream omegahat package, which has an issue.
   if (!requireNamespace("RDCOMClient", quietly = TRUE)) {
     stop(
-      "RDCOMClient is required.\n",
-      'install.packages("RDCOMClient", repos = "http://www.omegahat.net/R")\n',
-      "or: remotes::install_github(\"omegahat/RDCOMClient\")"
+      "RDCOMClient is required to build the VBA project.\n",
+      "Install the MMC fork:\n",
+      "  pak::pak(\"iAthmanMMC/RDCOMClient\")\n",
+      "or:\n",
+      "  cleaningkit::load_packages(vba = TRUE)",
+      call. = FALSE
     )
   }
   library(RDCOMClient)
@@ -159,8 +164,8 @@ build_vba_bin <- function(
     " bytes)."
   )
   message(
-    "Now smoke-test it: create_cleaning_log(..., macro = TRUE) and open the ",
-    "result in Excel."
+    "Now smoke-test it: create_cleaning_log_vba(..., output_path = \"smoke.xlsm\") ",
+    "and open the result in Excel. See inst/vba/README.md for the full check."
   )
 
   invisible(out_path)

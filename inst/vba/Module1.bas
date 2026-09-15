@@ -6,7 +6,7 @@ Option Explicit
 '
 ' Companion to ThisWorkbook.cls. Together they let a reviewer edit the
 ' `dataset` sheet of a cleaning log workbook produced by
-' cleaningkit::create_cleaning_log(macro = TRUE) and have every edit
+' cleaningkit::create_cleaning_log_vba() and have every edit
 ' appended automatically to the bottom of the cleaning log sheet.
 '
 ' Design notes

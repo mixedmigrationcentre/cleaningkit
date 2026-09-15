@@ -4,7 +4,20 @@
 \alias{load_packages}
 \title{Load Required Packages}
 \usage{
-load_packages()
+load_packages(vba = FALSE)
+}
+\arguments{
+\item{vba}{Logical. If \code{TRUE}, additionally install the package needed to
+\strong{build} the VBA project behind \code{\link{create_cleaning_log_vba}}:
+\code{RDCOMClient}, which drives Excel through COM.
+
+It is installed from the MMC fork \code{iAthmanMMC/RDCOMClient} rather than
+the upstream omegahat package, which has an issue. It is Windows-only and is
+skipped with a message elsewhere.
+
+Default \code{FALSE}: it is needed once per macro rebuild
+(\code{dev/build_vba_bin.R}), not to run the cleaning pipeline, and not at
+all by reviewers opening a finished \code{.xlsm}.}
 }
 \description{
 This function installs (if necessary) and loads all packages required

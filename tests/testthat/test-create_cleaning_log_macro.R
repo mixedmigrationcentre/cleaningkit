@@ -1,3 +1,9 @@
+# Tests for create_cleaning_log_vba() and the VBA injection machinery.
+#
+# create_cleaning_log() itself is deliberately untouched by this feature - the
+# first test below guards that, so the plain .xlsx path can never be broken by
+# work on the macro.
+
 # --------------------------------------------------------------------------
 # helpers
 # --------------------------------------------------------------------------
@@ -52,6 +58,102 @@ ck_read_part <- function(zip_path, part) {
 }
 
 
+# --------------------------------------------------------------------------
+# separation of the two functions
+# --------------------------------------------------------------------------
+
+test_that("create_cleaning_log() carries no macro machinery", {
+  # The whole point of the split: if the macro route breaks, this one is
+  # untouched. Assert on the formals rather than the body so the guard is
+  # readable.
+  fmls <- names(formals(create_cleaning_log))
+  expect_false("macro" %in% fmls)
+  expect_false("vba_project" %in% fmls)
+  expect_false("macro_issue_prefix" %in% fmls)
+  # and it still returns a workbook when given no path
+  expect_true("output_path" %in% fmls)
+})
+
+
+test_that("create_cleaning_log_vba() mirrors create_cleaning_log()'s arguments", {
+  plain <- names(formals(create_cleaning_log))
+  vba <- names(formals(create_cleaning_log_vba))
+
+  # include_dataset is forced TRUE by the vba version, so it is the one
+  # argument deliberately dropped
+  expect_setequal(setdiff(plain, vba), "include_dataset")
+  expect_setequal(
+    setdiff(vba, plain),
+    c("macro_issue_prefix", "vba_project")
+  )
+})
+
+
+test_that("ck_action_codes() matches the codes create_cleaning_log() writes", {
+  # The macro writes one of these into Action taken and offers them as the
+  # drop-down on appended rows. If the two lists ever drift, evaluate_cleaning_log()
+  # would reject the macro's own rows - so fail here instead.
+  out <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(out, force = TRUE), add = TRUE)
+  create_cleaning_log(ck_test_write_list(), output_path = out)
+
+  written <- openxlsx::read.xlsx(out, sheet = "validation_rules")
+  expect_equal(as.character(written[[1]]), ck_action_codes())
+})
+
+
+# --------------------------------------------------------------------------
+# locating the compiled VBA project
+# --------------------------------------------------------------------------
+
+test_that("ck_vba_project_path() honours the option override", {
+  f <- ck_fake_vba()
+  old <- getOption("cleaningkit.vba_project")
+  options(cleaningkit.vba_project = f)
+  on.exit(
+    {
+      options(cleaningkit.vba_project = old)
+      unlink(f, force = TRUE)
+    },
+    add = TRUE
+  )
+
+  expect_equal(
+    normalizePath(ck_vba_project_path(), winslash = "/", mustWork = FALSE),
+    normalizePath(f, winslash = "/", mustWork = FALSE)
+  )
+})
+
+
+test_that("ck_vba_project_path() returns \"\" rather than erroring when nothing is found", {
+  old <- getOption("cleaningkit.vba_project")
+  options(cleaningkit.vba_project = tempfile("no-such-", fileext = ".bin"))
+  on.exit(options(cleaningkit.vba_project = old), add = TRUE)
+
+  # the installed package may legitimately ship a binary, so only assert the
+  # contract: a single string, never an error
+  expect_type(ck_vba_project_path(), "character")
+  expect_length(ck_vba_project_path(), 1L)
+})
+
+
+test_that("the not-found message names every place it looked and how to fix it", {
+  msg <- ck_vba_missing_message()
+  expect_match(msg, "cleaningkit_vba.bin", fixed = TRUE)
+  expect_match(msg, "resources", fixed = TRUE)
+  expect_match(msg, "cleaningkit.vba_project", fixed = TRUE)
+  expect_match(msg, "vba_project =", fixed = TRUE)
+  # points at the plain function as the fallback, not at a `macro` argument
+  # that no longer exists
+  expect_match(msg, "create_cleaning_log()", fixed = TRUE)
+  expect_false(grepl("macro = FALSE", msg, fixed = TRUE))
+})
+
+
+# --------------------------------------------------------------------------
+# configuration written for the macro
+# --------------------------------------------------------------------------
+
 test_that("ck_macro_config_df carries everything the macro reads", {
   cfg <- ck_macro_config_df(
     dataset_sheet = "dataset",
@@ -91,6 +193,10 @@ test_that("ck_macro_config_df carries everything the macro reads", {
   expect_identical(cfg$value[cfg$key == "first_data_row"], "3")
 })
 
+
+# --------------------------------------------------------------------------
+# the codeName splice
+# --------------------------------------------------------------------------
 
 test_that("ck_patch_sheet_codename inserts a sheetPr when there is none", {
   f <- tempfile(fileext = ".xml")
@@ -134,7 +240,10 @@ test_that("ck_patch_sheet_codename amends an existing sheetPr instead of adding 
   expect_true(ck_patch_sheet_codename(f, "Sheet2"))
 
   out <- paste(readLines(f, warn = FALSE), collapse = "")
-  expect_equal(lengths(regmatches(out, gregexpr("<sheetPr", out, fixed = TRUE))), 1L)
+  expect_equal(
+    lengths(regmatches(out, gregexpr("<sheetPr", out, fixed = TRUE))),
+    1L
+  )
   expect_match(out, '<sheetPr codeName="Sheet2">', fixed = TRUE)
   expect_match(out, '<tabColor rgb="FF00A2A5"/>', fixed = TRUE)
 })
@@ -147,42 +256,38 @@ test_that("ck_patch_sheet_codename leaves an existing codeName alone", {
   writeLines(original, f)
 
   expect_false(ck_patch_sheet_codename(f, "Sheet9"))
-  expect_equal(trimws(paste(readLines(f, warn = FALSE), collapse = "")), original)
+  expect_equal(
+    trimws(paste(readLines(f, warn = FALSE), collapse = "")),
+    original
+  )
 })
 
 
-test_that("create_cleaning_log(macro = TRUE) refuses what it cannot deliver", {
+# --------------------------------------------------------------------------
+# create_cleaning_log_vba()
+# --------------------------------------------------------------------------
+
+test_that("create_cleaning_log_vba() refuses what it cannot deliver", {
   wl <- ck_test_write_list()
 
   expect_error(
-    create_cleaning_log(wl, macro = TRUE, output_path = NULL),
+    create_cleaning_log_vba(wl),
     "output_path",
     fixed = TRUE
   )
   expect_error(
-    create_cleaning_log(
+    create_cleaning_log_vba(
       wl,
-      macro = TRUE,
-      include_dataset = FALSE,
-      output_path = tempfile(fileext = ".xlsm")
-    ),
-    "include_dataset",
-    fixed = TRUE
-  )
-  expect_error(
-    create_cleaning_log(
-      wl,
-      macro = TRUE,
       vba_project = file.path(tempdir(), "definitely-not-here.bin"),
       output_path = tempfile(fileext = ".xlsm")
     ),
-    "vbaProject.bin",
+    "does not point at a file that exists",
     fixed = TRUE
   )
 })
 
 
-test_that("the plain .xlsx path is unchanged when macro = FALSE", {
+test_that("the plain .xlsx path is unchanged", {
   wl <- ck_test_write_list()
   out <- tempfile(fileext = ".xlsx")
   on.exit(unlink(out, force = TRUE), add = TRUE)
@@ -199,13 +304,13 @@ test_that("the plain .xlsx path is unchanged when macro = FALSE", {
 })
 
 
-test_that("macro = TRUE produces a well-formed macro-enabled package", {
+test_that("create_cleaning_log_vba() produces a well-formed macro-enabled package", {
   wl <- ck_test_write_list()
   vba <- ck_fake_vba()
   out <- tempfile(fileext = ".xlsm")
   on.exit(unlink(c(out, vba), force = TRUE), add = TRUE)
 
-  create_cleaning_log(wl, macro = TRUE, vba_project = vba, output_path = out)
+  create_cleaning_log_vba(wl, output_path = out, vba_project = vba)
 
   expect_true(file.exists(out))
   entries <- utils::unzip(out, list = TRUE)$Name
@@ -232,19 +337,11 @@ test_that("macro = TRUE produces a well-formed macro-enabled package", {
     fixed = TRUE
   ))
   expect_true(grepl('PartName="/xl/vbaProject.bin"', ct, fixed = TRUE))
-  expect_false(grepl(
-    "spreadsheetml.sheet.main+xml",
-    ct,
-    fixed = TRUE
-  ))
+  expect_false(grepl("spreadsheetml.sheet.main+xml", ct, fixed = TRUE))
 
   # relationship
   rels <- ck_read_part(out, "xl/_rels/workbook.xml.rels")
-  expect_true(grepl(
-    "office/2006/relationships/vbaProject",
-    rels,
-    fixed = TRUE
-  ))
+  expect_true(grepl("office/2006/relationships/vbaProject", rels, fixed = TRUE))
   expect_true(grepl('Target="vbaProject.bin"', rels, fixed = TRUE))
 
   # code names: openxlsx drops these, and without them the VBA project has
@@ -266,12 +363,11 @@ test_that("the hidden config sheet describes the workbook the macro will see", {
   out <- tempfile(fileext = ".xlsm")
   on.exit(unlink(c(out, vba), force = TRUE), add = TRUE)
 
-  create_cleaning_log(
+  create_cleaning_log_vba(
     wl,
-    macro = TRUE,
+    output_path = out,
     macro_issue_prefix = "reviewer_edit",
-    vba_project = vba,
-    output_path = out
+    vba_project = vba
   )
 
   sheets <- openxlsx::getSheetNames(out)
@@ -308,13 +404,15 @@ test_that("the hidden config sheet describes the workbook the macro will see", {
   wb_xml <- ck_read_part(out, "xl/workbook.xml")
   sheet_nodes <- regmatches(wb_xml, gregexpr("<sheet [^>]*/>", wb_xml))[[1]]
   node_for <- function(nm) {
-    hit <- sheet_nodes[grepl(paste0('name="', nm, '"'), sheet_nodes, fixed = TRUE)]
+    hit <- sheet_nodes[
+      grepl(paste0('name="', nm, '"'), sheet_nodes, fixed = TRUE)
+    ]
     if (length(hit) == 0) NA_character_ else hit[[1]]
   }
 
   expect_false(is.na(node_for("_ck_config")))
   expect_match(node_for("_ck_config"), 'state="veryHidden"', fixed = TRUE)
-  # and the existing hidden sheet is untouched by the new assignment
+  # and the existing hidden sheet is untouched
   expect_match(node_for("validation_rules"), 'state="hidden"', fixed = TRUE)
   expect_match(node_for("cleaning_log"), 'state="visible"', fixed = TRUE)
 })
@@ -326,12 +424,11 @@ test_that("skip_label_row = FALSE shifts the row layout the macro is told about"
   out <- tempfile(fileext = ".xlsm")
   on.exit(unlink(c(out, vba), force = TRUE), add = TRUE)
 
-  create_cleaning_log(
+  create_cleaning_log_vba(
     wl,
-    macro = TRUE,
+    output_path = out,
     skip_label_row = FALSE,
-    vba_project = vba,
-    output_path = out
+    vba_project = vba
   )
 
   cfg <- openxlsx::read.xlsx(out, sheet = "_ck_config")
@@ -345,15 +442,13 @@ test_that("an .xlsx output_path is redirected to .xlsm", {
   wl <- ck_test_write_list()
   vba <- ck_fake_vba()
   out <- tempfile(fileext = ".xlsx")
-  on.exit(unlink(c(out, sub("\\.xlsx$", ".xlsm", out), vba), force = TRUE), add = TRUE)
+  on.exit(
+    unlink(c(out, sub("\\.xlsx$", ".xlsm", out), vba), force = TRUE),
+    add = TRUE
+  )
 
   expect_message(
-    res <- create_cleaning_log(
-      wl,
-      macro = TRUE,
-      vba_project = vba,
-      output_path = out
-    ),
+    res <- create_cleaning_log_vba(wl, output_path = out, vba_project = vba),
     "\\.xlsm"
   )
 
@@ -363,22 +458,26 @@ test_that("an .xlsx output_path is redirected to .xlsm", {
 })
 
 
+# --------------------------------------------------------------------------
+# the round trip the macro depends on
+# --------------------------------------------------------------------------
+
 test_that("repeat-edit rows survive read_cleaning_log rather than collapsing", {
-  # This is the round trip the macro depends on: a second edit of the same cell
-  # is appended as a NEW row, distinguished only by its Issue. The dedup key is
-  # uuid + question + issue, so both rows must come through, and the later one
-  # must sort last so apply_cleaning_log() writes the final value.
+  # A second edit of the same cell is appended as a NEW row, distinguished only
+  # by its Issue. The dedup key is uuid + question + issue, so both rows must
+  # come through, and the later one must sort last so apply_cleaning_log()
+  # writes the final value.
   raw <- ck_test_write_list()$checked_dataset
 
   filled <- data.frame(
     check.names = FALSE,
     stringsAsFactors = FALSE,
-    `Survey UUID` = c("u2", "u2"),
-    `Question number` = c("age", "age"),
-    Issue = c("manual_edit_001", "manual_edit_002"),
-    `Old value` = c("204", "20"),
-    `Action taken` = c("recoded", "recoded"),
-    `New value` = c("20", "24")
+    a = c("u2", "u2"),
+    b = c("age", "age"),
+    c = c("manual_edit_001", "manual_edit_002"),
+    d = c("204", "20"),
+    e = c("recoded", "recoded"),
+    f = c("20", "24")
   )
   names(filled) <- c(
     "Survey UUID",

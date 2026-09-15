@@ -2,18 +2,38 @@
 % Please edit documentation in R/add_cleaning_log_macro.R
 \name{ck_vba_project_path}
 \alias{ck_vba_project_path}
-\title{Path to the VBA project shipped with cleaningkit}
+\title{Path to the compiled VBA project}
 \usage{
 ck_vba_project_path()
 }
 \value{
-A file path, or \code{""} if the VBA project is not present.
+A file path, or \code{""} if the VBA project cannot be found.
 }
 \description{
-Returns the path to \code{inst/extdata/cleaningkit_vba.bin}, the compiled VBA
-project injected into macro-enabled cleaning logs. Returns \code{""} when the
-binary has not been built yet - see \code{inst/vba/README.md} and
-\code{dev/build_vba_bin.R}.
+Locates \code{cleaningkit_vba.bin}, the compiled VBA project injected into
+macro-enabled cleaning logs. Returns \code{""} when it cannot be found.
+}
+\details{
+The search order is:
+\enumerate{
+\item \code{getOption("cleaningkit.vba_project")};
+\item the \code{CLEANINGKIT_VBA_PROJECT} environment variable;
+\item \code{inst/extdata} of the installed package;
+\item \code{inst/extdata/}, \code{resources/}, \code{functions/},
+\code{dev/} and the working directory itself.
+}
+
+Steps 1 and 4 exist because these functions are often sourced straight into
+an analysis project rather than used from the installed package. In that
+situation \code{system.file()} returns \code{""} - and it also returns
+\code{""} when the package \emph{is} installed but was installed before the
+binary was built, which is easy to miss. Dropping the \code{.bin} into the
+project (\code{resources/} is a natural home) or setting the option in a
+setup script both work:
+
+\preformatted{
+options(cleaningkit.vba_project = "C:/path/to/cleaningkit_vba.bin")
+}
 }
 \examples{
 \dontrun{
