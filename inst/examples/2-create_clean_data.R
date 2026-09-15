@@ -52,7 +52,9 @@ cl <- cleaningkit::read_cleaning_log(
   question_col = "Question number",
   old_value_col = "Old value",
   new_value_col = "New value",
-  file_pattern = "_follow-ups_edited\\.xlsx$",
+  # matches both the plain log and a macro-enabled one written by
+  # create_cleaning_log_vba(); readxl reads .xlsm exactly like .xlsx
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
