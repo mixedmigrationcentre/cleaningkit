@@ -14,7 +14,7 @@ read_cleaning_log(
   old_value_col = "Old value",
   new_value_col = "New value",
   sheet = 2,
-  file_pattern = "_follow-ups_edited\\\\.xlsx$",
+  file_pattern = "_follow-ups_edited\\\\.xls[xm]$",
   extra_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -47,7 +47,9 @@ uuids and known question columns.}
 Default \code{2}.}
 
 \item{file_pattern}{Regex pattern used to identify cleaning log files when
-\code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xlsx$"}.}
+\code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xls[xm]$"},
+which matches both plain and macro-enabled logs (see the \code{macro}
+argument of \code{create_cleaning_log()}).}
 
 \item{extra_questions}{Optional character vector of additional question values
 to allow through the question filter (e.g. computed columns that are not

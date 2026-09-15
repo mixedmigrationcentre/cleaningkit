@@ -23,8 +23,20 @@ get_cols_numeric <- function(tool_survey) {
 #' for the cleaningkit package to run. It uses the `pak` package for efficient
 #' installation and dependency management.
 #'
+#' @param vba Logical. If \code{TRUE}, additionally install the package needed to
+#'   \strong{build} the VBA project behind \code{\link{create_cleaning_log_vba}}:
+#'   \code{RDCOMClient}, which drives Excel through COM.
+#'
+#'   It is installed from the MMC fork \code{iAthmanMMC/RDCOMClient} rather than
+#'   the upstream omegahat package, which has an issue. It is Windows-only and is
+#'   skipped with a message elsewhere.
+#'
+#'   Default \code{FALSE}: it is needed once per macro rebuild
+#'   (\code{dev/build_vba_bin.R}), not to run the cleaning pipeline, and not at
+#'   all by reviewers opening a finished \code{.xlsm}.
+#'
 #' @export
-load_packages <- function() {
+load_packages <- function(vba = FALSE) {
   # List of core packages required
   core_pkgs <- c(
     "dplyr",
@@ -54,6 +66,24 @@ load_packages <- function() {
     "Checking and installing missing packages using 'pak'...\n"
   ))
   pak::pkg_install(core_pkgs)
+
+  # Optional: the toolchain for rebuilding the VBA project. Installed from the
+  # MMC fork because the upstream omegahat RDCOMClient has an issue. It is not
+  # attached here - only dev/build_vba_bin.R needs it, and it must be attached
+  # with library() rather than used via :: because its native code resolves R
+  # callbacks through the search path.
+  if (isTRUE(vba)) {
+    if (.Platform$OS.type != "windows") {
+      cat(crayon::yellow(
+        "Skipping RDCOMClient: it drives Excel through COM and is Windows-only.\n"
+      ))
+    } else {
+      cat(crayon::yellow(
+        "Installing RDCOMClient from the MMC fork (iAthmanMMC/RDCOMClient)...\n"
+      ))
+      pak::pkg_install("iAthmanMMC/RDCOMClient")
+    }
+  }
 
   # Load all packages
   cat(crayon::yellow("Loading required packages...\n"))
