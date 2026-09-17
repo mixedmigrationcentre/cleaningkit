@@ -25,6 +25,8 @@ export_final_output(
     "#BBD876", "#FBBC75", "#F8AB9E", "#5B9E62", "#009BD9", "#F15B5B", "#63193B"),
   header_font = "Arial Narrow",
   body_font = "Arial Narrow",
+  uuid_column_name = "Survey UUID",
+  date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
   overwrite = TRUE
@@ -65,8 +67,17 @@ this argument is no longer used for styling.}
 
 \item{body_font}{Font name for data rows. Default \code{"Arial Narrow"}.}
 
+\item{uuid_column_name}{Name of the identifier column in \code{combined_log}
+that should be placed first on the \code{cleaning_log} sheet. Default
+\code{"Survey UUID"}.}
+
+\item{date_column_name}{Name of the date column in \code{combined_log} that
+should be placed second on the \code{cleaning_log} sheet. Default
+\code{"Date"}.}
+
 \item{freeze_panes}{Logical. If \code{TRUE} (the default), the first row and
-first column are frozen on the data sheets.}
+first column are frozen on the data sheets. On the \code{cleaning_log}
+sheet this keeps the \code{Survey UUID} column visible while scrolling.}
 
 \item{add_filters}{Logical. If \code{TRUE} (the default), auto-filters are
 added to the header row of each data sheet.}
@@ -87,6 +98,10 @@ Writes a single Excel workbook containing four sheets:
 }
 }
 \details{
+On the \code{cleaning_log} sheet the \code{Survey UUID} column is moved to
+the first position and \code{Date} to the second, so the record identifier is
+the column that stays visible when the sheet is scrolled horizontally.
+
 The readme sheet is the landing page for any reviewer: it explains what each
 other sheet contains and provides a project description cell the team can fill
 in. It is styled with the Mixed Migration Centre colour palette.
