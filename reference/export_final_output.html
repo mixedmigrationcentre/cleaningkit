@@ -79,6 +79,8 @@ cleaning_log — the combined cleaning log from combine_reviewed_logs().
 <span>    <span class="st">"#BBD876"</span>, <span class="st">"#FBBC75"</span>, <span class="st">"#F8AB9E"</span>, <span class="st">"#5B9E62"</span>, <span class="st">"#009BD9"</span>, <span class="st">"#F15B5B"</span>, <span class="st">"#63193B"</span><span class="op">)</span>,</span>
 <span>  header_font <span class="op">=</span> <span class="st">"Arial Narrow"</span>,</span>
 <span>  body_font <span class="op">=</span> <span class="st">"Arial Narrow"</span>,</span>
+<span>  uuid_column_name <span class="op">=</span> <span class="st">"Survey UUID"</span>,</span>
+<span>  date_column_name <span class="op">=</span> <span class="st">"Date"</span>,</span>
 <span>  freeze_panes <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  add_filters <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -147,9 +149,22 @@ this argument is no longer used for styling.</p></dd>
 <dd><p>Font name for data rows. Default <code>"Arial Narrow"</code>.</p></dd>
 
 
+<dt id="arg-uuid-column-name">uuid_column_name<a class="anchor" aria-label="anchor" href="#arg-uuid-column-name"></a></dt>
+<dd><p>Name of the identifier column in <code>combined_log</code>
+that should be placed first on the <code>cleaning_log</code> sheet. Default
+<code>"Survey UUID"</code>.</p></dd>
+
+
+<dt id="arg-date-column-name">date_column_name<a class="anchor" aria-label="anchor" href="#arg-date-column-name"></a></dt>
+<dd><p>Name of the date column in <code>combined_log</code> that
+should be placed second on the <code>cleaning_log</code> sheet. Default
+<code>"Date"</code>.</p></dd>
+
+
 <dt id="arg-freeze-panes">freeze_panes<a class="anchor" aria-label="anchor" href="#arg-freeze-panes"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), the first row and
-first column are frozen on the data sheets.</p></dd>
+first column are frozen on the data sheets. On the <code>cleaning_log</code>
+sheet this keeps the <code>Survey UUID</code> column visible while scrolling.</p></dd>
 
 
 <dt id="arg-add-filters">add_filters<a class="anchor" aria-label="anchor" href="#arg-add-filters"></a></dt>
@@ -168,7 +183,10 @@ added to the header row of each data sheet.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The readme sheet is the landing page for any reviewer: it explains what each
+    <p>On the <code>cleaning_log</code> sheet the <code>Survey UUID</code> column is moved to
+the first position and <code>Date</code> to the second, so the record identifier is
+the column that stays visible when the sheet is scrolled horizontally.</p>
+<p>The readme sheet is the landing page for any reviewer: it explains what each
 other sheet contains and provides a project description cell the team can fill
 in. It is styled with the Mixed Migration Centre colour palette.</p>
     </div>

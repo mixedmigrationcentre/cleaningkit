@@ -38,6 +38,8 @@ export_final_output(
     "#BBD876", "#FBBC75", "#F8AB9E", "#5B9E62", "#009BD9", "#F15B5B", "#63193B"),
   header_font = "Arial Narrow",
   body_font = "Arial Narrow",
+  uuid_column_name = "Survey UUID",
+  date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
   overwrite = TRUE
@@ -106,10 +108,21 @@ export_final_output(
 
   Font name for data rows. Default `"Arial Narrow"`.
 
+- uuid_column_name:
+
+  Name of the identifier column in `combined_log` that should be placed
+  first on the `cleaning_log` sheet. Default `"Survey UUID"`.
+
+- date_column_name:
+
+  Name of the date column in `combined_log` that should be placed second
+  on the `cleaning_log` sheet. Default `"Date"`.
+
 - freeze_panes:
 
   Logical. If `TRUE` (the default), the first row and first column are
-  frozen on the data sheets.
+  frozen on the data sheets. On the `cleaning_log` sheet this keeps the
+  `Survey UUID` column visible while scrolling.
 
 - add_filters:
 
@@ -126,6 +139,10 @@ export_final_output(
 Invisibly returns `output_path`. The workbook is saved to disk.
 
 ## Details
+
+On the `cleaning_log` sheet the `Survey UUID` column is moved to the
+first position and `Date` to the second, so the record identifier is the
+column that stays visible when the sheet is scrolled horizontally.
 
 The readme sheet is the landing page for any reviewer: it explains what
 each other sheet contains and provides a project description cell the
