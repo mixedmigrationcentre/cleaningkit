@@ -8,6 +8,10 @@
 #'   \item \strong{cleaning_log} — the combined cleaning log from \code{combine_reviewed_logs()}.
 #' }
 #'
+#' On the \code{cleaning_log} sheet the \code{Survey UUID} column is moved to
+#' the first position and \code{Date} to the second, so the record identifier is
+#' the column that stays visible when the sheet is scrolled horizontally.
+#'
 #' The readme sheet is the landing page for any reviewer: it explains what each
 #' other sheet contains and provides a project description cell the team can fill
 #' in. It is styled with the Mixed Migration Centre colour palette.
@@ -35,7 +39,14 @@
 #' @param header_font Font name for column-header rows. Default \code{"Arial Narrow"}.
 #' @param body_font Font name for data rows. Default \code{"Arial Narrow"}.
 #' @param freeze_panes Logical. If \code{TRUE} (the default), the first row and
-#'   first column are frozen on the data sheets.
+#'   first column are frozen on the data sheets. On the \code{cleaning_log}
+#'   sheet this keeps the \code{Survey UUID} column visible while scrolling.
+#' @param uuid_column_name Name of the identifier column in \code{combined_log}
+#'   that should be placed first on the \code{cleaning_log} sheet. Default
+#'   \code{"Survey UUID"}.
+#' @param date_column_name Name of the date column in \code{combined_log} that
+#'   should be placed second on the \code{cleaning_log} sheet. Default
+#'   \code{"Date"}.
 #' @param add_filters Logical. If \code{TRUE} (the default), auto-filters are
 #'   added to the header row of each data sheet.
 #' @param overwrite Logical. If \code{TRUE} (the default), an existing file at
@@ -82,6 +93,8 @@ export_final_output <- function(
   ),
   header_font = "Arial Narrow",
   body_font = "Arial Narrow",
+  uuid_column_name = "Survey UUID",
+  date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
   overwrite = TRUE
@@ -151,7 +164,14 @@ export_final_output <- function(
       openxlsx::addFilter(wb, sheet_name, row = 1, cols = seq_len(n_cols))
     }
     if (freeze_panes) {
-      openxlsx::freezePane(wb, sheet_name, firstRow = TRUE, firstCol = TRUE)
+      # firstActiveRow/firstActiveCol = 2 freezes header row 1 and column A,
+      # which on the cleaning_log sheet is the Survey UUID column
+      openxlsx::freezePane(
+        wb,
+        sheet_name,
+        firstActiveRow = 2,
+        firstActiveCol = 2
+      )
     }
 
     openxlsx::addStyle(
@@ -435,7 +455,8 @@ export_final_output <- function(
       desc = paste0(
         "The combined cleaning log documenting every change made to the dataset. ",
         "Includes both the standard validation checks and the other-response recoding. ",
-        "Key columns: 'Survey UUID' identifies the record; 'Question number' identifies ",
+        "Key columns: 'Survey UUID' (first column, frozen) identifies the record; ",
+        "'Question number' identifies ",
         "the column changed; 'Action taken' describes the type of change; ",
         "'Old value' and 'New value' show what changed. ",
         "Contains ",
@@ -559,6 +580,22 @@ export_final_output <- function(
   # for row colouring only and is not meaningful to the end reviewer
   log_for_output <- as.data.frame(combined_log)
   log_for_output[["check_binding"]] <- NULL
+
+  # put `Survey UUID` first and `Date` second, so the frozen first column of the
+  # cleaning_log sheet is the record identifier the reviewer needs while
+  # scrolling. Columns that are absent are silently skipped, and every other
+  # column keeps its original order.
+  lead_cols <- intersect(
+    c(uuid_column_name, date_column_name),
+    names(log_for_output)
+  )
+  if (length(lead_cols) > 0) {
+    log_for_output <- log_for_output[
+      ,
+      c(lead_cols, setdiff(names(log_for_output), lead_cols)),
+      drop = FALSE
+    ]
+  }
 
   write_data_sheet(
     wb,
