@@ -26,6 +26,35 @@
 #' than one specific survey. This mirrors the original behaviour for bulk
 #' corrections.
 #'
+#' \strong{Filtering to checked records:} when \code{filter_to_log = TRUE}
+#' (the default), \code{raw_dataset} is reduced \emph{before} any cleaning is
+#' applied to only those records whose uuid appears in \code{cleaning_log}.
+#' This guarantees that every record in \code{clean_dataset} has been through
+#' validation — a record collected after the cleaning log was generated, and
+#' therefore never checked, is dropped rather than passed through silently.
+#' The ONA label row is always retained.
+#'
+#' Two details of the filter are worth knowing:
+#' \itemize{
+#'   \item The pseudo-uuid \code{"all_data"} is \strong{not} treated as a
+#'     record. Column-wide corrections still apply, but only to the records the
+#'     filter kept. If the log contains \emph{nothing but} \code{all_data}
+#'     rows there is no record-level uuid to filter on, so the filter is
+#'     skipped with a warning.
+#'   \item A record that passed every check has no cleaning log row and will
+#'     therefore be dropped. The uuids removed are reported back in
+#'     \code{filter_report$dropped_uuids} so the loss is visible and auditable.
+#' }
+#'
+#' The filtered raw data is returned as \code{raw_dataset_filtered} (original
+#' values and column types, label row intact) so the calling script can keep
+#' its own raw object aligned with the cleaned one:
+#' \preformatted{
+#' result    <- apply_cleaning_log(raw_data, cl)
+#' raw_data  <- result$raw_dataset_filtered
+#' clean_data <- result$clean_dataset
+#' }
+#'
 #' \strong{Audit trail:} the returned list includes an \code{audit_log}
 #' dataframe showing every cell-level change made (uuid, question, action,
 #' old value actually in the dataset, new value written). This is separate from
@@ -59,6 +88,10 @@
 #'   "remove the entire survey". Default \code{"discard"}.
 #' @param no_action_values Character vector of action values to skip entirely.
 #'   Default \code{"no_action"}.
+#' @param filter_to_log Logical. If \code{TRUE} (the default),
+#'   \code{raw_dataset} is first reduced to only those records whose uuid
+#'   appears in \code{cleaning_log}, so that no unchecked record can reach the
+#'   clean dataset. See \strong{Filtering to checked records} in the details.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
 #'   of \code{raw_dataset} is preserved as the ONA label/description row and
 #'   never modified by the cleaning log. Changes are only applied to rows 2+.
@@ -68,11 +101,21 @@
 #' @param verbose Logical. If \code{TRUE} (the default), a summary message is
 #'   printed on completion.
 #'
-#' @return A list with two elements:
+#' @return A list with three elements:
 #'   \item{clean_dataset}{The cleaned dataframe.}
+#'   \item{raw_dataset_filtered}{\code{raw_dataset} reduced to the records that
+#'     appear in the cleaning log, with original values, original column types
+#'     and the label row intact. Assign this back over your raw data object so
+#'     the raw and clean datasets cover the same records. Identical to
+#'     \code{raw_dataset} when \code{filter_to_log = FALSE}.}
 #'   \item{audit_log}{A dataframe recording every change applied, with columns
 #'     \code{uuid}, \code{question}, \code{action}, \code{value_before}, and
 #'     \code{value_after}.}
+#'   \item{filter_report}{A list describing the filtering step: \code{applied},
+#'     \code{n_raw_records}, \code{n_log_uuids}, \code{n_kept},
+#'     \code{n_dropped}, \code{dropped_uuids} (uuids in the raw data with no
+#'     cleaning log row) and \code{log_uuids_not_in_raw} (uuids in the log that
+#'     do not exist in the raw data).}
 #' @export
 apply_cleaning_log <- function(
   raw_dataset,
@@ -86,6 +129,7 @@ apply_cleaning_log <- function(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  filter_to_log = TRUE,
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -142,10 +186,109 @@ apply_cleaning_log <- function(
   }
 
   # ---- separate the label row from data rows ----
+  # `raw_input` is an untouched snapshot of what was passed in; it is what
+  # `raw_dataset_filtered` is built from, so the returned raw data keeps its
+  # original values and column types rather than the character-coerced
+  # working copy used for cleaning.
+  raw_input <- raw_dataset
+  label_offset <- 0L
   label_row <- NULL
   if (skip_label_row && nrow(raw_dataset) > 0) {
     label_row <- raw_dataset[1, , drop = FALSE]
     raw_dataset <- raw_dataset[-1, , drop = FALSE]
+    label_offset <- 1L
+  }
+
+  n_rows_input <- nrow(raw_dataset)
+
+  # ---- FILTER: keep only records that appear in the cleaning log ----
+  # Runs before any cleaning so that a record which was never checked cannot
+  # reach the clean dataset. "all_data" is a pseudo-uuid for column-wide
+  # corrections, not a record, so it contributes nothing to the keep-set.
+  keep <- rep(TRUE, n_rows_input)
+  filter_applied <- FALSE
+
+  log_uuids <- unique(cl[[log_uuid_col]][
+    !is.na(cl[[log_uuid_col]]) &
+      nzchar(trimws(cl[[log_uuid_col]])) &
+      tolower(trimws(cl[[log_uuid_col]])) != "all_data"
+  ])
+
+  if (filter_to_log) {
+    if (length(log_uuids) == 0) {
+      warning(paste0(
+        "`filter_to_log = TRUE` but the cleaning log contains no record-level ",
+        "uuid (only 'all_data' entries). Skipping the filter and keeping all ",
+        nrow(raw_dataset),
+        " record(s)."
+      ))
+    } else {
+      keep <- trimws(as.character(raw_dataset[[raw_uuid_column]])) %in%
+        log_uuids
+
+      if (!any(keep)) {
+        stop(paste0(
+          "`filter_to_log = TRUE` removed every record: none of the ",
+          length(log_uuids),
+          " uuid(s) in the cleaning log matched a value in '",
+          raw_uuid_column,
+          "'. Check that `raw_uuid_column` and `log_uuid_col` point at the ",
+          "right columns, and that the cleaning log belongs to this dataset."
+        ))
+      }
+
+      raw_dataset <- raw_dataset[keep, , drop = FALSE]
+      filter_applied <- TRUE
+    }
+  }
+
+  filter_report <- list(
+    applied = filter_applied,
+    n_raw_records = n_rows_input,
+    n_log_uuids = length(log_uuids),
+    n_kept = sum(keep),
+    n_dropped = sum(!keep),
+    dropped_uuids = trimws(as.character(
+      raw_input[[raw_uuid_column]][seq_len(n_rows_input) + label_offset][!keep]
+    )),
+    log_uuids_not_in_raw = setdiff(
+      log_uuids,
+      trimws(as.character(
+        raw_input[[raw_uuid_column]][seq_len(n_rows_input) + label_offset]
+      ))
+    )
+  )
+
+  # the filtered raw data handed back to the caller: original values and
+  # types, label row still in place
+  raw_dataset_filtered <- raw_input[
+    c(seq_len(label_offset), which(keep) + label_offset),
+    ,
+    drop = FALSE
+  ]
+  rownames(raw_dataset_filtered) <- NULL
+
+  if (verbose && filter_applied) {
+    message(paste0(
+      "apply_cleaning_log: filtered raw data to records present in the ",
+      "cleaning log — ",
+      filter_report$n_kept,
+      " of ",
+      filter_report$n_raw_records,
+      " record(s) kept, ",
+      filter_report$n_dropped,
+      " dropped (no cleaning log entry)",
+      if (length(filter_report$log_uuids_not_in_raw) > 0) {
+        paste0(
+          "; ",
+          length(filter_report$log_uuids_not_in_raw),
+          " log uuid(s) not found in the raw data"
+        )
+      } else {
+        ""
+      },
+      "."
+    ))
   }
 
   # ---- coerce dataset to character for safe cell assignment ----
@@ -374,6 +517,8 @@ apply_cleaning_log <- function(
 
   list(
     clean_dataset = raw_dataset,
-    audit_log = audit_log
+    raw_dataset_filtered = raw_dataset_filtered,
+    audit_log = audit_log,
+    filter_report = filter_report
   )
 }
