@@ -19,6 +19,7 @@ apply_cleaning_log(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  filter_to_log = TRUE,
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -81,6 +82,13 @@ apply_cleaning_log(
   Character vector of action values to skip entirely. Default
   `"no_action"`.
 
+- filter_to_log:
+
+  Logical. If `TRUE` (the default), `raw_dataset` is first reduced to
+  only those records whose uuid appears in `cleaning_log`, so that no
+  unchecked record can reach the clean dataset. See **Filtering to
+  checked records** in the details.
+
 - skip_label_row:
 
   Logical. If `TRUE` (the default), the first row of `raw_dataset` is
@@ -101,16 +109,31 @@ apply_cleaning_log(
 
 ## Value
 
-A list with two elements:
+A list with three elements:
 
 - clean_dataset:
 
   The cleaned dataframe.
 
+- raw_dataset_filtered:
+
+  `raw_dataset` reduced to the records that appear in the cleaning log,
+  with original values, original column types and the label row intact.
+  Assign this back over your raw data object so the raw and clean
+  datasets cover the same records. Identical to `raw_dataset` when
+  `filter_to_log = FALSE`.
+
 - audit_log:
 
   A dataframe recording every change applied, with columns `uuid`,
   `question`, `action`, `value_before`, and `value_after`.
+
+- filter_report:
+
+  A list describing the filtering step: `applied`, `n_raw_records`,
+  `n_log_uuids`, `n_kept`, `n_dropped`, `dropped_uuids` (uuids in the
+  raw data with no cleaning log row) and `log_uuids_not_in_raw` (uuids
+  in the log that do not exist in the raw data).
 
 ## Details
 
@@ -148,6 +171,35 @@ A list with two elements:
 the change is applied to every row of `question` rather than one
 specific survey. This mirrors the original behaviour for bulk
 corrections.
+
+**Filtering to checked records:** when `filter_to_log = TRUE` (the
+default), `raw_dataset` is reduced *before* any cleaning is applied to
+only those records whose uuid appears in `cleaning_log`. This guarantees
+that every record in `clean_dataset` has been through validation — a
+record collected after the cleaning log was generated, and therefore
+never checked, is dropped rather than passed through silently. The ONA
+label row is always retained.
+
+Two details of the filter are worth knowing:
+
+- The pseudo-uuid `"all_data"` is **not** treated as a record.
+  Column-wide corrections still apply, but only to the records the
+  filter kept. If the log contains *nothing but* `all_data` rows there
+  is no record-level uuid to filter on, so the filter is skipped with a
+  warning.
+
+- A record that passed every check has no cleaning log row and will
+  therefore be dropped. The uuids removed are reported back in
+  `filter_report$dropped_uuids` so the loss is visible and auditable.
+
+The filtered raw data is returned as `raw_dataset_filtered` (original
+values and column types, label row intact) so the calling script can
+keep its own raw object aligned with the cleaned one:
+
+
+    result    <- apply_cleaning_log(raw_data, cl)
+    raw_data  <- result$raw_dataset_filtered
+    clean_data <- result$clean_dataset
 
 **Audit trail:** the returned list includes an `audit_log` dataframe
 showing every cell-level change made (uuid, question, action, old value
