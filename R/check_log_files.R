@@ -185,7 +185,7 @@ check_log_files <- function(
 
   for (i in seq_along(files)) {
     statuses[i] <- "ok"
-    col_names[[i]] <- suppressWarnings(
+    res <- suppressWarnings(
       tryCatch(
         header_of(files[i]),
         error = function(e) {
@@ -194,6 +194,9 @@ check_log_files <- function(
         }
       )
     )
+    # `col_names[[i]] <- NULL` would delete the element rather than blank it,
+    # so assign through a one-element list to keep the slot.
+    col_names[i] <- list(res)
   }
 
   n_columns <- vapply(
@@ -340,4 +343,122 @@ check_log_files <- function(
   }
 
   out
+}
+
+
+#' Stop Early When Log Files Disagree on Columns
+#'
+#' Internal guard used by \code{read_cleaning_log()} and
+#' \code{read_other_responses()} before they stack their files with
+#' \code{rbind()}. Runs \code{check_log_files()} over the already-resolved file
+#' paths and raises a clear, file-by-file error when the column sets disagree,
+#' instead of letting \code{rbind()} fail with a message that names no file.
+#'
+#' Files that cannot be read at all are ignored here: the calling functions
+#' already warn about and skip those, and turning a skippable file into a hard
+#' stop would change behaviour beyond the column check.
+#'
+#' @param files Character vector of file paths, already resolved by the caller.
+#' @param sheet Sheet passed through to \code{check_log_files()}.
+#' @param caller Name of the calling function, used in the messages.
+#' @param verbose Logical. If \code{TRUE}, a one-line confirmation is printed
+#'   when all files agree.
+#'
+#' @return Invisibly \code{TRUE} when the check passes; otherwise it stops.
+#' @noRd
+ck_assert_log_columns <- function(
+  files,
+  sheet = 1,
+  caller = "read_cleaning_log",
+  verbose = TRUE
+) {
+  # a single file can never disagree with itself
+  if (length(files) < 2) {
+    return(invisible(TRUE))
+  }
+
+  check <- tryCatch(
+    check_log_files(path = files, sheet = sheet, verbose = FALSE),
+    error = function(e) NULL
+  )
+  # if the check itself could not run, let the caller proceed as before
+  if (is.null(check)) {
+    return(invisible(TRUE))
+  }
+
+  # ignore unreadable files - the caller already warns about and skips those
+  readable <- !is.na(check$n_columns)
+  bad <- check[readable & !check$matches_reference, , drop = FALSE]
+
+  if (nrow(bad) == 0) {
+    if (verbose) {
+      message(
+        caller,
+        ": column check passed - all ",
+        sum(readable),
+        " file(s) share the same ",
+        length(attr(check, "reference_columns")),
+        " columns."
+      )
+    }
+    return(invisible(TRUE))
+  }
+
+  ok_files <- check[readable & check$matches_reference, , drop = FALSE]
+  lines <- c(
+    paste0(
+      caller,
+      ": the log files do not have the same columns, so they cannot be ",
+      "combined."
+    ),
+    "",
+    paste0(
+      "Reference layout (",
+      length(attr(check, "reference_columns")),
+      " columns, used by ",
+      nrow(ok_files),
+      " of ",
+      sum(readable),
+      " file(s)):"
+    ),
+    paste0("  ", paste(attr(check, "reference_columns"), collapse = ", ")),
+    "",
+    paste0(nrow(bad), " file(s) differ:")
+  )
+
+  for (i in seq_len(nrow(bad))) {
+    lines <- c(
+      lines,
+      "",
+      paste0("  ", bad$file[i], "  (", bad$n_columns[i], " columns)")
+    )
+    if (nzchar(bad$missing[i])) {
+      lines <- c(lines, paste0("    missing : ", bad$missing[i]))
+    }
+    if (nzchar(bad$extra[i])) {
+      lines <- c(lines, paste0("    extra   : ", bad$extra[i]))
+    }
+  }
+
+  lines <- c(
+    lines,
+    "",
+    "To fix this, either:",
+    paste0(
+      "  - correct the headers in the file(s) above so they match the ",
+      "reference layout, or"
+    ),
+    paste0(
+      "  - narrow `file_pattern` so the odd file(s) are not picked up, or"
+    ),
+    paste0(
+      "  - re-generate the odd file(s) from the current template."
+    ),
+    "",
+    paste0(
+      "Run check_log_files() on the folder for the full file-by-file report."
+    )
+  )
+
+  stop(paste(lines, collapse = "\n"), call. = FALSE)
 }
