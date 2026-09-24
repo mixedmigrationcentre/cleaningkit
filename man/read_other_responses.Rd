@@ -88,6 +88,16 @@ Blanks the \code{_other} text column and removes/blanks the parent
 question reference.}
 }
 
+\strong{Column check:} before the files are stacked, their headers are
+compared with \code{check_log_files()}. Because the files are combined with
+\code{rbind()}, a single file with an extra, missing or renamed column would
+otherwise fail with "numbers of columns of arguments do not match", which
+names no file. Instead the function stops with the offending file name and
+the exact columns that are missing or extra - most often an older log still
+carrying three numbered \code{EXISTING other} columns instead of one. Files
+that cannot be opened at all are not treated as mismatches; they are warned
+about and skipped as before.
+
 \strong{UUID matching:} the dataset uuid column (\code{uuid_column}) and
 the other-responses file uuid column (\code{log_uuid_col}) are resolved
 independently so they can have different names (e.g. \code{"_uuid"} in the
