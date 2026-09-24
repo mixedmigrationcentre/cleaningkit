@@ -104,6 +104,17 @@ to pass to [`evaluate_cleaning_log()`](evaluate_cleaning_log.md).
 file it is read directly. An error is raised if no matching files are
 found.
 
+**Column check:** before the files are stacked, their headers are
+compared with [`check_log_files()`](check_log_files.md). Because the
+files are combined with [`rbind()`](https://rdrr.io/r/base/cbind.html),
+a single file with an extra, missing or renamed column would otherwise
+fail with "numbers of columns of arguments do not match", which names no
+file. Instead the function stops with the offending file name and the
+exact columns that are missing or extra. Files that cannot be opened at
+all are not treated as mismatches - they are warned about and skipped as
+before. Run [`check_log_files()`](check_log_files.md) directly for the
+full report.
+
 **Sheet selection:** `sheet` accepts either a sheet name or an integer
 index. The default `2` matches the output of
 [`create_cleaning_log()`](create_cleaning_log.md) where sheet 1 is the

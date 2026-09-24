@@ -150,6 +150,14 @@ ready to pass to <code><a href="evaluate_cleaning_log.html">evaluate_cleaning_lo
 <code>file_pattern</code> are read and stacked. When <code>path</code> is a single
 <code>.xlsx</code> file it is read directly. An error is raised if no matching
 files are found.</p>
+<p><strong>Column check:</strong> before the files are stacked, their headers are
+compared with <code><a href="check_log_files.html">check_log_files()</a></code>. Because the files are combined with
+<code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code>, a single file with an extra, missing or renamed column would
+otherwise fail with "numbers of columns of arguments do not match", which
+names no file. Instead the function stops with the offending file name and
+the exact columns that are missing or extra. Files that cannot be opened at
+all are not treated as mismatches - they are warned about and skipped as
+before. Run <code><a href="check_log_files.html">check_log_files()</a></code> directly for the full report.</p>
 <p><strong>Sheet selection:</strong> <code>sheet</code> accepts either a sheet name or an
 integer index. The default <code>2</code> matches the output of
 <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code> where sheet 1 is the dataset and sheet 2 is

@@ -163,7 +163,16 @@ Blanks the <code>_other</code> text column and removes/blanks the parent
 question reference.</p></dd>
 
 
-</dl><p><strong>UUID matching:</strong> the dataset uuid column (<code>uuid_column</code>) and
+</dl><p><strong>Column check:</strong> before the files are stacked, their headers are
+compared with <code><a href="check_log_files.html">check_log_files()</a></code>. Because the files are combined with
+<code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code>, a single file with an extra, missing or renamed column would
+otherwise fail with "numbers of columns of arguments do not match", which
+names no file. Instead the function stops with the offending file name and
+the exact columns that are missing or extra - most often an older log still
+carrying three numbered <code>EXISTING other</code> columns instead of one. Files
+that cannot be opened at all are not treated as mismatches; they are warned
+about and skipped as before.</p>
+<p><strong>UUID matching:</strong> the dataset uuid column (<code>uuid_column</code>) and
 the other-responses file uuid column (<code>log_uuid_col</code>) are resolved
 independently so they can have different names (e.g. <code>"_uuid"</code> in the
 dataset and <code>"uuid"</code> in the log file). The ONA label/description row

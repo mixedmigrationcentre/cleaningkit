@@ -117,6 +117,17 @@ A dataframe with columns `uuid`, `question`, `action_taken`,
   The response is invalid (`INVALID other == "Yes"`). Blanks the
   `_other` text column and removes/blanks the parent question reference.
 
+**Column check:** before the files are stacked, their headers are
+compared with [`check_log_files()`](check_log_files.md). Because the
+files are combined with [`rbind()`](https://rdrr.io/r/base/cbind.html),
+a single file with an extra, missing or renamed column would otherwise
+fail with "numbers of columns of arguments do not match", which names no
+file. Instead the function stops with the offending file name and the
+exact columns that are missing or extra - most often an older log still
+carrying three numbered `EXISTING other` columns instead of one. Files
+that cannot be opened at all are not treated as mismatches; they are
+warned about and skipped as before.
+
 **UUID matching:** the dataset uuid column (`uuid_column`) and the
 other-responses file uuid column (`log_uuid_col`) are resolved
 independently so they can have different names (e.g. `"_uuid"` in the

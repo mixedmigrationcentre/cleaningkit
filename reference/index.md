@@ -13,6 +13,8 @@
 - [`apply_tool_labels()`](apply_tool_labels.md) : Apply Tool Labels
 - [`check_constraints()`](check_constraints.md) : Check XLSForm Survey
   Constraints
+- [`check_log_files()`](check_log_files.md) : Check Column Consistency
+  Across Log Files Before Reading Them
 - [`ck_vba_project_path()`](ck_vba_project_path.md) : Path to the
   compiled VBA project
 - [`combine_reviewed_logs()`](combine_reviewed_logs.md) : Combine

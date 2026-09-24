@@ -61,7 +61,6 @@ modification made.</p>
 <span>  blank_response_values <span class="op">=</span> <span class="st">"delete_data_point"</span>,</span>
 <span>  remove_survey_values <span class="op">=</span> <span class="st">"discard"</span>,</span>
 <span>  no_action_values <span class="op">=</span> <span class="st">"no_action"</span>,</span>
-<span>  filter_to_log <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  restore_types <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -129,13 +128,6 @@ Default <code>"Survey UUID"</code>.</p></dd>
 Default <code>"no_action"</code>.</p></dd>
 
 
-<dt id="arg-filter-to-log">filter_to_log<a class="anchor" aria-label="anchor" href="#arg-filter-to-log"></a></dt>
-<dd><p>Logical. If <code>TRUE</code> (the default),
-<code>raw_dataset</code> is first reduced to only those records whose uuid
-appears in <code>cleaning_log</code>, so that no unchecked record can reach the
-clean dataset. See <strong>Filtering to checked records</strong> in the details.</p></dd>
-
-
 <dt id="arg-skip-label-row">skip_label_row<a class="anchor" aria-label="anchor" href="#arg-skip-label-row"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), the first row
 of <code>raw_dataset</code> is preserved as the ONA label/description row and
@@ -155,28 +147,14 @@ printed on completion.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with three elements:</p>
+    <p>A list with two elements:</p>
 <dl><dt>clean_dataset</dt>
 <dd><p>The cleaned dataframe.</p></dd>
-
-<dt>raw_dataset_filtered</dt>
-<dd><p><code>raw_dataset</code> reduced to the records that
-appear in the cleaning log, with original values, original column types
-and the label row intact. Assign this back over your raw data object so
-the raw and clean datasets cover the same records. Identical to
-<code>raw_dataset</code> when <code>filter_to_log = FALSE</code>.</p></dd>
 
 <dt>audit_log</dt>
 <dd><p>A dataframe recording every change applied, with columns
 <code>uuid</code>, <code>question</code>, <code>action</code>, <code>value_before</code>, and
 <code>value_after</code>.</p></dd>
-
-<dt>filter_report</dt>
-<dd><p>A list describing the filtering step: <code>applied</code>,
-<code>n_raw_records</code>, <code>n_log_uuids</code>, <code>n_kept</code>,
-<code>n_dropped</code>, <code>dropped_uuids</code> (uuids in the raw data with no
-cleaning log row) and <code>log_uuids_not_in_raw</code> (uuids in the log that
-do not exist in the raw data).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -210,28 +188,6 @@ the dataset. Maps to <code>remove_survey</code>.</p></dd>
 insensitive), the change is applied to every row of <code>question</code> rather
 than one specific survey. This mirrors the original behaviour for bulk
 corrections.</p>
-<p><strong>Filtering to checked records:</strong> when <code>filter_to_log = TRUE</code>
-(the default), <code>raw_dataset</code> is reduced <em>before</em> any cleaning is
-applied to only those records whose uuid appears in <code>cleaning_log</code>.
-This guarantees that every record in <code>clean_dataset</code> has been through
-validation — a record collected after the cleaning log was generated, and
-therefore never checked, is dropped rather than passed through silently.
-The ONA label row is always retained.</p>
-<p>Two details of the filter are worth knowing:</p><ul><li><p>The pseudo-uuid <code>"all_data"</code> is <strong>not</strong> treated as a
-record. Column-wide corrections still apply, but only to the records the
-filter kept. If the log contains <em>nothing but</em> <code>all_data</code>
-rows there is no record-level uuid to filter on, so the filter is
-skipped with a warning.</p></li>
-<li><p>A record that passed every check has no cleaning log row and will
-therefore be dropped. The uuids removed are reported back in
-<code>filter_report$dropped_uuids</code> so the loss is visible and auditable.</p></li>
-</ul><p>The filtered raw data is returned as <code>raw_dataset_filtered</code> (original
-values and column types, label row intact) so the calling script can keep
-its own raw object aligned with the cleaned one:</p><div class="sourceCode"><pre><code><span></span>
-<span><span class="va">result</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/apply_cleaning_log.html">apply_cleaning_log</a></span><span class="op">(</span><span class="va">raw_data</span>, <span class="va">cl</span><span class="op">)</span></span>
-<span><span class="va">raw_data</span>  <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">raw_dataset_filtered</span></span>
-<span><span class="va">clean_data</span> <span class="op">&lt;-</span> <span class="va">result</span><span class="op">$</span><span class="va">clean_dataset</span></span></code></pre></div>
-
 <p><strong>Audit trail:</strong> the returned list includes an <code>audit_log</code>
 dataframe showing every cell-level change made (uuid, question, action,
 old value actually in the dataset, new value written). This is separate from
