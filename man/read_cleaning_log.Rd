@@ -77,6 +77,15 @@ returns a single clean dataframe ready for \code{evaluate_cleaning_log()}.
 \code{.xlsx} file it is read directly. An error is raised if no matching
 files are found.
 
+\strong{Column check:} before the files are stacked, their headers are
+compared with \code{check_log_files()}. Because the files are combined with
+\code{rbind()}, a single file with an extra, missing or renamed column would
+otherwise fail with "numbers of columns of arguments do not match", which
+names no file. Instead the function stops with the offending file name and
+the exact columns that are missing or extra. Files that cannot be opened at
+all are not treated as mismatches - they are warned about and skipped as
+before. Run \code{check_log_files()} directly for the full report.
+
 \strong{Sheet selection:} \code{sheet} accepts either a sheet name or an
 integer index. The default \code{2} matches the output of
 \code{create_cleaning_log()} where sheet 1 is the dataset and sheet 2 is

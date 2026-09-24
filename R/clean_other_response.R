@@ -24,6 +24,16 @@
 #'     question reference.}
 #' }
 #'
+#' \strong{Column check:} before the files are stacked, their headers are
+#' compared with \code{check_log_files()}. Because the files are combined with
+#' \code{rbind()}, a single file with an extra, missing or renamed column would
+#' otherwise fail with "numbers of columns of arguments do not match", which
+#' names no file. Instead the function stops with the offending file name and
+#' the exact columns that are missing or extra - most often an older log still
+#' carrying three numbered \code{EXISTING other} columns instead of one. Files
+#' that cannot be opened at all are not treated as mismatches; they are warned
+#' about and skipped as before.
+#'
 #' \strong{UUID matching:} the dataset uuid column (\code{uuid_column}) and
 #' the other-responses file uuid column (\code{log_uuid_col}) are resolved
 #' independently so they can have different names (e.g. \code{"_uuid"} in the
@@ -111,6 +121,19 @@ read_other_responses <- function(
   if (verbose) {
     message("read_other_responses: reading ", length(files), " file(s).")
   }
+
+  # ---- guard: every file must have the same columns ----
+  # The files are stacked with rbind() below, which needs identical columns.
+  # Checking the headers first turns "numbers of columns of arguments do not
+  # match" into a message that names the offending file and the columns to fix.
+  # Older logs carrying three "EXISTING other" slots instead of one are the
+  # usual cause.
+  ck_assert_log_columns(
+    files = files,
+    sheet = 1,
+    caller = "read_other_responses",
+    verbose = verbose
+  )
 
   # ---- read and stack ----
   raw_list <- lapply(files, function(f) {

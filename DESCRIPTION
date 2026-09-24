@@ -28,6 +28,7 @@ Imports:
     stringi,
     stringr,
     tidyr,
+    tools,
     utils,
     zip
 Suggests: 
