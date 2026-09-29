@@ -152,7 +152,11 @@ read_other_responses <- function(
 
   or <- do.call(rbind, raw_list)
   if (verbose) {
-    message("read_other_responses: ", nrow(or), " total rows read.")
+    message(
+      "read_other_responses: ",
+      nrow(or),
+      " other-response row(s) read."
+    )
   }
 
   # ---- rename verbose column headers to short working names ----
@@ -373,9 +377,13 @@ read_other_responses <- function(
       nrow(or_recode),
       " recode | ",
       nrow(or_remove),
-      " remove."
+      " remove (",
+      nrow(or_true) + nrow(or_recode) + nrow(or_remove),
+      " other-response row(s) to apply)."
     )
   }
+
+  n_input_rows <- nrow(or_true) + nrow(or_recode) + nrow(or_remove)
 
   # ---- build cleaning log parts ----
   log_parts <- list()
@@ -392,6 +400,14 @@ read_other_responses <- function(
     )
   }
 
+  # Convention detection is per parent question and identical for every log
+  # row that touches it — memoise it so a large dataset is scanned once.
+  conv_cache <- new.env(parent = emptyenv())
+
+  # uuid -> row position, built once: every value lookup below uses it instead
+  # of re-scanning the dataset.
+  uuid_index <- .make_uuid_index(dataset, uuid_column, skip_label_row)
+
   # 2) REMOVE
   if (nrow(or_remove) > 0) {
     remove_rows <- lapply(seq_len(nrow(or_remove)), function(i) {
@@ -401,7 +417,9 @@ read_other_responses <- function(
         uuid_column,
         sm_separator,
         skip_label_row,
-        tool_choices
+        tool_choices,
+        conv_cache,
+        uuid_index
       )
     })
     log_parts[["remove"]] <- do.call(rbind, remove_rows)
@@ -416,7 +434,9 @@ read_other_responses <- function(
         tool_choices,
         uuid_column,
         sm_separator,
-        skip_label_row
+        skip_label_row,
+        conv_cache,
+        uuid_index
       )
     })
     log_parts[["recode"]] <- do.call(rbind, recode_rows)
@@ -448,7 +468,17 @@ read_other_responses <- function(
   }
 
   if (verbose) {
-    message("read_other_responses: returning ", nrow(result), " cleaning rows.")
+    # One other-response row becomes several cleaning-log rows: the _other text
+    # column is blanked, the "other" child column is unset, each recoded child
+    # column is set, and the parent column is rewritten. So this count is
+    # expected to exceed the number of rows read.
+    message(
+      "read_other_responses: returning ",
+      nrow(result),
+      " cleaning-log row(s) from ",
+      n_input_rows,
+      " other-response row(s)."
+    )
   }
   result
 }
@@ -467,6 +497,35 @@ read_other_responses <- function(
   )
 }
 
+#' Row positions of the actual data (everything but the ONA label row)
+#' @keywords internal
+.data_rows <- function(dataset, skip_label_row = TRUE) {
+  n <- nrow(dataset)
+  if (n == 0) {
+    return(integer(0))
+  }
+  if (skip_label_row) seq_len(n)[-1] else seq_len(n)
+}
+
+#' Build a uuid -> row position lookup for the dataset
+#'
+#' Built once per call and reused for every lookup. Resolving a uuid used to
+#' mean copying the whole dataframe and re-scanning the uuid column, which on a
+#' wide export costs more than all the cleaning logic put together.
+#'
+#' @return A named integer vector: uuid -> row position in \code{dataset}
+#'   (positions refer to the original dataframe, label row included).
+#' @keywords internal
+.make_uuid_index <- function(dataset, uuid_column, skip_label_row = TRUE) {
+  rows <- .data_rows(dataset, skip_label_row)
+  if (length(rows) == 0 || !(uuid_column %in% names(dataset))) {
+    return(integer(0))
+  }
+  u <- trimws(as.character(dataset[[uuid_column]][rows]))
+  keep <- !is.na(u) & nzchar(u) & !duplicated(u)
+  stats::setNames(rows[keep], u[keep])
+}
+
 #' Look up current value from dataset by uuid and column
 #' @keywords internal
 .get_val <- function(
@@ -474,21 +533,20 @@ read_other_responses <- function(
   uuid_column,
   uuid,
   column,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  uuid_index = NULL
 ) {
-  ds <- if (skip_label_row && nrow(dataset) > 0) {
-    dataset[-1, , drop = FALSE]
-  } else {
-    dataset
-  }
-  if (!column %in% names(ds)) {
+  if (!column %in% names(dataset)) {
     return(NA_character_)
   }
-  idx <- which(trimws(as.character(ds[[uuid_column]])) == uuid)
-  if (length(idx) == 0) {
+  if (is.null(uuid_index)) {
+    uuid_index <- .make_uuid_index(dataset, uuid_column, skip_label_row)
+  }
+  i <- uuid_index[[uuid]]
+  if (is.null(i) || is.na(i)) {
     return(NA_character_)
   }
-  as.character(ds[[column]][idx[1]])
+  as.character(dataset[[column]][i])
 }
 
 #' Get names of select-multiple sub-columns for a parent column
@@ -506,12 +564,17 @@ read_other_responses <- function(
   uuid_column,
   sm_separator,
   skip_label_row = TRUE,
-  tool_choices = NULL
+  tool_choices = NULL,
+  conv_cache = NULL,
+  uuid_index = NULL
 ) {
   rows <- list()
   uuid <- x$uuid
   ref_type <- x$ref_type
-  gv <- function(col) .get_val(dataset, uuid_column, uuid, col, skip_label_row)
+  gv <- function(col) {
+    .get_val(dataset, uuid_column, uuid, col, skip_label_row, uuid_index)
+  }
+  tc_norm <- .norm_tool_choices(tool_choices, conv_cache)
 
   # always blank the _other text column
   rows[[1]] <- data.frame(
@@ -534,26 +597,40 @@ read_other_responses <- function(
     )
   } else if (identical(ref_type, "select_multiple")) {
     vocab <- .get_vocab(x$list_name, tool_choices)
-    all_sub <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
-    suffixes <- sub(paste0("^", x$ref_question, sm_separator), "", all_sub)
-    use_lbl <- any(grepl(" ", suffixes, fixed = TRUE))
-    token_rem <- if (use_lbl) {
-      .resolve_token_to_token(
-        x$option_other,
-        x$list_name,
-        tool_choices,
-        "label"
-      )
+    conv <- .detect_sm_convention(
+      dataset,
+      x$ref_question,
+      sm_separator,
+      list_name = x$list_name,
+      tool_choices = tool_choices,
+      skip_label_row = skip_label_row,
+      cache = conv_cache
+    )
+    all_sub <- conv$sub_cols
+    suffixes <- conv$suffixes
+    use_lbl <- conv$use_label
+    vocab <- unique(c(suffixes, vocab))
+
+    # Match the "other" option against the dataset's own sub-columns first, so a
+    # list_name that no longer matches tool_choices cannot pick the wrong token.
+    other_cands <- .choice_tokens(
+      x$option_other,
+      x$list_name,
+      tool_choices,
+      tc_norm
+    )
+    sub_col <- .find_sub_col(all_sub, suffixes, other_cands)
+    token_rem <- if (!is.na(sub_col)) {
+      .sm_suffixes(sub_col, x$ref_question, sm_separator)
     } else {
-      cd <- get_name_from_label(x$list_name, x$option_other, tool_choices)
-      if (is.na(cd)) x$option_other else cd
+      hit <- other_cands[.norm_tok(other_cands) %in% .norm_tok(vocab)]
+      if (length(hit) > 0) hit[1] else other_cands[1]
     }
     old_concat <- gv(x$ref_question)
-    new_concat <- .remove_token(
-      if (is.na(old_concat)) "" else old_concat,
-      token_rem,
-      vocab
-    )
+    new_concat <- if (is.na(old_concat)) "" else old_concat
+    for (tk in unique(c(token_rem, other_cands))) {
+      new_concat <- .remove_token(new_concat, tk, vocab)
+    }
     new_concat <- if (trimws(new_concat) == "") {
       NA_character_
     } else {
@@ -562,14 +639,13 @@ read_other_responses <- function(
 
     if (is.na(new_concat)) {
       # removing this choice empties the parent — blank all sub-columns too
-      sub_cols <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
-      for (col in sub_cols) {
+      for (col in all_sub) {
         rows[[length(rows) + 1]] <- data.frame(
           uuid = uuid,
           question = col,
           action_taken = "remove",
           old_value = as.character(gv(col)),
-          new_value = NA_character_,
+          new_value = conv$unsel_val,
           stringsAsFactors = FALSE
         )
       }
@@ -582,24 +658,14 @@ read_other_responses <- function(
         stringsAsFactors = FALSE
       )
     } else {
-      # blank (NA) the sub-column for the other option
-      sub_col <- paste0(x$ref_question, sm_separator, token_rem)
-      if (!(sub_col %in% names(dataset))) {
-        alt <- .resolve_token_to_token(
-          token_rem,
-          x$list_name,
-          tool_choices,
-          to = if (use_lbl) "name" else "label"
-        )
-        sub_col <- paste0(x$ref_question, sm_separator, alt)
-      }
-      if (sub_col %in% names(dataset)) {
+      # blank the sub-column for the other option
+      if (!is.na(sub_col)) {
         rows[[length(rows) + 1]] <- data.frame(
           uuid = uuid,
           question = sub_col,
           action_taken = "remove",
           old_value = as.character(gv(sub_col)),
-          new_value = NA_character_,
+          new_value = conv$unsel_val,
           stringsAsFactors = FALSE
         )
       }
@@ -722,65 +788,465 @@ read_other_responses <- function(
   unique(c(as.character(tc$name), as.character(tc$label)))
 }
 
-#' Detect what value means "selected" in a dataset's select-multiple sub-columns
-#'
-#' ONA exports use one of two conventions for binary sub-columns:
-#' \itemize{
-#'   \item \strong{Binary}: selected = \code{"1"}, not-selected = \code{"0"} or \code{NA}.
-#'   \item \strong{Label-value}: selected = the sub-column suffix (the choice label
-#'     or code, e.g. \code{"Travel in a group"}), not-selected = \code{NA} or blank.
-#' }
-#' We detect the convention by looking at a sub-column whose suffix is a known
-#' token: if a selected row's value equals the suffix, it's label-value convention;
-#' if it equals \code{"1"}, it's binary. The \code{selected_val} returned is what
-#' must be written when marking a choice as selected, and \code{NA} is always used
-#' when marking as not-selected (blank).
-#'
-#' @param dataset The dataset.
-#' @param parent_col The parent select-multiple column name.
-#' @param sm_separator Sub-column separator.
-#' @param uuid_column UUID column name.
-#' @param skip_label_row Whether to skip the first (label) row.
-#' @return A function \code{f(suffix)} that returns the correct "selected" value
-#'   for a sub-column with the given suffix.
+#' Strip the parent prefix from select-multiple sub-column names
 #' @keywords internal
-.make_selected_val_fn <- function(
-  dataset,
-  parent_col,
-  sm_separator,
-  uuid_column,
-  skip_label_row = TRUE
-) {
-  ds <- if (skip_label_row && nrow(dataset) > 0) {
-    dataset[-1, , drop = FALSE]
-  } else {
-    dataset
-  }
-  sub_cols <- .sm_sub_cols(ds, parent_col, sm_separator)
+.sm_suffixes <- function(sub_cols, parent_col, sm_separator) {
+  substring(sub_cols, nchar(parent_col) + nchar(sm_separator) + 1L)
+}
 
-  # Sample a few sub-columns to detect the convention
-  convention <- "binary" # default
-  for (col in head(sub_cols, 5)) {
-    suffix <- sub(paste0("^", parent_col, sm_separator), "", col)
-    vals <- as.character(ds[[col]])
+#' Normalise a token for comparison (trim + lowercase)
+#' @keywords internal
+.norm_tok <- function(x) {
+  tolower(trimws(as.character(x)))
+}
+
+#' Normalise a token loosely: lowercase, punctuation to spaces, spaces collapsed
+#'
+#' Two versions of the same XLSForm often differ only in punctuation or spacing
+#' (\code{"Other (specify)"} vs \code{"Other(specify)"}), so exact matching
+#' alone loses choices that are plainly the same.
+#' @keywords internal
+.norm_loose <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  x <- gsub("[^a-z0-9]+", " ", x)
+  trimws(gsub("\\s+", " ", x))
+}
+
+#' Locate the sub-column that actually exists for a choice
+#'
+#' The dataset may name sub-columns with the choice label
+#' (\code{Q83/Insufficient access to basic goods}) or the choice code
+#' (\code{Q83/2}), and the casing/spacing may differ from \code{tool_choices}.
+#' This tries each candidate token in turn, case- and whitespace-insensitively,
+#' and returns the real column name.
+#'
+#' @param sub_cols Character vector of the parent's sub-column names.
+#' @param suffixes The matching suffixes (see \code{.sm_suffixes()}).
+#' @param tokens Candidate tokens, in priority order.
+#' @return The matching column name, or \code{NA_character_}.
+#' @keywords internal
+.find_sub_col <- function(sub_cols, suffixes, tokens) {
+  if (length(sub_cols) == 0) {
+    return(NA_character_)
+  }
+  tokens <- unlist(tokens, use.names = FALSE)
+  tokens <- tokens[!is.na(tokens) & nzchar(trimws(tokens))]
+  if (length(tokens) == 0) {
+    return(NA_character_)
+  }
+  # exact (trim + case-insensitive) first, then punctuation-insensitive
+  suff_n <- .norm_tok(suffixes)
+  for (tk in tokens) {
+    hit <- which(suff_n == .norm_tok(tk))
+    if (length(hit) > 0) {
+      return(sub_cols[hit[1]])
+    }
+  }
+  suff_l <- .norm_loose(suffixes)
+  for (tk in tokens) {
+    hit <- which(suff_l == .norm_loose(tk))
+    if (length(hit) > 0) {
+      return(sub_cols[hit[1]])
+    }
+  }
+  NA_character_
+}
+
+#' Pre-normalised view of tool_choices, computed once per call
+#'
+#' Choice lookups compare normalised text, and normalising the whole choices
+#' sheet on every lookup dominated the runtime. This builds the normalised
+#' vectors once and memoises them in the shared cache.
+#' @keywords internal
+.norm_tool_choices <- function(tool_choices, cache = NULL) {
+  key <- "tc:normalised"
+  if (!is.null(cache) && exists(key, envir = cache, inherits = FALSE)) {
+    return(get(key, envir = cache, inherits = FALSE))
+  }
+  out <- NULL
+  if (
+    is.data.frame(tool_choices) &&
+      all(c("list_name", "label", "name") %in% names(tool_choices))
+  ) {
+    lbl <- as.character(tool_choices$label)
+    nm <- as.character(tool_choices$name)
+    out <- list(
+      list_name = as.character(tool_choices$list_name),
+      label = lbl,
+      name = nm,
+      label_n = .norm_tok(lbl),
+      name_n = .norm_tok(nm),
+      label_l = .norm_loose(lbl),
+      name_l = .norm_loose(nm)
+    )
+  }
+  if (!is.null(cache)) {
+    assign(key, out, envir = cache)
+  }
+  out
+}
+
+#' Every token a choice could be written as in the dataset
+#'
+#' The \code{list_name} recorded in \code{other_db} comes from whichever
+#' version of the tool produced the original output, and that need not be the
+#' list the current \code{tool_choices} calls by that name — a colleague's tool
+#' can name the same list differently, or name a different list the same. So the
+#' stated list is tried first, then the rest of \code{tool_choices} is searched
+#' for the same text, so a mismatched \code{list_name} degrades to a slower
+#' lookup rather than a wrong answer.
+#'
+#' @param text The choice as written in the other-responses file (usually the
+#'   label, occasionally the code).
+#' @param list_name The \code{list_name} recorded in \code{other_db}.
+#' @param tool_choices The XLSForm choices sheet.
+#' @return Character vector of candidate tokens, most trustworthy first: the
+#'   text itself, then its counterpart within the stated list, then counterparts
+#'   found in any other list.
+#' @keywords internal
+.choice_tokens <- function(text, list_name, tool_choices, tc_norm = NULL) {
+  txt <- trimws(as.character(text))[1]
+  if (is.na(txt) || !nzchar(txt)) {
+    return(character(0))
+  }
+  tcn <- if (is.null(tc_norm)) .norm_tool_choices(tool_choices) else tc_norm
+  if (is.null(tcn)) {
+    return(txt)
+  }
+
+  txt_n <- .norm_tok(txt)
+  txt_l <- .norm_loose(txt)
+  gather <- function(mask) {
+    if (!any(mask)) {
+      return(character(0))
+    }
+    c(
+      tcn$name[mask & tcn$label_n == txt_n],
+      tcn$label[mask & tcn$name_n == txt_n],
+      tcn$name[mask & tcn$label_l == txt_l],
+      tcn$label[mask & tcn$name_l == txt_l]
+    )
+  }
+
+  in_list <- if (is.null(list_name) || is.na(list_name)) {
+    rep(FALSE, length(tcn$list_name))
+  } else {
+    !is.na(tcn$list_name) & tcn$list_name == list_name
+  }
+  # stated list first, then every other list (a list_name recorded by another
+  # version of the tool may not exist here at all)
+  out <- c(txt, gather(in_list), gather(!in_list))
+  out <- out[!is.na(out) & nzchar(trimws(out))]
+  unique(out)
+}
+
+#' Detect the "selected" marker used across the dataset as a whole
+#'
+#' Used only as a last resort, when the question being cleaned has no filled
+#' sub-column to learn from. Scans other select-multiple sub-columns anywhere in
+#' the dataset: if their filled values are all \code{0}/\code{1}, the export is
+#' binary; if any filled value equals its own column suffix, the export writes
+#' the choice text.
+#'
+#' @return \code{"binary"}, \code{"suffix"}, or \code{NA_character_}.
+#' @keywords internal
+.detect_dataset_sm_style <- function(
+  ds,
+  sm_separator,
+  max_cols = 300L,
+  rows = NULL,
+  max_rows = 2000L
+) {
+  if (is.null(rows)) {
+    rows <- seq_len(nrow(ds))
+  }
+  if (length(rows) > max_rows) {
+    rows <- rows[seq_len(max_rows)]
+  }
+  cand <- names(ds)[grepl(sm_separator, names(ds), fixed = TRUE)]
+  if (length(cand) == 0) {
+    return(NA_character_)
+  }
+  if (length(cand) > max_cols) {
+    cand <- cand[seq_len(max_cols)]
+  }
+  saw_binary <- FALSE
+  for (col in cand) {
+    pos <- regexpr(sm_separator, col, fixed = TRUE)
+    if (pos < 1L) next
+    suffix <- substring(col, pos + nchar(sm_separator))
+    if (!nzchar(suffix)) next
+    vals <- as.character(ds[[col]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+    if (length(vals) == 0) next
+    v <- .norm_tok(vals)
+    if (any(v == .norm_tok(suffix))) {
+      return("suffix")
+    }
+    if (all(v %in% c("0", "1", "true", "false"))) {
+      saw_binary <- TRUE
+    }
+  }
+  if (saw_binary) "binary" else NA_character_
+}
+
+#' Detect whether a select_one column holds choice labels or choice codes
+#'
+#' A label export writes the choice text into the column, a coded export writes
+#' the XLSForm \code{name}. Recoding an "other" response must write back
+#' whichever the column already contains, so this compares the column's existing
+#' values against \code{tool_choices} — first within the recorded
+#' \code{list_name}, then across every list, since that name may come from a
+#' different version of the tool.
+#'
+#' @return \code{"label"} or \code{"code"}.
+#' @keywords internal
+.detect_so_convention <- function(
+  dataset,
+  col,
+  list_name = NULL,
+  tool_choices = NULL,
+  skip_label_row = TRUE,
+  cache = NULL
+) {
+  key <- paste0("so:", col)
+  if (!is.null(cache) && exists(key, envir = cache, inherits = FALSE)) {
+    return(get(key, envir = cache, inherits = FALSE))
+  }
+
+  out <- "label" # a label export is the safe default: never invent codes
+  if (
+    col %in% names(dataset) &&
+      is.data.frame(tool_choices) &&
+      all(c("list_name", "label", "name") %in% names(tool_choices))
+  ) {
+    vals <- as.character(dataset[[col]][.data_rows(dataset, skip_label_row)])
+    vals <- .norm_tok(vals[!is.na(vals) & nzchar(trimws(vals))])
     if (length(vals) > 0) {
-      if (any(vals == suffix)) {
-        convention <- "label_value"
-        break
-      } else if (any(vals == "1")) {
-        convention <- "binary"
-        break
+      score <- function(tc) {
+        c(
+          lbl = sum(vals %in% .norm_tok(tc$label)),
+          nm = sum(vals %in% .norm_tok(tc$name))
+        )
+      }
+      sc <- score(tool_choices[
+        !is.null(list_name) &
+          !is.na(list_name) &
+          !is.na(tool_choices$list_name) &
+          tool_choices$list_name == list_name,
+        ,
+        drop = FALSE
+      ])
+      if (sum(sc) == 0) {
+        sc <- score(tool_choices) # recorded list_name did not match: try all
+      }
+      if (sc[["nm"]] > sc[["lbl"]]) {
+        out <- "code"
       }
     }
   }
 
-  # Return a function that gives the right "selected" value for a given suffix
-  if (convention == "label_value") {
-    function(suffix) suffix # selected = the suffix itself
-  } else {
-    function(suffix) "1" # selected = "1"
+  if (!is.null(cache)) {
+    assign(key, out, envir = cache)
   }
+  out
+}
+
+#' Detect the select-multiple conventions used by a parent question
+#'
+#' Two independent things have to be detected, and getting either wrong writes
+#' values the export never uses:
+#' \enumerate{
+#'   \item \strong{Header tokens} — are sub-columns named with the choice
+#'     \emph{label} (\code{Q83/Insufficient access to basic goods}) or the
+#'     choice \emph{code} (\code{Q83/2})?
+#'   \item \strong{Selected marker} — what does a selected cell contain? Either
+#'     \code{"1"} (binary export) or the choice text itself (label export, where
+#'     an unselected cell is simply blank).
+#' }
+#' Detection looks at every sub-column of the question (not a 5-column sample),
+#' then at the parent concat column, then at the rest of the dataset. If nothing
+#' in the data indicates a binary export, the choice-text convention wins: a
+#' label export must never have \code{0}/\code{1} introduced into it.
+#'
+#' @param dataset The dataset.
+#' @param parent_col The parent select-multiple column name.
+#' @param sm_separator Sub-column separator.
+#' @param list_name The \code{list_name} of the question's choices.
+#' @param tool_choices The XLSForm choices sheet.
+#' @param skip_label_row Whether the first row is the ONA label row.
+#' @param cache Optional environment used to memoise detection per question.
+#' @return A list with \code{use_label} (logical, headers carry labels),
+#'   \code{value_kind} (\code{"binary"}, \code{"suffix"} or \code{"label"}),
+#'   \code{sel_fn} (\code{f(suffix, label)} giving the value to write when
+#'   marking a choice selected), \code{sub_cols} and \code{suffixes}.
+#' @keywords internal
+.detect_sm_convention <- function(
+  dataset,
+  parent_col,
+  sm_separator,
+  list_name = NULL,
+  tool_choices = NULL,
+  skip_label_row = TRUE,
+  cache = NULL
+) {
+  key <- paste0("q:", parent_col)
+  if (!is.null(cache) && exists(key, envir = cache, inherits = FALSE)) {
+    return(get(key, envir = cache, inherits = FALSE))
+  }
+
+  sub_cols <- .sm_sub_cols(dataset, parent_col, sm_separator)
+  suffixes <- .sm_suffixes(sub_cols, parent_col, sm_separator)
+
+  rows <- .data_rows(dataset, skip_label_row)
+
+  # ---- choice vocabulary for this question ----
+  ch_lbl <- character(0)
+  ch_nm <- character(0)
+  if (
+    is.data.frame(tool_choices) &&
+      !is.null(list_name) &&
+      !is.na(list_name) &&
+      all(c("list_name", "label", "name") %in% names(tool_choices))
+  ) {
+    tc <- tool_choices[
+      !is.na(tool_choices$list_name) & tool_choices$list_name == list_name,
+      ,
+      drop = FALSE
+    ]
+    ch_lbl <- as.character(tc$label)
+    ch_nm <- as.character(tc$name)
+  }
+
+  if (
+    length(ch_lbl) == 0 &&
+      is.data.frame(tool_choices) &&
+      !is.null(list_name) &&
+      !is.na(list_name)
+  ) {
+    warning(paste0(
+      "list_name '",
+      list_name,
+      "' (recorded in other_db) is not in tool_choices — matching the choices ",
+      "for '",
+      parent_col,
+      "' against the dataset's own sub-column headers instead. This usually ",
+      "means other_db was built with a different version of the tool."
+    ))
+  }
+
+  # ---- 1. do the HEADERS carry labels or codes? ----
+  n_lbl <- sum(.norm_tok(suffixes) %in% .norm_tok(ch_lbl))
+  n_nm <- sum(.norm_tok(suffixes) %in% .norm_tok(ch_nm))
+  use_label <- if (n_lbl > 0 || n_nm > 0) {
+    n_lbl >= n_nm
+  } else {
+    # nothing to match against: a multi-word suffix can only be a label
+    any(grepl(" ", suffixes, fixed = TRUE))
+  }
+
+  # ---- 2. what value marks a choice as SELECTED? ----
+  # Gather the evidence over every sub-column before deciding, because a single
+  # column can be misleading: a coded header like Q83/1 holding "1" looks like
+  # the choice-text convention but is an ordinary binary export.
+  binary_set <- c("0", "1", "true", "false")
+  value_kind <- NA_character_
+  saw_zero <- FALSE
+  saw_one <- FALSE
+  saw_nonbinary <- FALSE
+  hit_suffix <- FALSE
+  hit_label <- FALSE
+  for (i in seq_along(sub_cols)) {
+    vals <- as.character(dataset[[sub_cols[i]]][rows])
+    vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+    if (length(vals) == 0) next
+    v <- .norm_tok(vals)
+    if (any(v %in% c("0", "false"))) saw_zero <- TRUE
+    if (any(v %in% c("1", "true"))) saw_one <- TRUE
+    if (!all(v %in% binary_set)) saw_nonbinary <- TRUE
+    # A suffix that is itself 0/1 proves nothing — its "1" is the binary marker.
+    if (
+      !(.norm_tok(suffixes[i]) %in% binary_set) &&
+        any(v == .norm_tok(suffixes[i]))
+    ) {
+      hit_suffix <- TRUE
+    }
+    if (length(ch_lbl) > 0 && any(v %in% .norm_tok(ch_lbl))) hit_label <- TRUE
+  }
+
+  if (!saw_nonbinary && (saw_one || saw_zero)) {
+    value_kind <- "binary" # nothing but 0/1 anywhere in the question
+  } else if (hit_suffix) {
+    value_kind <- "suffix" # cell holds its own column's choice text
+  } else if (hit_label) {
+    value_kind <- "label" # coded headers, but the cell holds the label
+  } else if (saw_one) {
+    value_kind <- "binary"
+  }
+
+  if (is.na(value_kind)) {
+    # No filled sub-column for this question. Try the parent concat column: in a
+    # label export it holds the choice text, in a binary export only 0/1.
+    parent_vals <- if (parent_col %in% names(dataset)) {
+      as.character(dataset[[parent_col]][rows])
+    } else {
+      character(0)
+    }
+    parent_vals <- parent_vals[
+      !is.na(parent_vals) & nzchar(trimws(parent_vals))
+    ]
+    if (
+      length(parent_vals) > 0 &&
+        all(.norm_tok(parent_vals) %in% c("0", "1", "true", "false"))
+    ) {
+      value_kind <- "binary"
+    } else {
+      value_kind <- .detect_dataset_sm_style(dataset, sm_separator, rows = rows)
+    }
+  }
+
+  if (is.na(value_kind)) {
+    # Still no evidence anywhere. Default to the choice-text convention so a
+    # label export is never given 0/1 it did not have.
+    value_kind <- if (use_label) "suffix" else "label"
+  }
+
+  sel_fn <- switch(
+    value_kind,
+    binary = function(suffix, label = NULL) "1",
+    suffix = function(suffix, label = NULL) suffix,
+    label = function(suffix, label = NULL) {
+      if (
+        !is.null(label) && length(label) > 0 && !is.na(label[1]) &&
+          nzchar(label[1])
+      ) {
+        label[1]
+      } else {
+        suffix
+      }
+    }
+  )
+
+  # What an UNSELECTED cell looks like: "0" only where the export actually
+  # writes zeros, blank (NA) everywhere else — a label export stays blank.
+  unsel_val <- if (identical(value_kind, "binary") && saw_zero) {
+    "0"
+  } else {
+    NA_character_
+  }
+
+  out <- list(
+    use_label = use_label,
+    value_kind = value_kind,
+    unsel_val = unsel_val,
+    sel_fn = sel_fn,
+    sub_cols = sub_cols,
+    suffixes = suffixes
+  )
+  if (!is.null(cache)) {
+    assign(key, out, envir = cache)
+  }
+  out
 }
 #' @keywords internal
 .resolve_token_to_token <- function(
@@ -815,12 +1281,17 @@ read_other_responses <- function(
   tool_choices,
   uuid_column,
   sm_separator,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  conv_cache = NULL,
+  uuid_index = NULL
 ) {
   rows <- list()
   uuid <- x$uuid
   ref_type <- x$ref_type
-  gv <- function(col) .get_val(dataset, uuid_column, uuid, col, skip_label_row)
+  gv <- function(col) {
+    .get_val(dataset, uuid_column, uuid, col, skip_label_row, uuid_index)
+  }
+  tc_norm <- .norm_tool_choices(tool_choices, conv_cache)
 
   # always blank the _other text column
   rows[[1]] <- data.frame(
@@ -833,28 +1304,60 @@ read_other_responses <- function(
   )
 
   if (identical(ref_type, "select_one")) {
-    new_code <- get_name_from_label(
-      x$list_name,
-      trimws(x$existing_other),
-      tool_choices
+    chosen <- trimws(x$existing_other)
+    cands <- .choice_tokens(chosen, x$list_name, tool_choices, tc_norm)
+    so_conv <- .detect_so_convention(
+      dataset,
+      x$ref_question,
+      list_name = x$list_name,
+      tool_choices = tool_choices,
+      skip_label_row = skip_label_row,
+      cache = conv_cache
     )
-    if (length(new_code) == 0 || is.na(new_code[1])) {
+
+    # Write back in the convention the column already uses: the choice text in a
+    # label export, the XLSForm name in a coded one. Previously the code was
+    # written unconditionally, which put digits into label columns.
+    new_value <- if (identical(so_conv, "code")) {
+      cd <- .resolve_token_to_token(chosen, x$list_name, tool_choices, "name")
+      if (identical(cd, chosen) && length(cands) > 1) cands[2] else cd
+    } else {
+      chosen
+    }
+
+    if (length(new_value) == 0 || is.na(new_value[1]) || !nzchar(new_value[1])) {
       warning(paste0(
-        "Choice label not found in tool_choices — skipping recode ",
-        "for uuid '",
+        "Choice '",
+        chosen,
+        "' could not be resolved for '",
+        x$ref_question,
+        "' (recorded list_name '",
+        x$list_name,
+        "') for uuid '",
         uuid,
-        "', label '",
-        x$existing_other,
-        "'"
+        "' — skipped."
       ))
       return(rows[[1]])
+    }
+    if (identical(so_conv, "code") && identical(new_value[1], chosen)) {
+      warning(paste0(
+        "'",
+        x$ref_question,
+        "' looks like a coded column but no code was found for '",
+        chosen,
+        "' (recorded list_name '",
+        x$list_name,
+        "') — wrote the text as given for uuid '",
+        uuid,
+        "'."
+      ))
     }
     rows[[2]] <- data.frame(
       uuid = uuid,
       question = x$ref_question,
       action_taken = "recode",
       old_value = as.character(gv(x$ref_question)),
-      new_value = as.character(new_code[1]),
+      new_value = as.character(new_value[1]),
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
@@ -867,80 +1370,101 @@ read_other_responses <- function(
     }
     chosen_labels <- chosen_labels[nzchar(chosen_labels)]
 
-    # Validate every chosen label exists in tool_choices — skip unknowns
-    valid_labels <- c()
-    for (l in chosen_labels) {
-      cd <- get_name_from_label(x$list_name, l, tool_choices)
-      if (length(cd) == 0 || is.na(cd[1]) || !nzchar(cd[1])) {
-        warning(paste0(
-          "Label '",
-          l,
-          "' not found in tool_choices list '",
-          x$list_name,
-          "' for uuid '",
-          uuid,
-          "' — skipped. Check the label matches exactly."
-        ))
-      } else {
-        valid_labels <- c(valid_labels, l)
-      }
-    }
-
-    vocab <- .get_vocab(x$list_name, tool_choices)
     old_concat <- gv(x$ref_question)
     new_concat <- if (is.na(old_concat)) "" else old_concat
 
-    # Detect which naming convention the dataset uses for sub-columns:
-    # "label convention" → sub-cols named Q119/Travel in a group (multi-word)
-    # "code convention"  → sub-cols named Q119/2 (short code, no spaces)
-    # We detect by inspecting the actual sub-column names: if any contains a
-    # space in the suffix, the dataset uses labels as tokens.
-    all_sub_cols <- .sm_sub_cols(dataset, x$ref_question, sm_separator)
-    suffixes <- sub(
-      paste0("^", x$ref_question, sm_separator),
-      "",
-      all_sub_cols,
-      fixed = FALSE
-    )
-    use_label_convention <- any(grepl(" ", suffixes, fixed = TRUE))
-
-    # Detect what value means "selected" in this dataset's sub-columns
-    # (.make_selected_val_fn returns a function suffix -> selected_value)
-    sel_fn <- .make_selected_val_fn(
+    # Detect, from the data itself, (a) whether sub-columns are named with the
+    # choice label or the choice code, and (b) what a selected cell contains —
+    # "1" in a binary export, or the choice text in a label export where an
+    # unselected cell is blank. See .detect_sm_convention().
+    conv <- .detect_sm_convention(
       dataset,
       x$ref_question,
       sm_separator,
-      uuid_column,
-      skip_label_row
+      list_name = x$list_name,
+      tool_choices = tool_choices,
+      skip_label_row = skip_label_row,
+      cache = conv_cache
     )
+    use_label_convention <- conv$use_label
+    sel_fn <- conv$sel_fn
+    all_sub_cols <- conv$sub_cols
+    suffixes <- conv$suffixes
 
-    option_other <- x$option_other # from other_db (could be code OR label)
+    # The dataset's own sub-column suffixes are the authoritative vocabulary for
+    # this question: they are what the parent concat is actually built from,
+    # whatever tool_choices (or a mismatched list_name) may say.
+    vocab <- unique(c(suffixes, .get_vocab(x$list_name, tool_choices)))
 
-    # Resolve the "other" option to the correct token for the dataset convention
-    token_to_remove <- if (use_label_convention) {
-      # need the label form — if option_other is a code, resolve it; else use as-is
-      .resolve_token_to_token(
-        option_other,
-        x$list_name,
-        tool_choices,
-        to = "label"
-      )
-    } else {
-      # need the code form — if option_other is a label, resolve it; else use as-is
-      cd <- get_name_from_label(x$list_name, option_other, tool_choices)
-      if (is.na(cd)) option_other else cd
+    # Which token to write for a choice: the matched sub-column's own suffix
+    # wins, so the value always matches the export. Only when no sub-column
+    # matches do we guess from tool_choices.
+    token_for <- function(sub_col, cands) {
+      if (!is.na(sub_col)) {
+        return(.sm_suffixes(sub_col, x$ref_question, sm_separator))
+      }
+      hit <- cands[.norm_tok(cands) %in% .norm_tok(suffixes)]
+      if (length(hit) > 0) {
+        return(hit[1])
+      }
+      hit <- cands[.norm_loose(cands) %in% .norm_loose(vocab)]
+      if (length(hit) > 0) {
+        return(hit[1])
+      }
+      cands[1]
     }
-    sub_col_other <- paste0(x$ref_question, sm_separator, token_to_remove)
 
-    # Remove the "other" token from the concat; blank (NA) its sub-column
-    new_concat <- .remove_token(new_concat, token_to_remove, vocab)
-    if (sub_col_other %in% names(dataset)) {
+    # ---- validate the chosen labels ----
+    # A choice is usable if the dataset has a sub-column for it, even when
+    # tool_choices does not recognise it under the recorded list_name.
+    valid_labels <- c()
+    label_cands <- list()
+    label_subcol <- list()
+    for (l in chosen_labels) {
+      cands <- .choice_tokens(l, x$list_name, tool_choices, tc_norm)
+      sc <- .find_sub_col(all_sub_cols, suffixes, cands)
+      if (is.na(sc) && length(cands) <= 1L) {
+        warning(paste0(
+          "Choice '",
+          l,
+          "' matches no sub-column of '",
+          x$ref_question,
+          "' and is not in tool_choices (recorded list_name '",
+          x$list_name,
+          "') for uuid '",
+          uuid,
+          "' — skipped. Check the label matches the tool."
+        ))
+        next
+      }
+      valid_labels <- c(valid_labels, l)
+      label_cands[[l]] <- cands
+      label_subcol[[l]] <- sc
+    }
+
+    # ---- the "other" option ----
+    other_cands <- .choice_tokens(
+      x$option_other,
+      x$list_name,
+      tool_choices,
+      tc_norm
+    )
+    sub_col_other <- .find_sub_col(all_sub_cols, suffixes, other_cands)
+    token_to_remove <- token_for(sub_col_other, other_cands)
+
+    # Remove the "other" token from the concat. Every candidate form is tried
+    # because the concat may hold the label while other_db recorded the code (or
+    # the reverse); removing a token that is not there is a no-op.
+    for (tk in unique(c(token_to_remove, other_cands))) {
+      new_concat <- .remove_token(new_concat, tk, vocab)
+    }
+    if (!is.na(sub_col_other)) {
       rows[[length(rows) + 1]] <- data.frame(
         uuid = uuid,
         question = sub_col_other,
         action_taken = "recode",
         old_value = as.character(gv(sub_col_other)),
-        new_value = NA_character_,
+        new_value = conv$unsel_val,
         stringsAsFactors = FALSE
       )
     }
@@ -948,32 +1472,35 @@ read_other_responses <- function(
     # Add each validated label (or its code) to the concat;
     # set its sub-column to the dataset's "selected" value
     for (lbl in valid_labels) {
-      token_to_add <- if (use_label_convention) {
-        lbl
-      } else {
-        get_name_from_label(x$list_name, lbl, tool_choices)
-      }
-      sub_col <- paste0(
-        x$ref_question,
-        sm_separator,
-        if (use_label_convention) lbl else token_to_add
-      )
-      cur_val <- gv(sub_col)
-      # "not selected" means NA or anything that isn't the selected marker
-      suffix_for_sel <- if (use_label_convention) lbl else token_to_add
-      if (!identical(cur_val, sel_fn(suffix_for_sel))) {
-        if (sub_col %in% names(dataset)) {
+      cands <- label_cands[[lbl]]
+      sub_col <- label_subcol[[lbl]]
+      token_to_add <- token_for(sub_col, cands)
+      if (!is.na(sub_col)) {
+        # Write exactly what this export uses for "selected": the column's own
+        # suffix / the choice label in a label export, "1" in a binary one.
+        suffix_for_sel <- .sm_suffixes(sub_col, x$ref_question, sm_separator)
+        want <- sel_fn(suffix_for_sel, lbl)
+        cur_val <- gv(sub_col)
+        if (!identical(cur_val, want)) {
           rows[[length(rows) + 1]] <- data.frame(
             uuid = uuid,
             question = sub_col,
             action_taken = "recode",
             old_value = as.character(cur_val),
-            new_value = sel_fn(suffix_for_sel),
+            new_value = want,
             stringsAsFactors = FALSE
           )
         }
-        new_concat <- .add_token(new_concat, token_to_add, vocab)
+      } else {
+        warning(paste0(
+          "No sub-column found for choice '",
+          lbl,
+          "' under '",
+          x$ref_question,
+          "' — the parent column was updated but no child column was set."
+        ))
       }
+      new_concat <- .add_token(new_concat, token_to_add, vocab)
     }
 
     new_concat <- trimws(new_concat)
@@ -1007,6 +1534,23 @@ read_other_responses <- function(
 #' @param skip_label_row Logical. If \code{TRUE} (the default), changes are
 #'   never applied to the first (ONA label) row even if its uuid somehow
 #'   matched.
+#'
+#' @details
+#' Values are written back in whatever convention the export already uses.
+#' For select-multiple sub-columns this is detected from the data by
+#' \code{read_other_responses()} (see \code{.detect_sm_convention()}): in a
+#' label export a selected choice holds the choice text and an unselected one
+#' stays blank, and in a binary export they hold \code{"1"} and \code{"0"}.
+#' \code{0}/\code{1} are only ever introduced where the export already
+#' contains them.
+#'
+#' Choices are matched to the dataset's own column headers first, and only then
+#' translated through \code{tool_choices}. The \code{list_name} recorded in
+#' \code{other_db} comes from whichever version of the tool produced the
+#' original output, so when it is missing from the current \code{tool_choices}
+#' the choice text is looked up across the remaining lists (and matched
+#' ignoring case, spacing and punctuation). A recoded choice is written in the
+#' form the column itself uses, so a label export is never given choice codes.
 #' @param verbose Logical. If \code{TRUE} (the default), a message is printed
 #'   for each change applied, matching the original loop output.
 #'
