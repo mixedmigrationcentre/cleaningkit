@@ -827,3 +827,50 @@ apply_tool_labels <- function(dataset, column_name, tool_choices) {
 
   return(dataset_updated)
 }
+
+
+#' Is an "Action taken" cell blank?
+#'
+#' Shared blank test for the reviewer-filled action column. A cell counts as
+#' blank when it is \code{NA}, empty, whitespace only, or the literal text
+#' \code{"NA"} that Excel and \code{readxl} leave behind (in any case, since
+#' the calling functions lower-case the column before testing).
+#'
+#' @param x A vector from the action column.
+#'
+#' @return Logical vector, \code{TRUE} where the cell is blank.
+#' @noRd
+ck_is_blank_action <- function(x) {
+  v <- trimws(as.character(x))
+  is.na(v) | toupper(v) %in% c("", "NA")
+}
+
+
+#' Default blank "Action taken" cells to no_action
+#'
+#' Reviewers only fill in the rows that need a change: a flagged value left
+#' untouched means "this data point stays as it is", which is exactly
+#' \code{no_action}. Rather than making the reviewer type \code{no_action}
+#' into every remaining row, the cleaning-log functions call this helper so a
+#' blank cell is read as \code{no_action} everywhere - when the log is read,
+#' when it is evaluated, when it is applied, and when the clean data is
+#' reviewed.
+#'
+#' @param x A vector from the action column.
+#' @param default Value written into the blank cells. \code{NULL} leaves the
+#'   blanks untouched, which restores the behaviour from before this default
+#'   existed.
+#'
+#' @return \code{x} as character, with blank cells replaced by \code{default}.
+#' @noRd
+ck_default_blank_action <- function(x, default = "no_action") {
+  x <- as.character(x)
+  if (is.null(default) || length(default) != 1) {
+    return(x)
+  }
+  if (is.na(default) || !nzchar(trimws(as.character(default)))) {
+    return(x)
+  }
+  x[ck_is_blank_action(x)] <- as.character(default)
+  x
+}

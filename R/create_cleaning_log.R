@@ -431,8 +431,13 @@ create_formated_wb <- function(
 #' \strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
 #' be completed during review.
 #'
-#' The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-#' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+#' The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
+#' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
+#' \code{no_action}, \code{other}. A reviewer only has to fill in the rows that need a
+#' change: the \code{readme} sheet also carries a row explaining that a cell left blank is
+#' read as \code{no_action} by \code{read_cleaning_log()}, \code{evaluate_cleaning_log()}
+#' and \code{apply_cleaning_log()}. The blank entry is documentation only - it is not added
+#' to the drop-down, which still offers the six codes above.
 #'
 #' \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 #' \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
@@ -792,11 +797,22 @@ create_cleaning_log <- function(
   }
 
   # ---- readme and (hidden) validation sheets ----
+  # The readme carries one extra row that the drop-down does not: leaving the
+  # cell blank. Reviewers are only asked to fill in the rows that need a
+  # change, and the cleaning-log functions read a blank cell as no_action, so
+  # the sheet says so. validation_df stays on action_codes alone, so the
+  # drop-down is unchanged.
   readme_df <- data.frame(
     check.names = FALSE,
     stringsAsFactors = FALSE,
-    "Action taken" = action_codes,
-    "Description" = action_descriptions
+    "Action taken" = c(action_codes, "(left blank)"),
+    "Description" = c(
+      action_descriptions,
+      paste0(
+        "Treated as 'no_action'. Only fill in the rows that need a change - ",
+        "a flagged row left blank means the data point stays the same."
+      )
+    )
   )
   validation_df <- data.frame(
     check.names = FALSE,

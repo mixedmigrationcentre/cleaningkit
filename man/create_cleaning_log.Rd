@@ -120,8 +120,13 @@ from \code{date_column} and \code{enumerator_column}. The remaining reviewer col
 \strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
 be completed during review.
 
-The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-\code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
+\code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
+\code{no_action}, \code{other}. A reviewer only has to fill in the rows that need a
+change: the \code{readme} sheet also carries a row explaining that a cell left blank is
+read as \code{no_action} by \code{read_cleaning_log()}, \code{evaluate_cleaning_log()}
+and \code{apply_cleaning_log()}. The blank entry is documentation only - it is not added
+to the drop-down, which still offers the six codes above.
 
 \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the

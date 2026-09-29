@@ -21,6 +21,13 @@
 #'   \item{\code{no_action}}{Row is skipped; no change is made.}
 #' }
 #'
+#' \strong{Blank actions:} rows whose \strong{Action taken} cell is empty are
+#' treated as \code{default_blank_action} (\code{"no_action"} by default), so
+#' a reviewer who only filled in the rows that needed a change does not have to
+#' type \code{no_action} into every row they left alone. Set
+#' \code{default_blank_action = NULL} to restore the old behaviour, where a
+#' blank cell is an unknown action.
+#'
 #' \strong{Column-wide changes:} if \code{uuid} is \code{"all_data"} (case-
 #' insensitive), the change is applied to every row of \code{question} rather
 #' than one specific survey. This mirrors the original behaviour for bulk
@@ -59,6 +66,10 @@
 #'   "remove the entire survey". Default \code{"discard"}.
 #' @param no_action_values Character vector of action values to skip entirely.
 #'   Default \code{"no_action"}.
+#' @param default_blank_action Action used for rows whose \code{log_action_col}
+#'   cell is blank. Default \code{"no_action"}: an unfilled row means the data
+#'   point stays as it is, so nothing is applied for it. Set to \code{NULL} to
+#'   leave blank cells blank.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
 #'   of \code{raw_dataset} is preserved as the ONA label/description row and
 #'   never modified by the cleaning log. Changes are only applied to rows 2+.
@@ -86,6 +97,7 @@ apply_cleaning_log <- function(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -127,6 +139,27 @@ apply_cleaning_log <- function(
   cl[[log_action_col]] <- trimws(tolower(as.character(cl[[log_action_col]])))
   cl[[log_question_col]] <- trimws(as.character(cl[[log_question_col]]))
   cl[[log_new_value_col]] <- as.character(cl[[log_new_value_col]])
+
+  # ---- blank action -> no_action ----
+  # A flagged row the reviewer left blank means "this data point stays as it
+  # is". Defaulted before the unknown-action guard below so a blank cell is
+  # skipped like any other no_action row instead of stopping the run.
+  n_blank_action <- sum(ck_is_blank_action(cl[[log_action_col]]))
+  cl[[log_action_col]] <- ck_default_blank_action(
+    cl[[log_action_col]],
+    default = default_blank_action
+  )
+  if (verbose && n_blank_action > 0 && !is.null(default_blank_action)) {
+    message(
+      "apply_cleaning_log: ",
+      n_blank_action,
+      " row(s) had a blank '",
+      log_action_col,
+      "' and were treated as '",
+      default_blank_action,
+      "'."
+    )
+  }
 
   # ---- check for unknown action types ----
   unknown_actions <- unique(cl[[log_action_col]][

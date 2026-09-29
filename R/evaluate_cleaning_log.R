@@ -49,6 +49,14 @@ ck_issue_values <- function(df) {
 #' \code{create_cleaning_log()} where sheet 1 is the dataset and sheet 2 is
 #' the cleaning log.
 #'
+#' \strong{Blank actions:} a reviewer only fills in the rows that need a
+#' change, so a flagged row left with an empty \strong{Action taken} means the
+#' data point stays as it is. Those blanks are filled with
+#' \code{default_blank_action} (\code{"no_action"} by default) as soon as the
+#' files are stacked, before any filtering or deduplication, so every later
+#' step sees an explicit action on every row. Pass
+#' \code{default_blank_action = NULL} to leave blank cells untouched.
+#'
 #' \strong{Filtering:} rows whose \code{uuid} is not in the raw dataset and rows
 #' whose \code{question} is not a column in the raw dataset are silently dropped
 #' (with a summary message). Rows with \code{action == "no_action"} have their
@@ -97,6 +105,10 @@ ck_issue_values <- function(df) {
 #' @param extra_questions Optional character vector of additional question values
 #'   to allow through the question filter (e.g. computed columns that are not
 #'   in the raw dataset but are valid targets). Default \code{NULL}.
+#' @param default_blank_action Action written into rows whose \code{action_col}
+#'   cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+#'   not fill in is taken to mean the data point stays as it is. Set to
+#'   \code{NULL} to leave blank cells blank.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of
 #'   \code{raw_dataset} is removed before extracting valid uuids.
 #' @param verbose Logical. If \code{TRUE} (the default), messages are printed
@@ -117,6 +129,7 @@ read_cleaning_log <- function(
   sheet = 2,
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 ) {
@@ -220,6 +233,30 @@ read_cleaning_log <- function(
     action_col
   ]])))
 
+  # ---- blank action -> no_action ----
+  # Reviewers are only asked to fill in the rows that need a change; a flagged
+  # row left blank means "this value stays as it is". Defaulting here, before
+  # filtering and deduplication, means every downstream step (including the
+  # no_action new-value copy just below and the dedup priority table) sees an
+  # explicit action rather than NA.
+  was_blank_action <- ck_is_blank_action(combined[[action_col]])
+  n_blank_action <- sum(was_blank_action)
+  combined[[action_col]] <- ck_default_blank_action(
+    combined[[action_col]],
+    default = default_blank_action
+  )
+  if (verbose && n_blank_action > 0 && !is.null(default_blank_action)) {
+    message(
+      "read_cleaning_log: ",
+      n_blank_action,
+      " row(s) had a blank '",
+      action_col,
+      "' and were set to '",
+      default_blank_action,
+      "'."
+    )
+  }
+
   # ---- build reference sets from raw_dataset ----
   raw_df <- raw_dataset
   if (skip_label_row && nrow(raw_df) > 0) {
@@ -230,8 +267,16 @@ read_cleaning_log <- function(
   valid_questions <- c(names(raw_df), extra_questions)
 
   # ---- no_action: copy old_value -> new_value (no change should be applied) ----
+  # One exception: a row that only became no_action because the action cell was
+  # blank, yet carries a New value the reviewer typed. Overwriting that value
+  # here would erase the only evidence of what they meant, so those rows keep
+  # their New value and evaluate_cleaning_log() flags them
+  # (blank_action_has_new_value) instead of the change disappearing silently.
+  typed_on_blank <- was_blank_action &
+    !ck_is_blank_action(combined[[new_value_col]])
   is_no_action <- !is.na(combined[[action_col]]) &
-    combined[[action_col]] == "no_action"
+    combined[[action_col]] == "no_action" &
+    !typed_on_blank
   combined[[new_value_col]][is_no_action] <- combined[[old_value_col]][
     is_no_action
   ]
@@ -443,6 +488,20 @@ read_cleaning_log <- function(
 #'     during cleaning.}
 #' }
 #'
+#' \strong{Blank actions:} an empty \strong{Action taken} cell is filled with
+#' \code{default_blank_action} (\code{"no_action"} by default) before the
+#' checks run, so a reviewer who only filled in the rows that needed a change
+#' does not get an issue on every row they left alone. The filled value is
+#' written back into the returned \code{cleaning_log}, so the action is
+#' explicit from here on. Set \code{default_blank_action = NULL} to restore the
+#' old behaviour, where a blank cell is reported as \code{missing_action}.
+#'
+#' One case is still reported: a row with a blank action but a
+#' \strong{New value} that differs from the \strong{Old value}
+#' (\code{blank_action_has_new_value}). The reviewer most likely typed the new
+#' value and forgot the action, and defaulting the row to \code{no_action}
+#' would throw that change away, so it is surfaced rather than applied.
+#'
 #' The function returns a list with two elements: \code{cleaning_log} (the
 #' original log, possibly with an added \code{evaluation_issue} column when
 #' \code{flag_issues_inline = TRUE}) and \code{evaluation_log} (a dataframe
@@ -466,8 +525,13 @@ read_cleaning_log <- function(
 #' @param raw_uuid_column Name of the uuid column in \code{raw_dataset}.
 #'   Default \code{"_uuid"}.
 #' @param valid_actions Character vector of accepted action-type values.
-#'   Default matches the five types defined in the \code{create_cleaning_log()}
+#'   Default matches the six types defined in the \code{create_cleaning_log()}
 #'   readme sheet.
+#' @param default_blank_action Action used for rows whose \code{action_col}
+#'   cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+#'   not fill in is taken to mean the data point stays as it is, and the value
+#'   is written back into the returned cleaning log. Set to \code{NULL} to flag
+#'   blank cells as \code{missing_action} instead.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
 #'   of \code{raw_dataset} is removed before checking uuid existence. ONA exports
 #'   include a label/description row immediately after the header.
@@ -499,6 +563,7 @@ evaluate_cleaning_log <- function(
     "other",
     "no_action"
   ),
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   flag_issues_inline = TRUE
 ) {
@@ -543,6 +608,33 @@ evaluate_cleaning_log <- function(
   cl[[uuid_col]] <- trimws(as.character(cl[[uuid_col]]))
   cl[[action_col]] <- trimws(tolower(as.character(cl[[action_col]])))
   cl[[question_col]] <- trimws(as.character(cl[[question_col]]))
+
+  # ---- blank action -> no_action ----
+  # A reviewer only fills in the rows that need a change, so a blank cell means
+  # "leave this data point alone". Filled in before the checks below so CHECK 1
+  # does not raise missing_action on every untouched row, and written back into
+  # the log that is returned so the action is explicit for apply_cleaning_log().
+  was_blank_action <- ck_is_blank_action(cl[[action_col]])
+  n_blank_action <- sum(was_blank_action)
+  if (n_blank_action > 0 && !is.null(default_blank_action)) {
+    cl[[action_col]] <- ck_default_blank_action(
+      cl[[action_col]],
+      default = default_blank_action
+    )
+    cleaning_log[[action_col]] <- ck_default_blank_action(
+      cleaning_log[[action_col]],
+      default = default_blank_action
+    )
+    message(
+      "evaluate_cleaning_log: ",
+      n_blank_action,
+      " row(s) had a blank '",
+      action_col,
+      "' and were treated as '",
+      default_blank_action,
+      "'."
+    )
+  }
   cl[[old_value_col]] <- as.character(cl[[old_value_col]])
   cl[[new_value_col]] <- as.character(cl[[new_value_col]])
 
@@ -564,6 +656,8 @@ evaluate_cleaning_log <- function(
   }
 
   # ---- CHECK 1: Action taken not filled ----
+  # Only reachable when default_blank_action is NULL; otherwise the blanks were
+  # already defaulted above.
   blank_action <- which(is_empty(cl[[action_col]]))
   add_issue(
     blank_action,
@@ -746,15 +840,40 @@ evaluate_cleaning_log <- function(
       trimws(cl[[new_value_col]][no_action_rows]) !=
         trimws(cl[[old_value_col]][no_action_rows])
   ]
+
+  # Split by how the row became no_action. A row the reviewer explicitly marked
+  # no_action is one kind of slip; a row that was only defaulted because the
+  # action cell was left blank, yet carries a New value, is another - there the
+  # reviewer most likely typed the value and forgot the action, so the message
+  # points at the action cell rather than the value.
+  blank_with_val <- no_action_with_val[was_blank_action[no_action_with_val]]
+  explicit_with_val <- setdiff(no_action_with_val, blank_with_val)
+
   add_issue(
-    no_action_with_val,
+    explicit_with_val,
     "no_action_has_new_value",
     paste0(
       "Action is 'no_action' but 'New value' ('",
-      cl[[new_value_col]][no_action_with_val],
+      cl[[new_value_col]][explicit_with_val],
       "') differs from 'Old value' ('",
-      cl[[old_value_col]][no_action_with_val],
+      cl[[old_value_col]][explicit_with_val],
       "') — this value will be ignored during cleaning"
+    )
+  )
+  add_issue(
+    blank_with_val,
+    "blank_action_has_new_value",
+    paste0(
+      "'",
+      action_col,
+      "' is empty (read as '",
+      if (is.null(default_blank_action)) "no_action" else default_blank_action,
+      "') but 'New value' ('",
+      cl[[new_value_col]][blank_with_val],
+      "') differs from 'Old value' ('",
+      cl[[old_value_col]][blank_with_val],
+      "') — select an action if this change should be applied, ",
+      "otherwise clear the 'New value'"
     )
   )
 
