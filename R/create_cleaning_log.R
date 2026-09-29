@@ -422,8 +422,8 @@ create_cleaning_log <- function(
   action_descriptions <- c(
     "A change to a data point e.g. remove comma, correct typo, change age of participant",
     "Data point is deleted",
-    "Delete an entire survey. Provide participant ID in Comments column of log",
-    "Any addition to raw data e.g. filling in empty cell or adding a column",
+    "Delete an entire survey.",
+    "Any addition to raw data e.g. filling in empty cell",
     "No action taken, data point stays the same",
     "Any change made to the raw data that cannot be classified using labels above"
   )
@@ -557,7 +557,8 @@ create_cleaning_log <- function(
     uuid_values <- final_log[["Survey UUID"]]
     block_rank <- match(uuid_values, unique(uuid_values))
     final_log <- final_log[
-      order(block_rank, seq_along(block_rank)), ,
+      order(block_rank, seq_along(block_rank)),
+      ,
       drop = FALSE
     ]
     rownames(final_log) <- NULL

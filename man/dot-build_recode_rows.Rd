@@ -10,7 +10,9 @@
   tool_choices,
   uuid_column,
   sm_separator,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  conv_cache = NULL,
+  uuid_index = NULL
 )
 }
 \description{
