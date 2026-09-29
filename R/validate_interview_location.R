@@ -24,6 +24,21 @@
 #' \code{treat_blank_gps_as_phone = FALSE} to flag fully-empty coordinates
 #' too, which is appropriate for a round that was entirely face-to-face.
 #'
+#' \strong{Rounded or corrupted coordinate columns.} Opening an ONA export in
+#' Excel frequently damages the split coordinate columns — the decimals are
+#' rounded away, the value is re-read as a date or as scientific notation, or
+#' the cell is emptied altogether. The raw geopoint column (\code{location} by
+#' default) is normally left intact because Excel treats it as text. When a
+#' survey's \code{lat_column} / \code{lon_column} pair fails validation, the
+#' function therefore falls back to that column, taking its first two
+#' space-separated values as latitude and longitude. The column holds the four
+#' ONA geopoint components in the order
+#' \code{"latitude longitude altitude precision"}, e.g.
+#' \code{"33.9820598 71.5482743 317.4000244140625 18.033"}; altitude and
+#' precision are ignored. Surveys whose split coordinates are already valid are
+#' never overwritten, and the number of surveys rescued this way is reported in
+#' a message. Set \code{use_location_fallback = FALSE} to disable.
+#'
 #' @details
 #' \strong{Nominatim usage policy:} this function respects the
 #' \href{https://operations.osmfoundation.org/policies/nominatim/}{Nominatim
@@ -58,6 +73,13 @@
 #'   \code{"_location_latitude"}.
 #' @param lon_column Name of the GPS longitude column. Default
 #'   \code{"_location_longitude"}.
+#' @param location_column Name of the raw ONA geopoint column used as a
+#'   fallback when \code{lat_column} / \code{lon_column} are unusable. The
+#'   column holds all four geopoint components separated by spaces, in the
+#'   order \code{"latitude longitude altitude precision"}, e.g.
+#'   \code{"33.9820598 71.5482743 317.4000244140625 18.033"}. Default
+#'   \code{"location"}. The column is optional: if it is absent from the
+#'   dataset the fallback is simply not available.
 #' @param country_question Column containing the claimed country of interview.
 #'   Default \code{"Q13"}.
 #' @param city_question Column containing the claimed city of interview.
@@ -87,7 +109,13 @@
 #'   survey with \emph{both} coordinate columns empty is taken to be a phone
 #'   interview and is excluded from every check, including the missing-GPS
 #'   flag. Set to \code{FALSE} for a round known to be entirely in person, so
-#'   that a completely absent geopoint is flagged instead.
+#'   that a completely absent geopoint is flagged instead. A survey is only
+#'   treated as a phone interview if \code{location_column} is empty too.
+#' @param use_location_fallback Logical. If \code{TRUE} (the default) and
+#'   \code{location_column} is present in the dataset, any survey whose
+#'   \code{lat_column} / \code{lon_column} pair is missing or invalid falls
+#'   back to the first two space-separated values of \code{location_column}.
+#'   Surveys whose split coordinates are already valid are left untouched.
 #' @param nominatim_delay_s Numeric. Seconds to wait between Nominatim API
 #'   requests. Must be at least 1 to comply with the usage policy. Default
 #'   \code{1}.
@@ -111,6 +139,7 @@ validate_interview_location <- function(
   uuid_column = "_uuid",
   lat_column = "_location_latitude",
   lon_column = "_location_longitude",
+  location_column = "location",
   country_question = "Q13",
   city_question = "Q14",
   log_name = "interview_location_log",
@@ -120,6 +149,7 @@ validate_interview_location <- function(
   check_city = TRUE,
   flag_missing_gps = TRUE,
   treat_blank_gps_as_phone = TRUE,
+  use_location_fallback = TRUE,
   nominatim_delay_s = 1,
   skip_label_row = TRUE
 ) {
@@ -178,6 +208,15 @@ validate_interview_location <- function(
     ))
   }
 
+  # The raw geopoint column is optional: it is only a fallback, so its absence
+  # must not stop the function.
+  has_location_col <- isTRUE(use_location_fallback) &&
+    !is.null(location_column) &&
+    length(location_column) == 1 &&
+    !is.na(location_column) &&
+    nzchar(location_column) &&
+    location_column %in% names(df_full)
+
   # ---- drop ONA label row ----
   if (skip_label_row && nrow(df_full) > 0) {
     df <- df_full[-1, , drop = FALSE]
@@ -197,14 +236,28 @@ validate_interview_location <- function(
   countries <- trimws(as.character(df[[country_question]]))
   cities <- trimws(as.character(df[[city_question]]))
 
-  # ---- phone interviews: BOTH coordinate columns empty ----
-  # A phone interview records no geopoint at all, so both columns come back
-  # empty. That is expected, not a data quality problem, and the whole
-  # function has nothing to check for those surveys. Judged on the raw
-  # column values (before as.numeric) so that a text value such as "n/a"
-  # is treated as a bad entry rather than an empty one.
+  # ---- raw geopoint column (fallback source) ----
+  # Excel routinely rounds, re-types or empties the split latitude/longitude
+  # columns, while leaving the raw geopoint column intact because it reads as
+  # text. Parse it up front so it is available wherever the split columns fail.
+  if (has_location_col) {
+    loc_raw <- as.character(df[[location_column]])
+    loc_parts_df <- .parse_location_geopoint(loc_raw)
+  } else {
+    loc_raw <- rep(NA_character_, nrow(df))
+    loc_parts_df <- .parse_location_geopoint(loc_raw)
+  }
+  loc_blank <- .is_blank_value(loc_raw)
+
+  # ---- phone interviews: NO geopoint anywhere ----
+  # A phone interview records no geopoint at all, so both split columns — and
+  # the raw geopoint column — come back empty. That is expected, not a data
+  # quality problem, and the whole function has nothing to check for those
+  # surveys. Judged on the raw column values (before as.numeric) so that a text
+  # value such as "n/a" is treated as a bad entry rather than an empty one.
   gps_blank_both <- .is_blank_value(df[[lat_column]]) &
-    .is_blank_value(df[[lon_column]])
+    .is_blank_value(df[[lon_column]]) &
+    loc_blank
 
   is_phone <- if (isTRUE(treat_blank_gps_as_phone)) {
     gps_blank_both
@@ -216,22 +269,49 @@ validate_interview_location <- function(
     message(
       "validate_interview_location: ",
       sum(is_phone),
-      " survey(s) have no geopoint in either coordinate column — treated as ",
+      " survey(s) have no geopoint in any coordinate column — treated as ",
       "phone interviews and excluded from all location checks."
     )
   }
 
+  # ---- fall back to the raw geopoint column where the split columns fail ----
+  # Only rows whose split coordinates are unusable are touched; a survey with
+  # valid lat/lon is never overwritten.
+  valid_split_gps <- .is_valid_coord(lats, lons)
+  used_location_fallback <- rep(FALSE, nrow(df))
+
+  if (has_location_col) {
+    rescue <- !valid_split_gps &
+      !is_phone &
+      .is_valid_coord(loc_parts_df$lat, loc_parts_df$lon)
+    if (any(rescue)) {
+      lats[rescue] <- loc_parts_df$lat[rescue]
+      lons[rescue] <- loc_parts_df$lon[rescue]
+      used_location_fallback <- rescue
+      message(
+        "validate_interview_location: ",
+        sum(rescue),
+        " survey(s) had missing or invalid '",
+        lat_column,
+        "' / '",
+        lon_column,
+        "' values — coordinates recovered from the '",
+        location_column,
+        "' column."
+      )
+    }
+  } else if (isTRUE(use_location_fallback) && any(!valid_split_gps & !is_phone)) {
+    message(
+      "validate_interview_location: no '",
+      location_column,
+      "' column found, so surveys with unusable split coordinates cannot be ",
+      "recovered from the raw geopoint."
+    )
+  }
+
   # ---- classify GPS validity ----
-  has_valid_gps <- !is.na(lats) &
-    !is.na(lons) &
-    is.finite(lats) &
-    is.finite(lons) &
-    lats >= -90 &
-    lats <= 90 &
-    lons >= -180 &
-    lons <= 180 &
-    !(lats == 0 & lons == 0) & # (0,0) is in the Gulf of Guinea — almost certainly a default
-    !is_phone
+  # (0,0) is in the Gulf of Guinea — almost certainly a device default.
+  has_valid_gps <- .is_valid_coord(lats, lons) & !is_phone
 
   log_parts <- list()
 
@@ -255,6 +335,24 @@ validate_interview_location <- function(
       city_txt <- cities[missing_gps_idx]
       city_txt[is.na(city_txt) | !nzchar(city_txt)] <- "an unspecified city"
 
+      # If a raw geopoint was present but could not be parsed into usable
+      # coordinates, say so — that is a different problem from no GPS at all.
+      fallback_txt <- if (has_location_col) {
+        ifelse(
+          !loc_blank[missing_gps_idx],
+          paste0(
+            " (the '",
+            location_column,
+            "' fallback could not be used either: '",
+            trimws(loc_raw[missing_gps_idx]),
+            "')"
+          ),
+          ""
+        )
+      } else {
+        rep("", length(missing_gps_idx))
+      }
+
       log_parts[["missing_gps"]] <- data.frame(
         uuid = uuids[missing_gps_idx],
         old_value = raw_lat,
@@ -265,7 +363,8 @@ validate_interview_location <- function(
           city_txt,
           ", ",
           countries[missing_gps_idx],
-          " — interview may not have been conducted in person at the stated location"
+          " — interview may not have been conducted in person at the stated location",
+          fallback_txt
         ),
         check_binding = paste0(
           "location_missing_gps ~/~ ",
@@ -549,7 +648,19 @@ validate_interview_location <- function(
     n_flags,
     " total flag(s) across ",
     length(unique(log$uuid[!is.na(log$uuid)])),
-    " survey(s)."
+    " survey(s)",
+    if (any(used_location_fallback)) {
+      paste0(
+        " (",
+        sum(used_location_fallback),
+        " checked using coordinates recovered from '",
+        location_column,
+        "')"
+      )
+    } else {
+      ""
+    },
+    "."
   ))
   return(dataset)
 }
@@ -562,6 +673,70 @@ validate_interview_location <- function(
 .is_blank_value <- function(x) {
   x <- as.character(x)
   is.na(x) | !nzchar(trimws(x))
+}
+
+#' Are a latitude/longitude pair usable?
+#'
+#' Vectorised. \code{(0, 0)} is rejected: it sits in the Gulf of Guinea and is
+#' almost always a device default rather than a real fix.
+#' @keywords internal
+#' @noRd
+.is_valid_coord <- function(lat, lon) {
+  lat <- suppressWarnings(as.numeric(lat))
+  lon <- suppressWarnings(as.numeric(lon))
+  !is.na(lat) &
+    !is.na(lon) &
+    is.finite(lat) &
+    is.finite(lon) &
+    lat >= -90 &
+    lat <= 90 &
+    lon >= -180 &
+    lon <= 180 &
+    !(lat == 0 & lon == 0)
+}
+
+#' Split a raw ONA geopoint string into its four components
+#'
+#' ONA writes a geopoint as four space-separated numbers:
+#' \code{"latitude longitude altitude precision"}, e.g.
+#' \code{"33.9820598 71.5482743 317.4000244140625 18.033"}. Only the first two
+#' are used by this function; altitude and precision are returned for
+#' completeness. Tolerant of repeated whitespace and of commas or semicolons
+#' used as separators by some exports. Missing or unparseable components come
+#' back as \code{NA_real_}.
+#'
+#' @return A dataframe with columns \code{lat}, \code{lon}, \code{altitude},
+#'   \code{precision}, one row per input element.
+#' @keywords internal
+#' @noRd
+.parse_location_geopoint <- function(x) {
+  raw <- as.character(x)
+  n <- length(raw)
+  out <- data.frame(
+    lat = rep(NA_real_, n),
+    lon = rep(NA_real_, n),
+    altitude = rep(NA_real_, n),
+    precision = rep(NA_real_, n),
+    stringsAsFactors = FALSE
+  )
+  if (n == 0) {
+    return(out)
+  }
+
+  raw[is.na(raw)] <- ""
+  cleaned <- gsub("[,;]+", " ", raw)
+  cleaned <- trimws(gsub("\\s+", " ", cleaned))
+  pieces <- strsplit(cleaned, " ", fixed = TRUE)
+
+  nth <- function(p, i) {
+    if (length(p) >= i) suppressWarnings(as.numeric(p[[i]])) else NA_real_
+  }
+
+  out$lat <- vapply(pieces, nth, numeric(1), i = 1)
+  out$lon <- vapply(pieces, nth, numeric(1), i = 2)
+  out$altitude <- vapply(pieces, nth, numeric(1), i = 3)
+  out$precision <- vapply(pieces, nth, numeric(1), i = 4)
+  out
 }
 
 #' @keywords internal
