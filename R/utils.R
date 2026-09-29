@@ -874,3 +874,66 @@ ck_default_blank_action <- function(x, default = "no_action") {
   x[ck_is_blank_action(x)] <- as.character(default)
   x
 }
+
+# ---------------------------------------------------------------------------
+# Reviewer columns on the other-responses sheet
+#
+# The five columns a reviewer fills in are written by prepare_other_responses(),
+# styled and given dropdowns by save_other_responses(), and read back by
+# read_other_responses(). Defining the headers and the patterns that recognise
+# them in one place keeps those three functions in step: renaming a column is a
+# change to .ck_other_review_headers() alone.
+# ---------------------------------------------------------------------------
+
+#' Headers of the reviewer columns on the other-responses sheet
+#'
+#' The names are the internal working names used by
+#' \code{read_other_responses()}; the values are the headers written into the
+#' Excel file, in the order they appear on the sheet.
+#'
+#' @return A named character vector of length 5.
+#' @noRd
+.ck_other_review_headers <- function() {
+  c(
+    true_other = paste0(
+      "Input translation or improved text ",
+      "(the text in \"other\" will be replaced by this)"
+    ),
+    existing_other = paste0(
+      "Correct to existing answer option ",
+      "(select the existing most appropriate choice, which will replace other)"
+    ),
+    invalid_other = paste0(
+      "Invalid other ",
+      "(select yes if \"other\" should be removed and not replaced)"
+    ),
+    fu_message = "Comment from IM",
+    explanation = "Response from field team"
+  )
+}
+
+#' Patterns matching the reviewer columns, current and legacy
+#'
+#' Each pattern is anchored at the start of the header and is meant to be used
+#' with \code{ignore.case = TRUE}. Both the current headers (see
+#' \code{.ck_other_review_headers()}) and the earlier
+#' \code{TRUE other} / \code{EXISTING other} / \code{INVALID other} /
+#' \code{FOLLOW-UP message} / \code{Explanation} headers are matched, so a
+#' reviewed file produced by an older version of the package is still read
+#' correctly.
+#'
+#' The \code{existing_other} pattern deliberately matches several columns: older
+#' templates carried three numbered \code{EXISTING other} slots, which
+#' \code{read_other_responses()} numbers and merges.
+#'
+#' @return A named character vector of length 5 of regular expressions.
+#' @noRd
+.ck_other_review_patterns <- function() {
+  c(
+    true_other = "^(input translation|true other)",
+    existing_other = "^(correct to existing|existing other)",
+    invalid_other = "^invalid other",
+    fu_message = "^(comment from im|follow[- ]?up)",
+    explanation = "^(response from field team|explanation)"
+  )
+}

@@ -75,18 +75,28 @@ cleaning-log dataframe ready for \code{apply_other_responses()}.
 \describe{
 \item{\code{true_other}}{A genuine new answer (e.g. a translation).
 Overwrites the \code{_other} text column with the value in
-\code{TRUE other ...}. The parent question is not touched.}
+\code{Input translation or improved text ...}. The parent question is not
+touched.}
 \item{\code{recode}}{The response actually matches an existing choice.
-The \code{EXISTING other ...} column is filled (older logs with several
-numbered \code{EXISTING other} columns are still read and merged). For
+The \code{Correct to existing answer option ...} column is filled (older
+logs with several numbered \code{EXISTING other} columns are still read
+and merged). For
 \code{select_one}: blanks the \code{_other} text column, sets the parent
 to the matched choice code. For \code{select_multiple}: blanks the
 \code{_other} text column, removes the \code{other} option from the
 parent concatenation, and adds the matched choice(s).}
-\item{\code{remove}}{The response is invalid (\code{INVALID other == "Yes"}).
+\item{\code{remove}}{The response is invalid
+(\code{Invalid other ... == "Yes"}).
 Blanks the \code{_other} text column and removes/blanks the parent
 question reference.}
 }
+
+\strong{Header names:} the reviewer columns are matched by prefix, case
+insensitively, against both the headers written by the current
+\code{prepare_other_responses()} and the earlier \code{TRUE other} /
+\code{EXISTING other} / \code{INVALID other} / \code{FOLLOW-UP message}
+headers, so a file reviewed before the rename is read exactly as before. The
+patterns are defined once in \code{.ck_other_review_patterns()}.
 
 \strong{Column check:} before the files are stacked, their headers are
 compared with \code{check_log_files()}. Because the files are combined with
@@ -104,10 +114,19 @@ independently so they can have different names (e.g. \code{"_uuid"} in the
 dataset and \code{"uuid"} in the log file). The ONA label/description row
 is excluded from the dataset uuid list when \code{skip_label_row = TRUE}.
 
-\strong{Mutual exclusivity:} each row must have exactly one of
+\strong{Mutual exclusivity:} a row may have at most one of
 \code{true_other}, \code{existing_other}, or \code{invalid_other} filled.
-Rows with zero or more than one filled are flagged with a warning and
-excluded.
+Rows with more than one filled are contradictory - the reviewer has asked for
+two different things on one response - so they are excluded and their uuids
+named in a warning.
+
+\strong{Rows left blank:} a row with all three action columns blank is not an
+error. It is the normal way a reviewer records that the "other" text is a
+valid answer as it stands and the record should not change. Such rows produce
+no cleaning-log entry (there is no data point to change, so logging one would
+only pad the log) and no warning; they are counted in the \code{verbose}
+summary as \emph{no change (kept as-is)}. A file in which every row is blank
+therefore returns an empty log quietly rather than warning.
 
 \strong{Output shape:} the returned dataframe has columns
 \code{uuid}, \code{question}, \code{action_taken}, \code{old_value},

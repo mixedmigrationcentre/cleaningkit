@@ -72,9 +72,16 @@ the column is never blank there regardless of this setting.}
 A dataframe formatted for \code{save_other_responses()}. It carries an
 attribute \code{"ona_label_row_skipped"} recording whether the label row was
 dropped, so \code{save_other_responses()} does not drop a row a second time.
-The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
-(earlier versions wrote three numbered slots), \strong{INVALID other},
-\strong{FOLLOW-UP message} and \strong{Explanation}.
+The five reviewer columns, in sheet order, are
+\strong{Input translation or improved text}, a single
+\strong{Correct to existing answer option} (earlier versions wrote three
+numbered slots), \strong{Invalid other}, \strong{Comment from IM} and
+\strong{Response from field team}. Earlier versions of the package headed
+these \code{TRUE other}, \code{EXISTING other}, \code{INVALID other},
+\code{FOLLOW-UP message} and \code{Explanation};
+\code{save_other_responses()} and \code{read_other_responses()} still
+recognise those, so a file exported before the rename can be styled and
+read back unchanged.
 }
 \description{
 Combines other responses from all sheets/loops into a single dataframe

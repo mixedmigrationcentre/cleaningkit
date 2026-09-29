@@ -62,9 +62,16 @@
 #' @return A dataframe formatted for \code{save_other_responses()}. It carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
-#'   The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
-#'   (earlier versions wrote three numbered slots), \strong{INVALID other},
-#'   \strong{FOLLOW-UP message} and \strong{Explanation}.
+#'   The five reviewer columns, in sheet order, are
+#'   \strong{Input translation or improved text}, a single
+#'   \strong{Correct to existing answer option} (earlier versions wrote three
+#'   numbered slots), \strong{Invalid other}, \strong{Comment from IM} and
+#'   \strong{Response from field team}. Earlier versions of the package headed
+#'   these \code{TRUE other}, \code{EXISTING other}, \code{INVALID other},
+#'   \code{FOLLOW-UP message} and \code{Explanation};
+#'   \code{save_other_responses()} and \code{read_other_responses()} still
+#'   recognise those, so a file exported before the rename can be styled and
+#'   read back unchanged.
 #' @section selected_choices:
 #' \code{selected_choices} is filled for both question types, so a reviewer never
 #' sees a blank cell where a selection exists:
@@ -213,15 +220,17 @@ prepare_other_responses <- function(
       select(other_db, name, full_label, list_name),
       by = c("question_name" = "name")
     ) %>%
-    select(all_of(select_cols)) %>%
-    mutate(
-      "TRUE other (copy response_en or provide a better translation)" = NA,
-      "EXISTING other (select the most appropriate choice)" = NA,
-      "INVALID other (select yes or leave blank)" = NA,
-      "FOLLOW-UP message (what is unclear about this response?)" = NA,
-      "Explanation" = NA,
-      selected_choices = NA_character_
-    )
+    select(all_of(select_cols))
+
+  # The five reviewer columns, appended in sheet order. Their headers live in
+  # .ck_other_review_headers() so that save_other_responses() (styling and
+  # dropdowns) and read_other_responses() (reading the reviewed file back) stay
+  # in step with whatever they are called. rep() rather than a scalar so a df
+  # with no rows gets zero-length columns instead of a recycling error.
+  for (header in .ck_other_review_headers()) {
+    df[[header]] <- rep(NA, nrow(df))
+  }
+  df$selected_choices <- rep(NA_character_, nrow(df))
 
   # ---------------------------------------------------------------------------
   # Vectorized "selected choices" for select_multiple and select_one questions.
@@ -237,8 +246,6 @@ prepare_other_responses <- function(
   #      only choice that can produce an "other" response,
   #   5. memoize get_label_from_name() over unique (list_name, code) pairs.
   # ---------------------------------------------------------------------------
-  df$selected_choices <- NA_character_
-
   if (nrow(df) > 0) {
     meta_idx <- match(df$question_name, other_db$name)
     type_row <- other_db[["q_type"]][meta_idx]
@@ -773,13 +780,33 @@ save_other_responses <- function(
   writeData(wb = wb, x = df, sheet = "Sheet1", startRow = 1)
 
   # Column groups are found from the start of the header rather than the full
-  # string, so the number of "EXISTING other" columns does not matter: the
-  # current single column is picked up, and an older log that still carries
-  # "EXISTING other 1/2/3" keeps working unchanged.
-  exist_cols <- grep("^EXISTING other", names(df))
-  invalid_col <- grep("^INVALID other", names(df))
-  true_other_cols <- grep("^TRUE other", names(df))
-  follow_up_cols <- grep("^(FOLLOW-UP|Explanation)", names(df))
+  # string, so the number of "correct to existing answer option" columns does not
+  # matter: the current single column is picked up, and an older log that still
+  # carries "EXISTING other 1/2/3" keeps working unchanged. The patterns match
+  # both the current headers and the earlier TRUE/EXISTING/INVALID/FOLLOW-UP
+  # ones, so a df built by an older version of the package still styles
+  # correctly.
+  review_pat <- .ck_other_review_patterns()
+  exist_cols <- grep(
+    review_pat[["existing_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  invalid_col <- grep(
+    review_pat[["invalid_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  true_other_cols <- grep(
+    review_pat[["true_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  follow_up_cols <- grep(
+    paste0(review_pat[["fu_message"]], "|", review_pat[["explanation"]]),
+    names(df),
+    ignore.case = TRUE
+  )
 
   # --- Styling: assign a category per column, then style in batches -----------
   # Batching with gridExpand = TRUE reduces ~2*ncol addStyle calls to a handful,
@@ -799,13 +826,15 @@ save_other_responses <- function(
       category[follow_up_cols] <- "postinvalid"
     }
 
-    # fallback if the "TRUE other" header was renamed: the column immediately
-    # before the first "EXISTING other" column is the translation column
+    # fallback if the translation header was renamed again: the column
+    # immediately before the first "correct to existing" column is the
+    # translation column
     if (length(true_other_cols) == 0 && length(exist_cols) > 0) {
       pre <- min(exist_cols) - 1L
       if (pre >= 1L && category[pre] == "default") category[pre] <- "trueother"
     }
-    # any extra column added after "INVALID other" belongs to the follow-up block
+    # any extra column added after the invalid-other column belongs to the
+    # follow-up block
     if (length(invalid_col) > 0) {
       post <- which(seq_len(n_cols) > max(invalid_col) & category == "default")
       category[post] <- "postinvalid"

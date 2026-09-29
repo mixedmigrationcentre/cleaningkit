@@ -1,5 +1,30 @@
 # cleaningkit (development version)
 
+## Other responses: reviewer column headers renamed
+* The five reviewer columns on the other-responses sheet are now headed, in
+  order:
+  * `Input translation or improved text (the text in "other" will be replaced by
+    this)` (was `TRUE other ...`)
+  * `Correct to existing answer option (select the existing most appropriate
+    choice, which will replace other)` (was `EXISTING other ...`)
+  * `Invalid other (select yes if "other" should be removed and not replaced)`
+    (was `INVALID other ...`)
+  * `Comment from IM` (was `FOLLOW-UP message ...`)
+  * `Response from field team` (was `Explanation`)
+* The headers and the patterns that recognise them now live in one place
+  (`.ck_other_review_headers()` / `.ck_other_review_patterns()` in `utils.R`),
+  used by `prepare_other_responses()` (which writes them),
+  `save_other_responses()` (styling and the "Yes" dropdown) and
+  `read_other_responses()` (reading a reviewed file back). Previously each
+  function carried its own hard-coded prefix, so renaming a column silently
+  broke the styling and the dropdowns.
+* **Files reviewed before the rename still work.** Matching is case insensitive
+  and accepts both the new and the old header for every column, including older
+  templates with three numbered `EXISTING other` slots. Note that
+  `read_other_responses()` still requires all files read in one call to share
+  the same layout, so a folder mixing old- and new-header exports is rejected by
+  the column check &mdash; read them in separate calls.
+
 ## Other responses
 * `prepare_other_responses()` now fills **`selected_choices` for `select_one`
   questions** as well. The column was populated only for `select_multiple`, so a
