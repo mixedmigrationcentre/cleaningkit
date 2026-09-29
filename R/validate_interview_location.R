@@ -14,15 +14,23 @@
 #'     city centre. Requires an internet connection.
 #' }
 #'
+#' \strong{Unusable GPS is reported, not logged.} A survey whose coordinates
+#' are missing, non-numeric, out of range or the \code{(0, 0)} device default
+#' cannot be checked against anything, so it produces no cleaning-log row. An
+#' unusable geopoint is not itself an answer the enumerator can correct, and
+#' logging one row per survey buried the genuine location problems under
+#' hundreds of lines. Those surveys are counted and reported as a console
+#' warning instead, and the log contains only surveys whose coordinates were
+#' good enough for the country or city check to actually run and fail. Set
+#' \code{flag_missing_gps = FALSE} to silence the warning too.
+#'
 #' \strong{Phone interviews are skipped.} A survey conducted by phone records
-#' no geopoint, so both coordinate columns come back empty. Those surveys are
-#' identified up front and excluded from all three checks — there is nothing
-#' to validate and flagging them would bury the real problems. Surveys whose
-#' GPS is present but unusable are a different matter and are still flagged:
-#' one coordinate filled and the other empty, non-numeric text, out-of-range
-#' values, or the \code{(0, 0)} device default. Set
-#' \code{treat_blank_gps_as_phone = FALSE} to flag fully-empty coordinates
-#' too, which is appropriate for a round that was entirely face-to-face.
+#' no geopoint, so the coordinate columns come back empty. Those surveys are
+#' identified up front and excluded from every check and from the warning
+#' count — there is nothing to validate. Set
+#' \code{treat_blank_gps_as_phone = FALSE} to count fully-empty coordinates
+#' as unusable instead, which is appropriate for a round that was entirely
+#' face-to-face.
 #'
 #' \strong{Rounded or corrupted coordinate columns.} Opening an ONA export in
 #' Excel frequently damages the split coordinate columns — the decimals are
@@ -101,16 +109,18 @@
 #' @param check_city Logical. If \code{TRUE} (the default), perform the
 #'   city-level distance check via Nominatim geocoding. Requires an internet
 #'   connection and the \code{httr} and \code{jsonlite} packages.
-#' @param flag_missing_gps Logical. If \code{TRUE} (the default), surveys
-#'   whose GPS coordinates are present but unusable are flagged in the log.
-#'   Phone interviews (both coordinate columns empty) are governed by
-#'   \code{treat_blank_gps_as_phone}, not by this argument.
+#' @param flag_missing_gps Logical. If \code{TRUE} (the default), surveys whose
+#'   GPS coordinates are unusable are counted and reported as a console
+#'   warning. They are \emph{never} written to the cleaning log — the log
+#'   carries only surveys that a check actually ran on and failed. Set to
+#'   \code{FALSE} to suppress the warning as well. Phone interviews are
+#'   governed by \code{treat_blank_gps_as_phone}, not by this argument.
 #' @param treat_blank_gps_as_phone Logical. If \code{TRUE} (the default), a
-#'   survey with \emph{both} coordinate columns empty is taken to be a phone
-#'   interview and is excluded from every check, including the missing-GPS
-#'   flag. Set to \code{FALSE} for a round known to be entirely in person, so
-#'   that a completely absent geopoint is flagged instead. A survey is only
-#'   treated as a phone interview if \code{location_column} is empty too.
+#'   survey with \emph{all} coordinate columns empty — \code{lat_column},
+#'   \code{lon_column} and \code{location_column} — is taken to be a phone
+#'   interview and excluded from every check and from the unusable-GPS warning
+#'   count. Set to \code{FALSE} for a round known to be entirely in person, so
+#'   that a completely absent geopoint is counted as unusable instead.
 #' @param use_location_fallback Logical. If \code{TRUE} (the default) and
 #'   \code{location_column} is present in the dataset, any survey whose
 #'   \code{lat_column} / \code{lon_column} pair is missing or invalid falls
@@ -130,9 +140,10 @@
 #'     \code{question} (the relevant column),
 #'     \code{issue} (description of the problem),
 #'     \code{check_binding} (shared within each check type per survey).
-#'     Three possible \code{check_binding} prefixes:
-#'     \code{"location_missing_gps"}, \code{"location_country"},
-#'     \code{"location_city"}.}
+#'     Two possible \code{check_binding} prefixes:
+#'     \code{"location_country"} and \code{"location_city"}. Surveys with
+#'     unusable GPS never appear — they are reported as a console warning
+#'     instead (see \code{flag_missing_gps}).}
 #' @export
 validate_interview_location <- function(
   dataset,
@@ -316,63 +327,60 @@ validate_interview_location <- function(
   log_parts <- list()
 
   # ====================================================================
-  # CHECK 1: missing / invalid GPS
+  # CHECK 1: unusable GPS — console warning only, never a log row
   # ====================================================================
-  # Note: this deliberately does NOT flag phone interviews. It flags GPS that
-  # is present but unusable — one coordinate filled and the other empty,
-  # non-numeric text, out-of-range values, or the (0, 0) device default —
-  # which is a genuine data quality problem in either interview modality.
-  if (flag_missing_gps) {
-    missing_gps_idx <- which(
-      !has_valid_gps &
-        !is_phone &
-        !is.na(countries) &
-        nzchar(countries)
-    )
-    if (length(missing_gps_idx) > 0) {
-      raw_lat <- as.character(df[[lat_column]][missing_gps_idx])
-      raw_lat[is.na(raw_lat) | !nzchar(raw_lat)] <- "NA"
-      city_txt <- cities[missing_gps_idx]
-      city_txt[is.na(city_txt) | !nzchar(city_txt)] <- "an unspecified city"
+  # An unusable geopoint is not an answer an enumerator can correct, so there
+  # is nothing actionable to put in a cleaning log; one row per affected survey
+  # only buried the genuine location problems. These surveys are counted and
+  # reported here, then dropped from the country and city checks.
+  #
+  # Phone interviews are excluded (nothing was ever recorded). What is counted
+  # is GPS that is present but unusable — one coordinate filled and the other
+  # empty, non-numeric text, out-of-range values, or the (0, 0) device default
+  # — after the location_column fallback has already had its chance.
+  unusable_gps_idx <- which(!has_valid_gps & !is_phone)
 
-      # If a raw geopoint was present but could not be parsed into usable
-      # coordinates, say so — that is a different problem from no GPS at all.
-      fallback_txt <- if (has_location_col) {
-        ifelse(
-          !loc_blank[missing_gps_idx],
-          paste0(
-            " (the '",
-            location_column,
-            "' fallback could not be used either: '",
-            trimws(loc_raw[missing_gps_idx]),
-            "')"
-          ),
-          ""
-        )
-      } else {
-        rep("", length(missing_gps_idx))
-      }
-
-      log_parts[["missing_gps"]] <- data.frame(
-        uuid = uuids[missing_gps_idx],
-        old_value = raw_lat,
-        question = lat_column,
-        issue = paste0(
-          "GPS coordinates are missing or invalid for an interview claimed to be ",
-          "conducted in ",
-          city_txt,
-          ", ",
-          countries[missing_gps_idx],
-          " — interview may not have been conducted in person at the stated location",
-          fallback_txt
-        ),
-        check_binding = paste0(
-          "location_missing_gps ~/~ ",
-          uuids[missing_gps_idx]
-        ),
-        stringsAsFactors = FALSE
+  if (flag_missing_gps && length(unusable_gps_idx) > 0) {
+    n_unusable <- length(unusable_gps_idx)
+    example_uuids <- utils::head(uuids[unusable_gps_idx], 5)
+    ctry_tbl <- table(countries[unusable_gps_idx][
+      !is.na(countries[unusable_gps_idx]) & nzchar(countries[unusable_gps_idx])
+    ])
+    ctry_txt <- if (length(ctry_tbl) > 0) {
+      paste0(
+        " By claimed country of interview: ",
+        paste0(names(ctry_tbl), " (", as.integer(ctry_tbl), ")", collapse = ", "),
+        "."
       )
+    } else {
+      ""
     }
+
+    warning(
+      paste0(
+        "validate_interview_location: ",
+        n_unusable,
+        " survey(s) have GPS coordinates that are missing, non-numeric, out of ",
+        "range or (0, 0)",
+        if (has_location_col) {
+          paste0(" and could not be recovered from '", location_column, "'")
+        } else {
+          ""
+        },
+        ". These surveys are excluded from the country and city checks and are ",
+        "NOT written to the cleaning log — review them separately if needed.",
+        ctry_txt,
+        " First affected uuid(s): ",
+        paste(example_uuids, collapse = ", "),
+        if (n_unusable > length(example_uuids)) {
+          paste0(" (and ", n_unusable - length(example_uuids), " more)")
+        } else {
+          ""
+        },
+        "."
+      ),
+      call. = FALSE
+    )
   }
 
   # Only continue GPS checks for in-person surveys with valid coordinates

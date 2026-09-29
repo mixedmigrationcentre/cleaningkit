@@ -72,17 +72,19 @@ country-level polygon containment check. Requires the
 city-level distance check via Nominatim geocoding. Requires an internet
 connection and the \code{httr} and \code{jsonlite} packages.}
 
-\item{flag_missing_gps}{Logical. If \code{TRUE} (the default), surveys
-whose GPS coordinates are present but unusable are flagged in the log.
-Phone interviews (both coordinate columns empty) are governed by
-\code{treat_blank_gps_as_phone}, not by this argument.}
+\item{flag_missing_gps}{Logical. If \code{TRUE} (the default), surveys whose
+GPS coordinates are unusable are counted and reported as a console
+warning. They are \emph{never} written to the cleaning log — the log
+carries only surveys that a check actually ran on and failed. Set to
+\code{FALSE} to suppress the warning as well. Phone interviews are
+governed by \code{treat_blank_gps_as_phone}, not by this argument.}
 
 \item{treat_blank_gps_as_phone}{Logical. If \code{TRUE} (the default), a
-survey with \emph{both} coordinate columns empty is taken to be a phone
-interview and is excluded from every check, including the missing-GPS
-flag. Set to \code{FALSE} for a round known to be entirely in person, so
-that a completely absent geopoint is flagged instead. A survey is only
-treated as a phone interview if \code{location_column} is empty too.}
+survey with \emph{all} coordinate columns empty — \code{lat_column},
+\code{lon_column} and \code{location_column} — is taken to be a phone
+interview and excluded from every check and from the unusable-GPS warning
+count. Set to \code{FALSE} for a round known to be entirely in person, so
+that a completely absent geopoint is counted as unusable instead.}
 
 \item{use_location_fallback}{Logical. If \code{TRUE} (the default) and
 \code{location_column} is present in the dataset, any survey whose
@@ -106,9 +108,10 @@ A list containing:
 \code{question} (the relevant column),
 \code{issue} (description of the problem),
 \code{check_binding} (shared within each check type per survey).
-Three possible \code{check_binding} prefixes:
-\code{"location_missing_gps"}, \code{"location_country"},
-\code{"location_city"}.}
+Two possible \code{check_binding} prefixes:
+\code{"location_country"} and \code{"location_city"}. Surveys with
+unusable GPS never appear — they are reported as a console warning
+instead (see \code{flag_missing_gps}).}
 }
 \description{
 Checks whether the GPS coordinates recorded during an in-person interview
@@ -126,15 +129,23 @@ whether the GPS point is within \code{city_radius_km} kilometres of the
 city centre. Requires an internet connection.
 }
 
+\strong{Unusable GPS is reported, not logged.} A survey whose coordinates
+are missing, non-numeric, out of range or the \code{(0, 0)} device default
+cannot be checked against anything, so it produces no cleaning-log row. An
+unusable geopoint is not itself an answer the enumerator can correct, and
+logging one row per survey buried the genuine location problems under
+hundreds of lines. Those surveys are counted and reported as a console
+warning instead, and the log contains only surveys whose coordinates were
+good enough for the country or city check to actually run and fail. Set
+\code{flag_missing_gps = FALSE} to silence the warning too.
+
 \strong{Phone interviews are skipped.} A survey conducted by phone records
-no geopoint, so both coordinate columns come back empty. Those surveys are
-identified up front and excluded from all three checks — there is nothing
-to validate and flagging them would bury the real problems. Surveys whose
-GPS is present but unusable are a different matter and are still flagged:
-one coordinate filled and the other empty, non-numeric text, out-of-range
-values, or the \code{(0, 0)} device default. Set
-\code{treat_blank_gps_as_phone = FALSE} to flag fully-empty coordinates
-too, which is appropriate for a round that was entirely face-to-face.
+no geopoint, so the coordinate columns come back empty. Those surveys are
+identified up front and excluded from every check and from the warning
+count — there is nothing to validate. Set
+\code{treat_blank_gps_as_phone = FALSE} to count fully-empty coordinates
+as unusable instead, which is appropriate for a round that was entirely
+face-to-face.
 
 \strong{Rounded or corrupted coordinate columns.} Opening an ONA export in
 Excel frequently damages the split coordinate columns — the decimals are

@@ -16,7 +16,7 @@ loc_test_data <- function() {
     # u4 Quetta claimed, Tehran GPS  -> country + city flag
     # u5 BOTH coordinates blank      -> phone interview, skipped entirely
     # u6 Chaman (border town), GPS at Chaman -> clean
-    # u7 lat present, lon blank      -> unusable GPS, missing_gps flag
+    # u7 lat present, lon blank      -> unusable GPS: warning only, never logged
     `_location_latitude` = c(
       "latitude",
       "30.1900",
@@ -61,6 +61,46 @@ loc_bindings <- function(x) {
   x$check_binding
 }
 
+# Run the function and keep the warnings as text. Unusable GPS is reported as a
+# console warning rather than a log row, so most assertions about it have to be
+# made against the warning.
+loc_capture <- function(...) {
+  w <- character(0)
+  res <- withCallingHandlers(
+    suppressMessages(validate_interview_location(...)),
+    warning = function(cond) {
+      w <<- c(w, conditionMessage(cond))
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(result = res, warnings = w)
+}
+
+# A dataset carrying the raw ONA geopoint column alongside the split columns.
+#
+# g1 split columns valid (Quetta); location says Tehran -> location IGNORED
+# g2 split columns emptied by Excel; location says Tehran -> rescued, flags
+# g3 nothing anywhere -> phone interview, skipped entirely
+# g4 split columns empty; location present but unparseable -> unusable
+loc_geopoint_data <- function() {
+  data.frame(
+    `_uuid` = c("LABEL", "g1", "g2", "g3", "g4"),
+    `_location_latitude` = c("latitude", "30.1900", NA, NA, NA),
+    `_location_longitude` = c("longitude", "67.0000", NA, NA, NA),
+    location = c(
+      "location",
+      "35.6892 51.3890 1200.0 10.0",
+      "35.6892 51.3890 1200.0 10.0",
+      NA,
+      "not a geopoint"
+    ),
+    Q13 = c("country of interview", rep("Pakistan", 4)),
+    Q14 = c("city of interview", rep("Quetta", 4)),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
 # ---- country name / code matching ------------------------------------------
 
 test_that("country names, ISO codes and aliases match a Natural Earth polygon", {
@@ -98,7 +138,8 @@ test_that("an unmatched country warns and is skipped, not silently passed", {
   expect_warning(
     suppressMessages(validate_interview_location(
       d,
-      check_city = FALSE
+      check_city = FALSE,
+      flag_missing_gps = FALSE # keep the unusable-GPS warning out of the way
     )),
     "could not be matched to a polygon"
   )
@@ -146,46 +187,174 @@ test_that("border_tolerance_km controls how far outside the border is allowed", 
 })
 
 # ---- missing / invalid GPS --------------------------------------------------
+#
+# Unusable GPS is NOT a cleaning-log entry. There is nothing an enumerator can
+# correct, and one row per survey buried the country and city flags that matter.
+# It is reported as a console warning instead, and these tests assert both
+# halves of that: the warning fires, and the log stays empty.
 
-test_that("GPS that is present but unusable is flagged", {
+test_that("unusable GPS is reported as a warning and never written to the log", {
   skip_if_not_installed("sf")
 
-  res <- loc_run(loc_test_data(), check_country = FALSE, check_city = FALSE)
-  log <- res$interview_location_log
+  out <- loc_capture(
+    loc_test_data(),
+    check_country = FALSE,
+    check_city = FALSE
+  )
 
-  # u7 has a latitude but no longitude — a real data problem
-  expect_true(any(grepl("^location_missing_gps ~/~ u7", loc_bindings(log))))
-  expect_equal(nrow(log), 1)
+  # u7 has a latitude but no longitude — a real data problem, but not a
+  # cleaning-log one
+  expect_equal(nrow(out$result$interview_location_log), 0)
+  expect_true(any(grepl("NOT written to the cleaning log", out$warnings)))
+  expect_true(any(grepl("u7", out$warnings)))
+  expect_false(any(grepl("location_missing_gps", loc_bindings(
+    out$result$interview_location_log
+  ))))
+})
 
-  # (0, 0) is the Gulf of Guinea — treat as a device default, not a real fix
+test_that("(0, 0) and non-numeric coordinates count as unusable", {
+  skip_if_not_installed("sf")
+
+  # (0, 0) is the Gulf of Guinea — a device default, not a real fix
   d <- loc_test_data()
   d$`_location_latitude`[2] <- "0"
   d$`_location_longitude`[2] <- "0"
-  res0 <- loc_run(d, check_country = FALSE, check_city = FALSE)
-  expect_true(any(grepl(
-    "^location_missing_gps ~/~ u1",
-    loc_bindings(res0$interview_location_log)
-  )))
+  out0 <- loc_capture(d, check_country = FALSE, check_city = FALSE)
+  expect_true(any(grepl("u1", out0$warnings)))
+  expect_equal(nrow(out0$result$interview_location_log), 0)
 
-  # non-numeric text in a coordinate column is a bad entry, not a phone
-  # interview, and must still be flagged
+  # non-numeric text is a bad entry, not a phone interview
   dtxt <- loc_test_data()
   dtxt$`_location_latitude`[2] <- "n/a"
   dtxt$`_location_longitude`[2] <- "n/a"
-  restxt <- loc_run(dtxt, check_country = FALSE, check_city = FALSE)
-  expect_true(any(grepl(
-    "^location_missing_gps ~/~ u1",
-    loc_bindings(restxt$interview_location_log)
-  )))
+  outtxt <- loc_capture(dtxt, check_country = FALSE, check_city = FALSE)
+  expect_true(any(grepl("u1", outtxt$warnings)))
+  expect_equal(nrow(outtxt$result$interview_location_log), 0)
+})
 
-  # old_value is the string "NA", never a real NA
-  expect_true(all(!is.na(log$old_value)))
-  expect_equal(
-    res0$interview_location_log$old_value[
-      res0$interview_location_log$uuid == "u7"
-    ],
-    "34.0083"
+test_that("flag_missing_gps = FALSE suppresses the warning too", {
+  skip_if_not_installed("sf")
+
+  out <- loc_capture(
+    loc_test_data(),
+    check_country = FALSE,
+    check_city = FALSE,
+    flag_missing_gps = FALSE
   )
+  expect_length(out$warnings, 0)
+  expect_equal(nrow(out$result$interview_location_log), 0)
+})
+
+# ---- raw geopoint fallback --------------------------------------------------
+
+test_that(".parse_location_geopoint splits the four ONA components", {
+  p <- .parse_location_geopoint(c(
+    "33.9820598 71.5482743 317.4000244140625 18.033",
+    "  30.19   67.00   1650   4.2  ",
+    "24.86,67.02,8,18",
+    "12.5 13.5",
+    "not a geopoint",
+    NA,
+    ""
+  ))
+
+  expect_equal(p$lat[1], 33.9820598)
+  expect_equal(p$lon[1], 71.5482743)
+  expect_equal(p$altitude[1], 317.4000244140625)
+  expect_equal(p$precision[1], 18.033)
+
+  # tolerant of padded / repeated whitespace and of comma separators
+  expect_equal(p$lat[2], 30.19)
+  expect_equal(p$precision[2], 4.2)
+  expect_equal(p$lon[3], 67.02)
+
+  # missing components, junk and blanks all come back NA rather than erroring
+  expect_equal(p$lat[4], 12.5)
+  expect_true(is.na(p$altitude[4]))
+  expect_true(is.na(p$lat[5]))
+  expect_true(is.na(p$lat[6]))
+  expect_true(is.na(p$lat[7]))
+
+  # zero-length input returns a zero-row frame, not an error
+  expect_equal(nrow(.parse_location_geopoint(character(0))), 0)
+})
+
+test_that(".is_valid_coord rejects out-of-range and (0, 0) coordinates", {
+  expect_true(.is_valid_coord(30.19, 67.00))
+  expect_false(.is_valid_coord(0, 0))
+  expect_false(.is_valid_coord(91, 10))
+  expect_false(.is_valid_coord(10, 181))
+  expect_false(.is_valid_coord(NA, 10))
+  expect_false(.is_valid_coord("n/a", 10))
+  expect_equal(
+    .is_valid_coord(c(30.19, 0, NA), c(67.00, 0, 10)),
+    c(TRUE, FALSE, FALSE)
+  )
+})
+
+test_that("the location column rescues coordinates Excel has destroyed", {
+  skip_if_not_installed("sf")
+  skip_if_not_installed("rnaturalearthdata")
+
+  out <- loc_capture(loc_geopoint_data(), check_city = FALSE)
+  log <- out$result$interview_location_log
+
+  # g2's split columns are empty but its geopoint is intact and sits in Tehran,
+  # so the country check runs on the recovered coordinates and flags it
+  expect_true(any(grepl("^location_country ~/~ g2", loc_bindings(log))))
+
+  # g1's split columns are valid: the (conflicting) location value is ignored
+  expect_false(any(grepl("~/~ g1", loc_bindings(log))))
+
+  # g3 has nothing anywhere -> phone interview, not even in the warning
+  expect_false(any(grepl("~/~ g3", loc_bindings(log))))
+  expect_false(any(grepl("g3", out$warnings)))
+
+  # g4's geopoint is present but unparseable -> warning, never a log row
+  expect_false(any(grepl("~/~ g4", loc_bindings(log))))
+  expect_true(any(grepl("g4", out$warnings)))
+})
+
+test_that("use_location_fallback = FALSE ignores the location column", {
+  skip_if_not_installed("sf")
+  skip_if_not_installed("rnaturalearthdata")
+
+  res <- loc_run(
+    loc_geopoint_data(),
+    check_city = FALSE,
+    use_location_fallback = FALSE
+  )
+  # g2 is no longer rescued, so nothing is flagged at all
+  expect_false(any(grepl(
+    "~/~ g2",
+    loc_bindings(res$interview_location_log)
+  )))
+})
+
+test_that("a dataset without a location column behaves exactly as before", {
+  skip_if_not_installed("sf")
+  skip_if_not_installed("rnaturalearthdata")
+
+  # loc_test_data() has no `location` column at all
+  res <- loc_run(loc_test_data(), check_city = FALSE)
+  expect_true(any(grepl(
+    "^location_country ~/~ u4",
+    loc_bindings(res$interview_location_log)
+  )))
+})
+
+test_that("a custom location_column name is honoured", {
+  skip_if_not_installed("sf")
+  skip_if_not_installed("rnaturalearthdata")
+
+  d <- loc_geopoint_data()
+  names(d)[names(d) == "location"] <- "_geopoint"
+
+  res <- loc_run(d, check_city = FALSE, location_column = "_geopoint")
+  expect_true(any(grepl(
+    "^location_country ~/~ g2",
+    loc_bindings(res$interview_location_log)
+  )))
 })
 
 # ---- phone interviews -------------------------------------------------------
@@ -231,30 +400,33 @@ test_that("an all-phone dataset returns an empty log without erroring", {
   )
 })
 
-test_that("treat_blank_gps_as_phone = FALSE flags a fully absent geopoint", {
+test_that("treat_blank_gps_as_phone = FALSE counts a fully absent geopoint", {
   skip_if_not_installed("sf")
 
-  on_res <- loc_run(
+  on_out <- loc_capture(
     loc_test_data(),
     check_country = FALSE,
     check_city = FALSE,
     treat_blank_gps_as_phone = TRUE
   )
-  off_res <- loc_run(
+  off_out <- loc_capture(
     loc_test_data(),
     check_country = FALSE,
     check_city = FALSE,
     treat_blank_gps_as_phone = FALSE
   )
 
-  expect_false("u5" %in% on_res$interview_location_log$uuid)
-  expect_true(any(grepl(
-    "^location_missing_gps ~/~ u5",
-    loc_bindings(off_res$interview_location_log)
-  )))
-  # u7 is flagged either way — its GPS is present but unusable
-  expect_true("u7" %in% on_res$interview_location_log$uuid)
-  expect_true("u7" %in% off_res$interview_location_log$uuid)
+  # u5 has no geopoint at all: a phone interview when TRUE, unusable when FALSE
+  expect_false(any(grepl("u5", on_out$warnings)))
+  expect_true(any(grepl("u5", off_out$warnings)))
+
+  # u7 is reported either way — its GPS is present but unusable
+  expect_true(any(grepl("u7", on_out$warnings)))
+  expect_true(any(grepl("u7", off_out$warnings)))
+
+  # and neither ever reaches the log
+  expect_equal(nrow(on_out$result$interview_location_log), 0)
+  expect_equal(nrow(off_out$result$interview_location_log), 0)
 })
 
 test_that("phone interviews are not geocoded", {
@@ -295,15 +467,25 @@ test_that("phone interviews are not geocoded", {
 
 test_that("the returned log follows the package log contract", {
   skip_if_not_installed("sf")
+  skip_if_not_installed("rnaturalearthdata")
 
-  res <- loc_run(loc_test_data(), check_country = FALSE, check_city = FALSE)
+  # run the country check so the contract is tested against real rows
+  res <- loc_run(loc_test_data(), check_city = FALSE)
   log <- res$interview_location_log
+  expect_gt(nrow(log), 0)
   expect_named(
     log,
     c("uuid", "old_value", "question", "issue", "check_binding")
   )
   expect_true(all(vapply(log, is.character, logical(1))))
   expect_true(all(grepl(" ~/~ ", log$check_binding, fixed = TRUE)))
+  expect_true(all(!is.na(log$old_value)))
+
+  # only two prefixes survive: location_missing_gps was retired
+  expect_true(all(grepl(
+    "^(location_country|location_city) ~/~ ",
+    log$check_binding
+  )))
 })
 
 test_that("dataframe and list inputs both work and the dataset is untouched", {
@@ -323,20 +505,23 @@ test_that("dataframe and list inputs both work and the dataset is untouched", {
 test_that("skip_label_row controls whether row 1 is checked", {
   skip_if_not_installed("sf")
 
-  kept <- loc_run(
+  # the label row carries the words "latitude"/"longitude", so when it is kept
+  # it shows up as unusable GPS — which is now a warning, not a log row
+  kept <- loc_capture(
     loc_test_data(),
     check_country = FALSE,
     check_city = FALSE,
     skip_label_row = FALSE
   )
-  dropped <- loc_run(
+  dropped <- loc_capture(
     loc_test_data(),
     check_country = FALSE,
     check_city = FALSE,
     skip_label_row = TRUE
   )
-  expect_true("LABEL" %in% kept$interview_location_log$uuid)
-  expect_false("LABEL" %in% dropped$interview_location_log$uuid)
+  expect_true(any(grepl("LABEL", kept$warnings)))
+  expect_false(any(grepl("LABEL", dropped$warnings)))
+  expect_false("LABEL" %in% dropped$result$interview_location_log$uuid)
 })
 
 test_that("a missing column errors with the column named", {
@@ -486,7 +671,8 @@ test_that("an empty Nominatim result warns instead of erroring", {
     suppressMessages(validate_interview_location(
       loc_test_data(),
       check_country = FALSE,
-      nominatim_delay_s = 0
+      nominatim_delay_s = 0,
+      flag_missing_gps = FALSE # keep the unusable-GPS warning out of the way
     )),
     "Could not geocode"
   )
@@ -510,14 +696,20 @@ test_that("geocoding survives an HTTP error without aborting the run", {
     .package = "httr"
   )
 
-  res <- loc_run(
+  out <- loc_capture(
     loc_test_data(),
     check_country = FALSE,
     nominatim_delay_s = 0
   )
-  # the missing-GPS flag still comes through; nothing errors
-  expect_true(any(grepl(
-    "^location_missing_gps ~/~ u7",
-    loc_bindings(res$interview_location_log)
+  # nothing errors, the log contract still holds, and no city flags are invented
+  expect_named(
+    out$result$interview_location_log,
+    c("uuid", "old_value", "question", "issue", "check_binding")
+  )
+  expect_false(any(grepl(
+    "^location_city",
+    loc_bindings(out$result$interview_location_log)
   )))
+  # the unusable-GPS surveys are still reported, just not logged
+  expect_true(any(grepl("u7", out$warnings)))
 })
