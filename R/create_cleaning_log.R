@@ -456,6 +456,37 @@ create_formated_wb <- function(
 #' \code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
 #' underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
 #'
+#' \strong{Flag columns on the dataset sheet.} Deciding whether to keep or discard a whole
+#' interview usually means weighing several survey-level checks at once - a short interview that
+#' is also nearly empty, or a back-to-back interview that is also a soft duplicate. To make that
+#' judgement without leaving the raw data, the \code{dataset} sheet is written with a block of
+#' helper columns in front of the ONA columns: \strong{duration}, \strong{completeness},
+#' \strong{refused}, \strong{back to back} and \strong{similarity}. Each one carries, for that
+#' record's uuid, what every cleaning-log row raised by the matching check says, and is left blank
+#' when the check did not flag the survey. A reviewer can therefore filter on one column, or on
+#' several at once, and cross-check the flagged surveys directly against their raw answers.
+#'
+#' \strong{duration}, \strong{completeness} and \strong{refused} show the log's \code{old_value},
+#' which is a figure that speaks for itself: the duration in minutes, the count of non-empty
+#' cells, the count of refused responses. \strong{back to back} and \strong{similarity} show the
+#' \code{issue} instead, because their raw values cannot be judged on their own - a bare interview
+#' start time, or a bare count of similar columns, says nothing without the gap, the threshold,
+#' the enumerator and the other survey involved, all of which the issue names. Any column can be
+#' switched either way with \code{list(prefixes = ..., value = "issue")} or
+#' \code{value = "old_value"}.
+#'
+#' Rows are matched through \code{check_binding}, whose leading segment names the check that
+#' Rows are matched through \code{check_binding}, whose leading segment names the check that
+#' raised them, so a log assembled from any combination of \code{validate_*} functions works
+#' without further configuration. \code{flag_columns} changes which columns are written and which
+#' checks feed them; see \code{\link{ck_flag_column_defaults}}. In the macro-enabled workbook
+#' produced by \code{\link{create_cleaning_log_vba}} these columns are exempt from change capture:
+#' editing one never appends a cleaning-log row.
+#'
+#' The five headers carry an MMC dark-blue fill (\code{flag_header_fill_color}) rather than the
+#' teal used for the ONA headers, so the block is not mistaken for exported data. Everything below
+#' the header row keeps the ordinary body formatting.
+#'
 #' @param write_list A list containing the combined log and the checked dataset.
 #' @param cleaning_log_name Name of the combined-log element in \code{write_list}. Default \code{"cleaning_log"}.
 #' @param dataset_name Name of the checked-dataset element in \code{write_list}. Default \code{"checked_dataset"}.
@@ -474,6 +505,18 @@ create_formated_wb <- function(
 #'   underscores; numeric column positions are also accepted. Default \code{NULL}.
 #' @param include_dataset Logical. If \code{TRUE} (the default), the checked dataset is written to
 #'   a sheet named \code{"dataset"} so reviewers can refer back to the raw data.
+#' @param flag_columns Helper columns prepended to the \code{dataset} sheet, one per survey-level
+#'   check, so a reviewer can filter the raw data down to the surveys a check flagged. A named
+#'   list mapping a column header to the \code{check_binding} prefixes that feed it; default
+#'   \code{\link{ck_flag_column_defaults}()} gives \strong{duration}, \strong{completeness},
+#'   \strong{refused}, \strong{back to back} and \strong{similarity}. Use \code{NULL} to add no
+#'   flag columns. Ignored when \code{include_dataset = FALSE}.
+#' @param flag_separator String used to join several flagged values for the same record within one
+#'   flag column. Default \code{" | "}.
+#' @param flag_header_fill_color Hexcode for the header fill of the flag columns. Deliberately
+#'   different from \code{header_fill_color} so the block reads as helper columns rather than part
+#'   of the export. Default MMC dark blue \code{"#003D58"}. The cells below keep the ordinary body
+#'   formatting.
 #' @param header_front_size Header font size (default is 12).
 #' @param header_front_color Hexcode for header font color (default is white).
 #' @param header_fill_color Hexcode for header fill color (default is MMC blue \code{"#00A2A5"}).
@@ -535,6 +578,23 @@ create_formated_wb <- function(
 #'   group_by = NULL,
 #'   output_path = "cleaning_log.xlsx"
 #' )
+#'
+#' # add a flag column for a check of your own, and drop one you do not use
+#' my_flags <- ck_flag_column_defaults()
+#' my_flags[["outliers"]] <- "outlier_check"
+#' my_flags[["refused"]] <- NULL
+#' create_cleaning_log(
+#'   write_list,
+#'   flag_columns = my_flags,
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # plain dataset sheet, no flag columns at all
+#' create_cleaning_log(
+#'   write_list,
+#'   flag_columns = NULL,
+#'   output_path = "cleaning_log.xlsx"
+#' )
 #' }
 create_cleaning_log <- function(
   write_list,
@@ -547,6 +607,9 @@ create_cleaning_log <- function(
   color_mode = "partial",
   color_columns = c("old_value"),
   include_dataset = TRUE,
+  flag_columns = ck_flag_column_defaults(),
+  flag_separator = " | ",
+  flag_header_fill_color = "#003D58",
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -594,6 +657,7 @@ create_cleaning_log <- function(
   }
 
   color_mode <- resolve_color_mode(color_mode)
+  flag_columns <- resolve_flag_columns(flag_columns)
 
   cl <- as.data.frame(write_list[[cleaning_log_name]], stringsAsFactors = FALSE)
   raw <- as.data.frame(write_list[[dataset_name]], stringsAsFactors = FALSE)
@@ -667,8 +731,13 @@ create_cleaning_log <- function(
   }
 
   cl_uuid <- as.character(cl$uuid)
+  # Every column of the final log has to be exactly as long as cl_uuid. A scalar
+  # recycles fine into a log with rows, but not into an empty one - and an empty
+  # combined log is a normal outcome, a round where nothing was flagged - so the
+  # blanks are built at full length rather than left to recycle.
+  blank_column <- rep(NA_character_, length(cl_uuid))
   lookup <- function(tbl, key) {
-    if (is.null(tbl)) NA_character_ else unname(tbl[key])
+    if (is.null(tbl)) rep(NA_character_, length(key)) else unname(tbl[key])
   }
 
   # ---- assemble the final reviewer log in the required column order ----
@@ -678,18 +747,18 @@ create_cleaning_log <- function(
     # Survey UUID first so it lands in column A, which is the frozen column
     "Survey UUID" = cl_uuid,
     "Date" = lookup(date_lookup, cl_uuid),
-    "Survey Registration Date" = NA_character_,
+    "Survey Registration Date" = blank_column,
     "Enumerator" = lookup(enum_lookup, cl_uuid),
-    "Section" = NA_character_,
+    "Section" = blank_column,
     "Question number" = as.character(cl$question),
     "Question text" = unname(label_lookup[as.character(cl$question)]),
     "Issue" = as.character(cl$issue),
     "Old value" = as.character(cl$old_value),
-    "Action taken" = NA_character_,
-    "New value" = NA_character_,
-    "Identified by" = NA_character_,
-    "Comments" = NA_character_,
-    "PO feedback" = NA_character_,
+    "Action taken" = blank_column,
+    "New value" = blank_column,
+    "Identified by" = blank_column,
+    "Comments" = blank_column,
+    "PO feedback" = blank_column,
     # trailing helper column used only to colour related rows; hidden in the output
     "check_binding" = as.character(cl$check_binding)
   )
@@ -739,7 +808,18 @@ create_cleaning_log <- function(
   out_list <- list()
   out_list[[cleaning_log_name]] <- final_log
   if (include_dataset) {
-    out_list[["dataset"]] <- raw
+    # The flag block goes in front of the ONA columns so it stays in view while
+    # a reviewer scrolls right through the raw answers. Attached here rather
+    # than earlier so the label lookup and the uuid keys above are built from
+    # the dataset exactly as the checks saw it.
+    out_list[["dataset"]] <- ck_attach_flag_columns(
+      raw = raw,
+      cl = cl,
+      uuid_column = uuid_column,
+      flag_columns = flag_columns,
+      skip_label_row = skip_label_row,
+      separator = flag_separator
+    )
   }
   out_list[["readme"]] <- readme_df
   out_list[["validation_rules"]] <- validation_df
@@ -756,6 +836,22 @@ create_cleaning_log <- function(
       body_front = body_front,
       body_front_size = body_front_size
     )
+
+  # ---- mark the flag headers out from the raw-data headers ----
+  # Done after create_formated_wb(), which colours by a grouping column and has
+  # no notion of which columns are flags.
+  if (include_dataset && length(flag_columns) > 0) {
+    ck_style_flag_columns(
+      workbook = workbook,
+      sheet = "dataset",
+      dataset = out_list[["dataset"]],
+      flag_headers = ck_resolved_flag_headers(flag_columns, names(raw)),
+      header_fill = flag_header_fill_color,
+      header_font_size = header_front_size,
+      header_font_color = header_front_color,
+      header_font = header_front
+    )
+  }
 
   # hide the validation source sheet
   hide_sheet <- which(names(workbook) == "validation_rules")

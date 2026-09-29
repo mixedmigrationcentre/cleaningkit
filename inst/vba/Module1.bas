@@ -48,6 +48,7 @@ Public gCkCacheSheet As String
 Public gCkCacheVals As Variant
 
 Private mConfig As Object      ' key -> value, from _ck_config
+Private mIgnoreCols As Object  ' dataset header -> True, from _ck_config
 Private mLedgerIdx As Object   ' "uuid|question" -> ledger row number
 Private mWarnedNoOld As Boolean
 
@@ -102,9 +103,46 @@ Public Function CkConfigLong(ByVal keyName As String, ByVal fallback As Long) As
     End If
 End Function
 
+'----------------------------------------------------------------------
+' Columns the macro must never log
+'
+' create_cleaning_log() prepends a block of helper columns to the dataset
+' sheet - duration, completeness, refused, back to back, similarity - that
+' restate what the validation checks already found, so a reviewer can
+' filter the raw data down to the flagged surveys. They are not survey
+' answers, so an edit to one is not a data change and must not append a
+' cleaning log row. Their headers arrive as one comma-separated
+' `ignore_columns` value on _ck_config.
+'
+' An older workbook simply has no such key, and then nothing is ignored -
+' which is exactly the behaviour before flag columns existed.
+'----------------------------------------------------------------------
+Public Function CkIsIgnoredColumn(ByVal headerName As String) As Boolean
+    Dim parts() As String, i As Long, nm As String
+
+    If mIgnoreCols Is Nothing Then
+        Set mIgnoreCols = CreateObject("Scripting.Dictionary")
+        mIgnoreCols.CompareMode = 1                   ' vbTextCompare
+        nm = CkConfig("ignore_columns")
+        If Len(nm) > 0 Then
+            parts = Split(nm, ",")
+            For i = LBound(parts) To UBound(parts)
+                If Len(Trim$(parts(i))) > 0 Then
+                    mIgnoreCols(Trim$(parts(i))) = True
+                End If
+            Next i
+        End If
+    End If
+
+    If Len(Trim$(headerName)) = 0 Then Exit Function
+    CkIsIgnoredColumn = mIgnoreCols.Exists(Trim$(headerName))
+End Function
+
+
 ' Drop cached config / ledger index. Called from Workbook_Open.
 Public Sub CkReset()
     Set mConfig = Nothing
+    Set mIgnoreCols = Nothing
     Set mLedgerIdx = Nothing
     mWarnedNoOld = False
     gCkBusy = False

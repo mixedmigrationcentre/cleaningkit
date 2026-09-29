@@ -15,6 +15,9 @@ create_cleaning_log(
   color_mode = "partial",
   color_columns = c("old_value"),
   include_dataset = TRUE,
+  flag_columns = ck_flag_column_defaults(),
+  flag_separator = " | ",
+  flag_header_fill_color = "#003D58",
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -54,6 +57,21 @@ underscores; numeric column positions are also accepted. Default \code{NULL}.}
 
 \item{include_dataset}{Logical. If \code{TRUE} (the default), the checked dataset is written to
 a sheet named \code{"dataset"} so reviewers can refer back to the raw data.}
+
+\item{flag_columns}{Helper columns prepended to the \code{dataset} sheet, one per survey-level
+check, so a reviewer can filter the raw data down to the surveys a check flagged. A named
+list mapping a column header to the \code{check_binding} prefixes that feed it; default
+\code{\link{ck_flag_column_defaults}()} gives \strong{duration}, \strong{completeness},
+\strong{refused}, \strong{back to back} and \strong{similarity}. Use \code{NULL} to add no
+flag columns. Ignored when \code{include_dataset = FALSE}.}
+
+\item{flag_separator}{String used to join several flagged values for the same record within one
+flag column. Default \code{" | "}.}
+
+\item{flag_header_fill_color}{Hexcode for the header fill of the flag columns. Deliberately
+different from \code{header_fill_color} so the block reads as helper columns rather than part
+of the export. Default MMC dark blue \code{"#003D58"}. The cells below keep the ordinary body
+formatting.}
 
 \item{header_front_size}{Header font size (default is 12).}
 
@@ -126,6 +144,37 @@ with the same light MMC shade across the whole row. \code{color_mode} changes th
 formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
 \code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
 underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
+
+\strong{Flag columns on the dataset sheet.} Deciding whether to keep or discard a whole
+interview usually means weighing several survey-level checks at once - a short interview that
+is also nearly empty, or a back-to-back interview that is also a soft duplicate. To make that
+judgement without leaving the raw data, the \code{dataset} sheet is written with a block of
+helper columns in front of the ONA columns: \strong{duration}, \strong{completeness},
+\strong{refused}, \strong{back to back} and \strong{similarity}. Each one carries, for that
+record's uuid, what every cleaning-log row raised by the matching check says, and is left blank
+when the check did not flag the survey. A reviewer can therefore filter on one column, or on
+several at once, and cross-check the flagged surveys directly against their raw answers.
+
+\strong{duration}, \strong{completeness} and \strong{refused} show the log's \code{old_value},
+which is a figure that speaks for itself: the duration in minutes, the count of non-empty
+cells, the count of refused responses. \strong{back to back} and \strong{similarity} show the
+\code{issue} instead, because their raw values cannot be judged on their own - a bare interview
+start time, or a bare count of similar columns, says nothing without the gap, the threshold,
+the enumerator and the other survey involved, all of which the issue names. Any column can be
+switched either way with \code{list(prefixes = ..., value = "issue")} or
+\code{value = "old_value"}.
+
+Rows are matched through \code{check_binding}, whose leading segment names the check that
+Rows are matched through \code{check_binding}, whose leading segment names the check that
+raised them, so a log assembled from any combination of \code{validate_*} functions works
+without further configuration. \code{flag_columns} changes which columns are written and which
+checks feed them; see \code{\link{ck_flag_column_defaults}}. In the macro-enabled workbook
+produced by \code{\link{create_cleaning_log_vba}} these columns are exempt from change capture:
+editing one never appends a cleaning-log row.
+
+The five headers carry an MMC dark-blue fill (\code{flag_header_fill_color}) rather than the
+teal used for the ONA headers, so the block is not mistaken for exported data. Everything below
+the header row keeps the ordinary body formatting.
 }
 \examples{
 \dontrun{
@@ -161,6 +210,23 @@ create_cleaning_log(
 create_cleaning_log(
   write_list,
   group_by = NULL,
+  output_path = "cleaning_log.xlsx"
+)
+
+# add a flag column for a check of your own, and drop one you do not use
+my_flags <- ck_flag_column_defaults()
+my_flags[["outliers"]] <- "outlier_check"
+my_flags[["refused"]] <- NULL
+create_cleaning_log(
+  write_list,
+  flag_columns = my_flags,
+  output_path = "cleaning_log.xlsx"
+)
+
+# plain dataset sheet, no flag columns at all
+create_cleaning_log(
+  write_list,
+  flag_columns = NULL,
   output_path = "cleaning_log.xlsx"
 )
 }

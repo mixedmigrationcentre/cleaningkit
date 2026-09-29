@@ -1,5 +1,53 @@
 # cleaningkit (development version)
 
+## Cleaning log fixes
+* `create_cleaning_log()` no longer errors on an **empty combined log** &mdash; a
+  round where no check flagged anything. The reviewer columns left blank for
+  review were built as scalars, which recycle into a log with rows but not into
+  one with none, so the call failed with "arguments imply differing number of
+  rows". They are now built at the log's own length.
+
+## Check flags on the dataset sheet
+* `create_cleaning_log()` and `create_cleaning_log_vba()` now prepend a block of
+  helper columns to the `dataset` sheet &mdash; **duration**, **completeness**,
+  **refused**, **back to back** and **similarity** &mdash; one per survey-level
+  check. Each carries, for that record's uuid, the `old_value` of every
+  cleaning-log row the matching check raised (the duration in minutes, the count
+  of non-empty cells, the count of refused responses, the interview start time,
+  the number of similar columns) and is blank when the check did not flag the
+  survey. A reviewer weighing whether to keep or discard an interview can filter
+  on one column or several at once and cross-check the flagged surveys against
+  their raw answers without leaving the sheet.
+* Rows are matched through `check_binding`, whose leading segment names the
+  check that raised them, so any combination of `validate_*` functions works
+  with no further configuration. Several hits for one record are joined with
+  `flag_separator` (default `" | "`).
+* **duration**, **completeness** and **refused** show the log's `old_value`,
+  which speaks for itself. **back to back** and **similarity** show the `issue`
+  instead: a bare interview start time, or a bare count of similar columns,
+  tells a reviewer nothing without the gap, the threshold, the enumerator and
+  the other survey involved &mdash; all of which the issue names. Any column can
+  be switched either way with `list(prefixes = ..., value = "issue")` or
+  `value = "old_value"`.
+* The **similarity** label row reads `Flagged by: similar_surveys_log,
+  similar_questions_log` rather than the internal binding prefixes
+  (`soft_duplicate`, `dup_q`). Any column's label can be set with
+  `list(prefixes = ..., label = ...)`.
+* The new `flag_columns` argument controls which columns are written and which
+  checks feed them; `ck_flag_column_defaults()` returns the defaults to extend,
+  and `NULL` writes the `dataset` sheet exactly as before. A flag column whose
+  header collides with a real survey question is renamed with a `_flag` suffix
+  and a warning, rather than shadowing it.
+* The five headers carry an MMC dark-blue fill (`flag_header_fill_color`,
+  `#003D58`) instead of the teal used for the ONA headers, so the block is not
+  mistaken for exported data. Everything below the header row keeps the
+  ordinary body formatting.
+* In the macro-enabled workbook these columns are exempt from change capture:
+  editing one appends nothing to the cleaning log. Their headers are written to
+  `_ck_config` as the new `ignore_columns` key. **This needs a rebuilt
+  `inst/extdata/cleaningkit_vba.bin`** &mdash; see `inst/vba/README.md`; until
+  then the flag columns behave like any other dataset column.
+
 ## Duration check
 * `validate_duration()` no longer logs surveys that run **longer** than
   `upper_bound`. Long surveys are normally valid and only added rows to the
