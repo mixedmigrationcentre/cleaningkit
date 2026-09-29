@@ -1,5 +1,21 @@
 # cleaningkit (development version)
 
+## Cleaning log layout
+* `create_cleaning_log()` and `create_cleaning_log_vba()` now group the reviewer
+  log by **Issue** by default, so every row raising the same issue sits in one
+  contiguous block and a reviewer can work through one kind of problem at a
+  time. Blocks still appear in the order each value is first met in the combined
+  log, and rows keep their original order inside a block.
+* The grouping column is now chosen with the new `group_by` argument, which
+  accepts either the raw log names (`"issue"`, `"uuid"`, `"question"`,
+  `"old_value"`, `"check_binding"`) or the reviewer-facing headers (`"Issue"`,
+  `"Survey UUID"`, `"Enumerator"`, ...), matching case- and
+  punctuation-insensitively. `NULL` or `FALSE` keeps the incoming
+  check-by-check order.
+* **Breaking:** `group_by_uuid` has been removed in favour of `group_by`. Calls
+  passing `group_by_uuid = TRUE` should now pass `group_by = "uuid"`, and
+  `group_by_uuid = FALSE` becomes `group_by = NULL`.
+
 ## Other-response cleaning
 * `read_other_responses()` now detects the select-multiple convention from the
   data itself instead of defaulting to a binary (`0`/`1`) export. In an ONA

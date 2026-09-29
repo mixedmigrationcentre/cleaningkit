@@ -83,6 +83,13 @@ ck_action_codes <- function() {
 #' function stops with a message listing every location it searched; use
 #' \code{create_cleaning_log()} in the meantime.
 #'
+#' \strong{Row grouping.} \code{group_by} arranges the log exactly as it does in
+#' \code{\link{create_cleaning_log}} - by \strong{Issue} unless told otherwise.
+#' It applies to the rows present when the workbook is built; rows the macro
+#' appends later are added at the bottom of the sheet in edit order and are not
+#' sorted into their block, since re-sorting a live sheet would move rows out
+#' from under the reviewer.
+#'
 #' \strong{Reading the result back.} \code{readxl} reads \code{.xlsm} exactly
 #' like \code{.xlsx}, but remember to widen \code{file_pattern} when scanning a
 #' directory with \code{\link{read_cleaning_log}}.
@@ -128,8 +135,8 @@ create_cleaning_log_vba <- function(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
-  color_mode = "on",
-  color_columns = NULL,
+  color_mode = "partial",
+  color_columns = c("old_value"),
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -137,7 +144,7 @@ create_cleaning_log_vba <- function(
   body_front = "Arial Narrow",
   body_front_size = 11,
   skip_label_row = TRUE,
-  group_by_uuid = TRUE,
+  group_by = "issue",
   macro_issue_prefix = "manual_edit",
   vba_project = NULL
 ) {
@@ -197,7 +204,7 @@ create_cleaning_log_vba <- function(
     body_front_size = body_front_size,
     skip_label_row = skip_label_row,
     output_path = NULL,
-    group_by_uuid = group_by_uuid
+    group_by = group_by
   )
 
   if (!("dataset" %in% names(workbook))) {

@@ -12,6 +12,132 @@ normalize_column_key <- function(x) {
   gsub("[^a-z0-9]", "", tolower(as.character(x)))
 }
 
+#' Aliases from raw log names to the reviewer-facing headers
+#'
+#' The cleaning log is built from a combined log whose columns are named
+#' \code{uuid}, \code{question}, \code{issue}, \code{old_value} and
+#' \code{check_binding}, but the sheet a reviewer sees carries the MMC headers
+#' (\strong{Survey UUID}, \strong{Question number}, \strong{Issue},
+#' \strong{Old value}, ...). Arguments that name a column - \code{color_columns}
+#' and \code{group_by} - accept either spelling, and this lookup is what makes
+#' the two meet. Keys are normalised with \code{normalize_column_key()}, so
+#' case, spaces, underscores and punctuation are all ignored.
+#'
+#' @return Named character vector: normalised log name -> reviewer header.
+#' @noRd
+ck_log_column_aliases <- function() {
+  c(
+    "uuid" = "Survey UUID",
+    "surveyuuid" = "Survey UUID",
+    "question" = "Question number",
+    "questionnumber" = "Question number",
+    "questiontext" = "Question text",
+    "issue" = "Issue",
+    "oldvalue" = "Old value",
+    "newvalue" = "New value",
+    "action" = "Action taken",
+    "actiontaken" = "Action taken",
+    "date" = "Date",
+    "enumerator" = "Enumerator",
+    "section" = "Section",
+    "identifiedby" = "Identified by",
+    "comments" = "Comments",
+    "pofeedback" = "PO feedback",
+    "surveyregistrationdate" = "Survey Registration Date",
+    "checkbinding" = "check_binding"
+  )
+}
+
+#' Translate column names given with the raw log spelling
+#'
+#' Anything already written as a reviewer header - or not recognised at all - is
+#' returned untouched, so the caller decides what to do with unmatched names.
+#'
+#' @param x Character vector of column names.
+#'
+#' @return Character vector of the same length, log names replaced by headers.
+#' @noRd
+resolve_log_column_names <- function(x) {
+  aliases <- ck_log_column_aliases()
+  requested <- as.character(x)
+  keys <- normalize_column_key(requested)
+  matched <- keys %in% names(aliases)
+  requested[matched] <- unname(aliases[keys[matched]])
+  requested
+}
+
+#' Resolve the requested row-grouping column
+#'
+#' Accepts a reviewer header (\code{"Issue"}), the raw log name
+#' (\code{"issue"}), a column position, or one of \code{NULL} / \code{FALSE} /
+#' \code{NA} to switch grouping off. \code{TRUE} is read as "group, using the
+#' default column".
+#'
+#' @param group_by The user's \code{group_by} value.
+#' @param log_names Character vector of the final log's column names.
+#' @param default Column used when \code{group_by = TRUE}.
+#'
+#' @return The matched column name, or \code{NA_character_} when grouping is off.
+#' @noRd
+resolve_group_by_column <- function(group_by, log_names, default = "issue") {
+  if (is.null(group_by) || length(group_by) == 0) {
+    return(NA_character_)
+  }
+  if (length(group_by) > 1) {
+    stop(
+      "`group_by` must be a single column name (or NULL / FALSE to keep the ",
+      "incoming check-by-check order).",
+      call. = FALSE
+    )
+  }
+  if (is.logical(group_by)) {
+    if (isTRUE(group_by)) {
+      return(resolve_group_by_column(default, log_names, default))
+    }
+    return(NA_character_)
+  }
+  if (is.na(group_by)) {
+    return(NA_character_)
+  }
+  if (is.numeric(group_by)) {
+    position <- as.integer(group_by)
+    if (position < 1 || position > length(log_names)) {
+      stop(
+        "`group_by = ",
+        group_by,
+        "` is outside the cleaning log's ",
+        length(log_names),
+        " columns.",
+        call. = FALSE
+      )
+    }
+    return(log_names[position])
+  }
+
+  requested <- trimws(as.character(group_by))
+  if (!nzchar(requested)) {
+    return(NA_character_)
+  }
+
+  position <- match(
+    normalize_column_key(resolve_log_column_names(requested)),
+    normalize_column_key(log_names)
+  )
+
+  if (is.na(position)) {
+    stop(
+      "`group_by = \"",
+      requested,
+      "\"` does not match any column of the cleaning log. Available columns: ",
+      paste(log_names, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  log_names[position]
+}
+
 #' Resolve the requested colouring mode
 #'
 #' Accepts the three documented modes plus a few common synonyms (including
@@ -312,13 +438,15 @@ create_formated_wb <- function(
 #' \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 #' headers stay visible while a reviewer scrolls right and down.
 #'
-#' \strong{Row order.} The combined log arrives stacked check by check, so the rows for one
-#' interview are scattered down the sheet. By default the reviewer log is regrouped so that
-#' every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
-#' after another. Blocks appear in the order the uuids are first met in the combined log, and
-#' the original order is kept inside each block, so the rows themselves are untouched - only
-#' their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
-#' order.
+#' \strong{Row order.} The combined log arrives stacked check by check, so rows that belong
+#' together are scattered down the sheet. By default the reviewer log is regrouped by
+#' \strong{Issue}, so every row raising the same issue sits in one contiguous block and a
+#' reviewer can work through one kind of problem at a time. Blocks appear in the order each
+#' value is first met in the combined log, and the original order is kept inside each block,
+#' so the rows themselves are untouched - only their arrangement changes. \code{group_by}
+#' chooses the column: \code{"uuid"} restores the previous survey-by-survey layout, any other
+#' log column or reviewer header works too, and \code{NULL} or \code{FALSE} keeps the incoming
+#' check-by-check order.
 #'
 #' \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 #' with the same light MMC shade across the whole row. \code{color_mode} changes that:
@@ -357,11 +485,16 @@ create_formated_wb <- function(
 #'   the actual records are taken from row 2 onward. If \code{FALSE}, every row is treated as a
 #'   record and \strong{Question text} is left blank (no label row to read from).
 #' @param output_path Output path. Default \code{NULL} returns a workbook instead of writing a file.
-#' @param group_by_uuid Logical. If \code{TRUE} (the default), the log rows are regrouped so all
-#'   rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
-#'   another. Blocks keep the order in which their uuid is first met in the combined log, and
-#'   rows keep their original order inside a block. \code{FALSE} keeps the incoming
-#'   check-by-check order.
+#' @param group_by Column used to group the log rows, so that all rows sharing a value form one
+#'   contiguous block. Default \code{"issue"}, which puts every row raising the same issue
+#'   together. Blocks keep the order in which their value is first met in the combined log, and
+#'   rows keep their original order inside a block. Accepts either the raw log names
+#'   (\code{"issue"}, \code{"uuid"}, \code{"question"}, \code{"old_value"},
+#'   \code{"check_binding"}) or the reviewer-facing headers (\code{"Issue"},
+#'   \code{"Survey UUID"}, \code{"Enumerator"}, ...); matching ignores case, spaces and
+#'   underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
+#'   survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
+#'   order. An unrecognised column name is an error rather than a silent fallback.
 #'
 #' @return A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
 #' @export
@@ -382,10 +515,24 @@ create_formated_wb <- function(
 #' # no colouring at all
 #' create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
 #'
-#' # keep the old check-by-check row order instead of grouping by survey
+#' # group the rows survey by survey instead of issue by issue
 #' create_cleaning_log(
 #'   write_list,
-#'   group_by_uuid = FALSE,
+#'   group_by = "uuid",
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # group by enumerator, using the reviewer-facing header
+#' create_cleaning_log(
+#'   write_list,
+#'   group_by = "Enumerator",
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # keep the incoming check-by-check row order, no grouping at all
+#' create_cleaning_log(
+#'   write_list,
+#'   group_by = NULL,
 #'   output_path = "cleaning_log.xlsx"
 #' )
 #' }
@@ -397,8 +544,8 @@ create_cleaning_log <- function(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
-  color_mode = "on",
-  color_columns = NULL,
+  color_mode = "partial",
+  color_columns = c("old_value"),
   include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
@@ -408,7 +555,7 @@ create_cleaning_log <- function(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by_uuid = TRUE
+  group_by = "issue"
 ) {
   # ---- action codes shared by the drop-down and the readme ----
   action_codes <- c(
@@ -547,15 +694,17 @@ create_cleaning_log <- function(
     "check_binding" = as.character(cl$check_binding)
   )
 
-  # ---- group the log by survey ----
-  # The combined log arrives stacked check by check, which scatters the rows of one
-  # interview down the sheet. Ordering by the first appearance of each uuid puts every
-  # row of a survey in one block while keeping the original order inside the block, so
-  # the rows are exactly the same rows - only their arrangement changes. Rows sharing a
-  # check_binding stay adjacent, so the colour blocks still read correctly.
-  if (isTRUE(group_by_uuid) && nrow(final_log) > 1) {
-    uuid_values <- final_log[["Survey UUID"]]
-    block_rank <- match(uuid_values, unique(uuid_values))
+  # ---- group the log rows ----
+  # The combined log arrives stacked check by check, which scatters related rows down the
+  # sheet. Ordering by the first appearance of each value in `group_by` (Issue by default)
+  # puts every row sharing that value in one block while keeping the original order inside
+  # the block, so the rows are exactly the same rows - only their arrangement changes.
+  # Resolving is done here rather than up top because it needs the final column names.
+  group_by_column <- resolve_group_by_column(group_by, names(final_log))
+
+  if (!is.na(group_by_column) && nrow(final_log) > 1) {
+    group_values <- as.character(final_log[[group_by_column]])
+    block_rank <- match(group_values, unique(group_values))
     final_log <- final_log[
       order(block_rank, seq_along(block_rank)),
       ,
@@ -569,32 +718,7 @@ create_cleaning_log <- function(
   # resolve to the header actually written to the sheet.
   if (color_mode == "partial" && length(color_columns) > 0) {
     if (!is.numeric(color_columns)) {
-      log_aliases <- c(
-        "uuid" = "Survey UUID",
-        "surveyuuid" = "Survey UUID",
-        "question" = "Question number",
-        "questionnumber" = "Question number",
-        "questiontext" = "Question text",
-        "issue" = "Issue",
-        "oldvalue" = "Old value",
-        "newvalue" = "New value",
-        "action" = "Action taken",
-        "actiontaken" = "Action taken",
-        "date" = "Date",
-        "enumerator" = "Enumerator",
-        "section" = "Section",
-        "identifiedby" = "Identified by",
-        "comments" = "Comments",
-        "pofeedback" = "PO feedback",
-        "surveyregistrationdate" = "Survey Registration Date",
-        "checkbinding" = "check_binding"
-      )
-
-      requested <- as.character(color_columns)
-      keys <- normalize_column_key(requested)
-      matched <- keys %in% names(log_aliases)
-      requested[matched] <- unname(log_aliases[keys[matched]])
-      color_columns <- unique(requested)
+      color_columns <- unique(resolve_log_column_names(color_columns))
     }
   }
 
