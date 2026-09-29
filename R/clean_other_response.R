@@ -152,7 +152,11 @@ read_other_responses <- function(
 
   or <- do.call(rbind, raw_list)
   if (verbose) {
-    message("read_other_responses: ", nrow(or), " total rows read.")
+    message(
+      "read_other_responses: ",
+      nrow(or),
+      " other-response row(s) read."
+    )
   }
 
   # ---- rename verbose column headers to short working names ----
@@ -373,9 +377,13 @@ read_other_responses <- function(
       nrow(or_recode),
       " recode | ",
       nrow(or_remove),
-      " remove."
+      " remove (",
+      nrow(or_true) + nrow(or_recode) + nrow(or_remove),
+      " other-response row(s) to apply)."
     )
   }
+
+  n_input_rows <- nrow(or_true) + nrow(or_recode) + nrow(or_remove)
 
   # ---- build cleaning log parts ----
   log_parts <- list()
@@ -396,6 +404,10 @@ read_other_responses <- function(
   # row that touches it — memoise it so a large dataset is scanned once.
   conv_cache <- new.env(parent = emptyenv())
 
+  # uuid -> row position, built once: every value lookup below uses it instead
+  # of re-scanning the dataset.
+  uuid_index <- .make_uuid_index(dataset, uuid_column, skip_label_row)
+
   # 2) REMOVE
   if (nrow(or_remove) > 0) {
     remove_rows <- lapply(seq_len(nrow(or_remove)), function(i) {
@@ -406,7 +418,8 @@ read_other_responses <- function(
         sm_separator,
         skip_label_row,
         tool_choices,
-        conv_cache
+        conv_cache,
+        uuid_index
       )
     })
     log_parts[["remove"]] <- do.call(rbind, remove_rows)
@@ -422,33 +435,11 @@ read_other_responses <- function(
         uuid_column,
         sm_separator,
         skip_label_row,
-        conv_cache
+        conv_cache,
+        uuid_index
       )
     })
     log_parts[["recode"]] <- do.call(rbind, recode_rows)
-  }
-
-  # Report the select-multiple conventions detected from the data, so a
-  # mis-detection is visible in the console rather than only in the output.
-  if (verbose) {
-    for (k in ls(conv_cache)) {
-      cv <- get(k, envir = conv_cache)
-      message(
-        "  ",
-        sub("^q:", "", k),
-        ": sub-columns named with ",
-        if (cv$use_label) "choice labels" else "choice codes",
-        "; selected = ",
-        switch(
-          cv$value_kind,
-          binary = "\"1\"",
-          suffix = "the choice text",
-          label = "the choice label"
-        ),
-        ", not selected = ",
-        if (is.na(cv$unsel_val)) "blank" else paste0("\"", cv$unsel_val, "\"")
-      )
-    }
   }
 
   result <- do.call(rbind, log_parts)
@@ -477,7 +468,17 @@ read_other_responses <- function(
   }
 
   if (verbose) {
-    message("read_other_responses: returning ", nrow(result), " cleaning rows.")
+    # One other-response row becomes several cleaning-log rows: the _other text
+    # column is blanked, the "other" child column is unset, each recoded child
+    # column is set, and the parent column is rewritten. So this count is
+    # expected to exceed the number of rows read.
+    message(
+      "read_other_responses: returning ",
+      nrow(result),
+      " cleaning-log row(s) from ",
+      n_input_rows,
+      " other-response row(s)."
+    )
   }
   result
 }
@@ -496,6 +497,35 @@ read_other_responses <- function(
   )
 }
 
+#' Row positions of the actual data (everything but the ONA label row)
+#' @keywords internal
+.data_rows <- function(dataset, skip_label_row = TRUE) {
+  n <- nrow(dataset)
+  if (n == 0) {
+    return(integer(0))
+  }
+  if (skip_label_row) seq_len(n)[-1] else seq_len(n)
+}
+
+#' Build a uuid -> row position lookup for the dataset
+#'
+#' Built once per call and reused for every lookup. Resolving a uuid used to
+#' mean copying the whole dataframe and re-scanning the uuid column, which on a
+#' wide export costs more than all the cleaning logic put together.
+#'
+#' @return A named integer vector: uuid -> row position in \code{dataset}
+#'   (positions refer to the original dataframe, label row included).
+#' @keywords internal
+.make_uuid_index <- function(dataset, uuid_column, skip_label_row = TRUE) {
+  rows <- .data_rows(dataset, skip_label_row)
+  if (length(rows) == 0 || !(uuid_column %in% names(dataset))) {
+    return(integer(0))
+  }
+  u <- trimws(as.character(dataset[[uuid_column]][rows]))
+  keep <- !is.na(u) & nzchar(u) & !duplicated(u)
+  stats::setNames(rows[keep], u[keep])
+}
+
 #' Look up current value from dataset by uuid and column
 #' @keywords internal
 .get_val <- function(
@@ -503,21 +533,20 @@ read_other_responses <- function(
   uuid_column,
   uuid,
   column,
-  skip_label_row = TRUE
+  skip_label_row = TRUE,
+  uuid_index = NULL
 ) {
-  ds <- if (skip_label_row && nrow(dataset) > 0) {
-    dataset[-1, , drop = FALSE]
-  } else {
-    dataset
-  }
-  if (!column %in% names(ds)) {
+  if (!column %in% names(dataset)) {
     return(NA_character_)
   }
-  idx <- which(trimws(as.character(ds[[uuid_column]])) == uuid)
-  if (length(idx) == 0) {
+  if (is.null(uuid_index)) {
+    uuid_index <- .make_uuid_index(dataset, uuid_column, skip_label_row)
+  }
+  i <- uuid_index[[uuid]]
+  if (is.null(i) || is.na(i)) {
     return(NA_character_)
   }
-  as.character(ds[[column]][idx[1]])
+  as.character(dataset[[column]][i])
 }
 
 #' Get names of select-multiple sub-columns for a parent column
@@ -536,12 +565,16 @@ read_other_responses <- function(
   sm_separator,
   skip_label_row = TRUE,
   tool_choices = NULL,
-  conv_cache = NULL
+  conv_cache = NULL,
+  uuid_index = NULL
 ) {
   rows <- list()
   uuid <- x$uuid
   ref_type <- x$ref_type
-  gv <- function(col) .get_val(dataset, uuid_column, uuid, col, skip_label_row)
+  gv <- function(col) {
+    .get_val(dataset, uuid_column, uuid, col, skip_label_row, uuid_index)
+  }
+  tc_norm <- .norm_tool_choices(tool_choices, conv_cache)
 
   # always blank the _other text column
   rows[[1]] <- data.frame(
@@ -580,7 +613,12 @@ read_other_responses <- function(
 
     # Match the "other" option against the dataset's own sub-columns first, so a
     # list_name that no longer matches tool_choices cannot pick the wrong token.
-    other_cands <- .choice_tokens(x$option_other, x$list_name, tool_choices)
+    other_cands <- .choice_tokens(
+      x$option_other,
+      x$list_name,
+      tool_choices,
+      tc_norm
+    )
     sub_col <- .find_sub_col(all_sub, suffixes, other_cands)
     token_rem <- if (!is.na(sub_col)) {
       .sm_suffixes(sub_col, x$ref_question, sm_separator)
@@ -814,6 +852,40 @@ read_other_responses <- function(
   NA_character_
 }
 
+#' Pre-normalised view of tool_choices, computed once per call
+#'
+#' Choice lookups compare normalised text, and normalising the whole choices
+#' sheet on every lookup dominated the runtime. This builds the normalised
+#' vectors once and memoises them in the shared cache.
+#' @keywords internal
+.norm_tool_choices <- function(tool_choices, cache = NULL) {
+  key <- "tc:normalised"
+  if (!is.null(cache) && exists(key, envir = cache, inherits = FALSE)) {
+    return(get(key, envir = cache, inherits = FALSE))
+  }
+  out <- NULL
+  if (
+    is.data.frame(tool_choices) &&
+      all(c("list_name", "label", "name") %in% names(tool_choices))
+  ) {
+    lbl <- as.character(tool_choices$label)
+    nm <- as.character(tool_choices$name)
+    out <- list(
+      list_name = as.character(tool_choices$list_name),
+      label = lbl,
+      name = nm,
+      label_n = .norm_tok(lbl),
+      name_n = .norm_tok(nm),
+      label_l = .norm_loose(lbl),
+      name_l = .norm_loose(nm)
+    )
+  }
+  if (!is.null(cache)) {
+    assign(key, out, envir = cache)
+  }
+  out
+}
+
 #' Every token a choice could be written as in the dataset
 #'
 #' The \code{list_name} recorded in \code{other_db} comes from whichever
@@ -832,56 +904,38 @@ read_other_responses <- function(
 #'   text itself, then its counterpart within the stated list, then counterparts
 #'   found in any other list.
 #' @keywords internal
-.choice_tokens <- function(text, list_name, tool_choices) {
+.choice_tokens <- function(text, list_name, tool_choices, tc_norm = NULL) {
   txt <- trimws(as.character(text))[1]
   if (is.na(txt) || !nzchar(txt)) {
     return(character(0))
   }
-  out <- txt
-  if (
-    !is.data.frame(tool_choices) ||
-      !all(c("list_name", "label", "name") %in% names(tool_choices))
-  ) {
-    return(out)
+  tcn <- if (is.null(tc_norm)) .norm_tool_choices(tool_choices) else tc_norm
+  if (is.null(tcn)) {
+    return(txt)
   }
 
-  pull <- function(tc) {
-    if (nrow(tc) == 0) {
+  txt_n <- .norm_tok(txt)
+  txt_l <- .norm_loose(txt)
+  gather <- function(mask) {
+    if (!any(mask)) {
       return(character(0))
     }
-    res <- character(0)
-    for (cmp in list(.norm_tok, .norm_loose)) {
-      res <- c(
-        res,
-        as.character(tc$name[cmp(tc$label) == cmp(txt)]),
-        as.character(tc$label[cmp(tc$name) == cmp(txt)])
-      )
-    }
-    res
+    c(
+      tcn$name[mask & tcn$label_n == txt_n],
+      tcn$label[mask & tcn$name_n == txt_n],
+      tcn$name[mask & tcn$label_l == txt_l],
+      tcn$label[mask & tcn$name_l == txt_l]
+    )
   }
 
-  in_list <- if (!is.null(list_name) && !is.na(list_name)) {
-    tool_choices[
-      !is.na(tool_choices$list_name) & tool_choices$list_name == list_name,
-      ,
-      drop = FALSE
-    ]
+  in_list <- if (is.null(list_name) || is.na(list_name)) {
+    rep(FALSE, length(tcn$list_name))
   } else {
-    tool_choices[0, , drop = FALSE]
+    !is.na(tcn$list_name) & tcn$list_name == list_name
   }
-  out <- c(out, pull(in_list))
-
-  # fall back to every other list: same choice text, different list_name
-  other <- tool_choices[
-    is.na(tool_choices$list_name) |
-      is.null(list_name) |
-      is.na(list_name) |
-      tool_choices$list_name != list_name,
-    ,
-    drop = FALSE
-  ]
-  out <- c(out, pull(other))
-
+  # stated list first, then every other list (a list_name recorded by another
+  # version of the tool may not exist here at all)
+  out <- c(txt, gather(in_list), gather(!in_list))
   out <- out[!is.na(out) & nzchar(trimws(out))]
   unique(out)
 }
@@ -896,7 +950,19 @@ read_other_responses <- function(
 #'
 #' @return \code{"binary"}, \code{"suffix"}, or \code{NA_character_}.
 #' @keywords internal
-.detect_dataset_sm_style <- function(ds, sm_separator, max_cols = 300L) {
+.detect_dataset_sm_style <- function(
+  ds,
+  sm_separator,
+  max_cols = 300L,
+  rows = NULL,
+  max_rows = 2000L
+) {
+  if (is.null(rows)) {
+    rows <- seq_len(nrow(ds))
+  }
+  if (length(rows) > max_rows) {
+    rows <- rows[seq_len(max_rows)]
+  }
   cand <- names(ds)[grepl(sm_separator, names(ds), fixed = TRUE)]
   if (length(cand) == 0) {
     return(NA_character_)
@@ -910,7 +976,7 @@ read_other_responses <- function(
     if (pos < 1L) next
     suffix <- substring(col, pos + nchar(sm_separator))
     if (!nzchar(suffix)) next
-    vals <- as.character(ds[[col]])
+    vals <- as.character(ds[[col]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
     if (length(vals) == 0) next
     v <- .norm_tok(vals)
@@ -954,12 +1020,7 @@ read_other_responses <- function(
       is.data.frame(tool_choices) &&
       all(c("list_name", "label", "name") %in% names(tool_choices))
   ) {
-    ds <- if (skip_label_row && nrow(dataset) > 0) {
-      dataset[-1, , drop = FALSE]
-    } else {
-      dataset
-    }
-    vals <- as.character(ds[[col]])
+    vals <- as.character(dataset[[col]][.data_rows(dataset, skip_label_row)])
     vals <- .norm_tok(vals[!is.na(vals) & nzchar(trimws(vals))])
     if (length(vals) > 0) {
       score <- function(tc) {
@@ -1037,11 +1098,7 @@ read_other_responses <- function(
   sub_cols <- .sm_sub_cols(dataset, parent_col, sm_separator)
   suffixes <- .sm_suffixes(sub_cols, parent_col, sm_separator)
 
-  ds <- if (skip_label_row && nrow(dataset) > 0) {
-    dataset[-1, , drop = FALSE]
-  } else {
-    dataset
-  }
+  rows <- .data_rows(dataset, skip_label_row)
 
   # ---- choice vocabulary for this question ----
   ch_lbl <- character(0)
@@ -1100,7 +1157,7 @@ read_other_responses <- function(
   hit_suffix <- FALSE
   hit_label <- FALSE
   for (i in seq_along(sub_cols)) {
-    vals <- as.character(ds[[sub_cols[i]]])
+    vals <- as.character(dataset[[sub_cols[i]]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
     if (length(vals) == 0) next
     v <- .norm_tok(vals)
@@ -1130,8 +1187,8 @@ read_other_responses <- function(
   if (is.na(value_kind)) {
     # No filled sub-column for this question. Try the parent concat column: in a
     # label export it holds the choice text, in a binary export only 0/1.
-    parent_vals <- if (parent_col %in% names(ds)) {
-      as.character(ds[[parent_col]])
+    parent_vals <- if (parent_col %in% names(dataset)) {
+      as.character(dataset[[parent_col]][rows])
     } else {
       character(0)
     }
@@ -1144,7 +1201,7 @@ read_other_responses <- function(
     ) {
       value_kind <- "binary"
     } else {
-      value_kind <- .detect_dataset_sm_style(ds, sm_separator)
+      value_kind <- .detect_dataset_sm_style(dataset, sm_separator, rows = rows)
     }
   }
 
@@ -1225,12 +1282,16 @@ read_other_responses <- function(
   uuid_column,
   sm_separator,
   skip_label_row = TRUE,
-  conv_cache = NULL
+  conv_cache = NULL,
+  uuid_index = NULL
 ) {
   rows <- list()
   uuid <- x$uuid
   ref_type <- x$ref_type
-  gv <- function(col) .get_val(dataset, uuid_column, uuid, col, skip_label_row)
+  gv <- function(col) {
+    .get_val(dataset, uuid_column, uuid, col, skip_label_row, uuid_index)
+  }
+  tc_norm <- .norm_tool_choices(tool_choices, conv_cache)
 
   # always blank the _other text column
   rows[[1]] <- data.frame(
@@ -1244,7 +1305,7 @@ read_other_responses <- function(
 
   if (identical(ref_type, "select_one")) {
     chosen <- trimws(x$existing_other)
-    cands <- .choice_tokens(chosen, x$list_name, tool_choices)
+    cands <- .choice_tokens(chosen, x$list_name, tool_choices, tc_norm)
     so_conv <- .detect_so_convention(
       dataset,
       x$ref_question,
@@ -1360,7 +1421,7 @@ read_other_responses <- function(
     label_cands <- list()
     label_subcol <- list()
     for (l in chosen_labels) {
-      cands <- .choice_tokens(l, x$list_name, tool_choices)
+      cands <- .choice_tokens(l, x$list_name, tool_choices, tc_norm)
       sc <- .find_sub_col(all_sub_cols, suffixes, cands)
       if (is.na(sc) && length(cands) <= 1L) {
         warning(paste0(
@@ -1382,7 +1443,12 @@ read_other_responses <- function(
     }
 
     # ---- the "other" option ----
-    other_cands <- .choice_tokens(x$option_other, x$list_name, tool_choices)
+    other_cands <- .choice_tokens(
+      x$option_other,
+      x$list_name,
+      tool_choices,
+      tc_norm
+    )
     sub_col_other <- .find_sub_col(all_sub_cols, suffixes, other_cands)
     token_to_remove <- token_for(sub_col_other, other_cands)
 
