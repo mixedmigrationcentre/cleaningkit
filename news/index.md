@@ -2,6 +2,27 @@
 
 ## cleaningkit (development version)
 
+### Other-response cleaning
+
+- [`read_other_responses()`](../reference/read_other_responses.md) now
+  detects the select-multiple convention from the data itself instead of
+  defaulting to a binary (`0`/`1`) export. In an ONA label export —
+  where sub-columns are named `Q83/<choice label>`, a selected choice
+  holds the choice text and an unselected one is blank — the log now
+  writes the choice text and leaves unselected children blank, so
+  [`apply_other_responses()`](../reference/apply_other_responses.md) no
+  longer introduces `0`/`1` into label data. Detection scans every
+  sub-column of the question (previously only the first five), then the
+  parent concat column, then the rest of the dataset, and falls back to
+  the choice-text convention when nothing indicates a binary export.
+- Sub-columns are now matched to choices case- and
+  whitespace-insensitively and by either the choice label or the choice
+  code, so questions whose labels are single words (e.g. `Q10/Kenya`)
+  are no longer mistaken for coded headers. A choice with no matching
+  sub-column now warns instead of silently doing nothing.
+- The value written to unselect a choice now also follows the export:
+  `"0"` only where the data already contains zeros, blank otherwise.
+
 ### Round-to-round data preparation
 
 - Added [`filter_new_records()`](../reference/filter_new_records.md) to

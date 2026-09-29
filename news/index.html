@@ -39,6 +39,13 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
 <div class="section level3">
+<h3 id="other-response-cleaning-development-version">Other-response cleaning<a class="anchor" aria-label="anchor" href="#other-response-cleaning-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> now detects the select-multiple convention from the data itself instead of defaulting to a binary (<code>0</code>/<code>1</code>) export. In an ONA label export — where sub-columns are named <code>Q83/&lt;choice label&gt;</code>, a selected choice holds the choice text and an unselected one is blank — the log now writes the choice text and leaves unselected children blank, so <code><a href="../reference/apply_other_responses.html">apply_other_responses()</a></code> no longer introduces <code>0</code>/<code>1</code> into label data. Detection scans every sub-column of the question (previously only the first five), then the parent concat column, then the rest of the dataset, and falls back to the choice-text convention when nothing indicates a binary export.</li>
+<li>Sub-columns are now matched to choices case- and whitespace-insensitively and by either the choice label or the choice code, so questions whose labels are single words (e.g. <code>Q10/Kenya</code>) are no longer mistaken for coded headers. A choice with no matching sub-column now warns instead of silently doing nothing.</li>
+<li>The value written to unselect a choice now also follows the export: <code>"0"</code> only where the data already contains zeros, blank otherwise.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="round-to-round-data-preparation-development-version">Round-to-round data preparation<a class="anchor" aria-label="anchor" href="#round-to-round-data-preparation-development-version"></a></h3>
 <ul><li>Added <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> to reduce a cumulative ONA export to the records collected since the last validation round, so repeated rounds over a long data collection period do not regenerate cleaning log entries that were already reviewed. It compares the two files in <code>data/</code>, keeps a running <code>processed_uuids.csv</code> ledger so records from earlier rounds cannot reappear, preserves the ONA label row, archives the inputs and writes <code>data.xlsx</code>.</li>
 </ul></div>
