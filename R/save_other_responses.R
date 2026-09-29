@@ -37,14 +37,17 @@
 #'   after the header; if it is kept it is mistaken for a respondent and produces
 #'   one spurious "other" response (label text, bogus uuid) per question.
 #' @param label_language_fallback Logical. If \code{TRUE} (the default), when the
-#'   English label lookup for a selected \code{select_multiple} code returns
-#'   nothing, the first non-empty label column in \code{tool_choices} (e.g. an
-#'   Arabic \code{label::Arabic (ar)} column) is used instead, so responses in
+#'   English label lookup for a selected choice code returns nothing, the first
+#'   non-empty label column in \code{tool_choices} (e.g. an Arabic
+#'   \code{label::Arabic (ar)} column) is used instead, so responses in
 #'   other languages are shown as they appear in the raw data rather than as
-#'   \code{NA}.
+#'   \code{NA}. Applies to both \code{select_multiple} and \code{select_one}
+#'   rows.
 #' @param fallback_to_code Logical. If \code{TRUE} (the default), a selected code
 #'   with no label in any language is displayed as the raw code itself, so no
-#'   \code{"NA"} is ever written into \code{selected_choices}.
+#'   \code{"NA"} is ever written into \code{selected_choices}. For
+#'   \code{select_one} rows the final fallback is the literal \code{"Other"}, so
+#'   the column is never blank there regardless of this setting.
 #' @param preferred_language Optional. The label language to prefer when resolving
 #'   \code{select_multiple} choice labels. May be an exact label column name (e.g.
 #'   \code{"label::Arabic (ar)"}) or a substring (e.g. \code{"Arabic"}). Passed to
@@ -62,6 +65,22 @@
 #'   The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
 #'   (earlier versions wrote three numbered slots), \strong{INVALID other},
 #'   \strong{FOLLOW-UP message} and \strong{Explanation}.
+#' @section selected_choices:
+#' \code{selected_choices} is filled for both question types, so a reviewer never
+#' sees a blank cell where a selection exists:
+#' \itemize{
+#'   \item \code{select_multiple} - every choice the respondent selected in the
+#'     parent question, resolved to labels and separated by \code{";\\n"}.
+#'   \item \code{select_one} - the question's own "other" option
+#'     (\code{other_db$option_other}), resolved to its label in
+#'     \code{tool_choices} so it reads exactly as in the tool (e.g. \code{"Other"},
+#'     \code{"Other (please specify)"}). A select_one "other" response can only
+#'     come from that option being picked, so nothing is read from the parent
+#'     column. When the option code is missing or unresolvable, the literal
+#'     \code{"Other"} is written.
+#' }
+#' Rows whose parent question is neither type (e.g. a plain \code{text} question)
+#' keep \code{NA}.
 #' @export
 prepare_other_responses <- function(
   raw_data,
@@ -205,13 +224,18 @@ prepare_other_responses <- function(
     )
 
   # ---------------------------------------------------------------------------
-  # Vectorized "selected choices" for select_multiple questions.
+  # Vectorized "selected choices" for select_multiple and select_one questions.
   #
   # Here we:
   #   1. resolve ref_question / q_type once via match(),
-  #   2. build a uuid -> value lookup per referenced column (main data first,
-  #      loops fill only missing/NA uuids, first occurrence wins),
-  #   3. memoize get_label_from_name() over unique (list_name, code) pairs.
+  #   2. build the shared choice-label resolver (preferred language, then any
+  #      other language, then the raw code),
+  #   3. select_multiple - build a uuid -> value lookup per referenced column
+  #      (main data first, loops fill only missing/NA uuids, first occurrence
+  #      wins) and resolve every selected code,
+  #   4. select_one - resolve the question's own "other" option, which is the
+  #      only choice that can produce an "other" response,
+  #   5. memoize get_label_from_name() over unique (list_name, code) pairs.
   # ---------------------------------------------------------------------------
   df$selected_choices <- NA_character_
 
@@ -221,6 +245,84 @@ prepare_other_responses <- function(
     ref_row <- other_db[["ref_question"]][meta_idx]
 
     sm_idx <- which(!is.na(type_row) & type_row == "select_multiple")
+    so_idx <- which(!is.na(type_row) & type_row == "select_one")
+
+    # --- Shared choice-label resolution ---------------------------------------
+    # Built once here (rather than inside the select_multiple branch) because
+    # both select_multiple and select_one rows resolve choice codes to labels.
+
+    # Build a language fallback map from tool_choices: for each
+    # (list_name, name) pair, the first non-empty label column value. XLSForm tools like Kobo/ONA
+    # label columns start with "label" (e.g. "label::English (en)",
+    # "label::Arabic (ar)"). When preferred_language is set, that column is put
+    # first so the fallback also prefers it; otherwise columns keep their order.
+    choice_fallback_map <- NULL
+    if (
+      isTRUE(label_language_fallback) &&
+        !is.null(tool_choices) &&
+        all(c("list_name", "name") %in% names(tool_choices)) &&
+        nrow(tool_choices) > 0
+    ) {
+      label_cols <- grep(
+        "^label",
+        names(tool_choices),
+        ignore.case = TRUE,
+        value = TRUE
+      )
+      if (!is.null(preferred_language) && length(label_cols) > 0) {
+        pref <- label_cols[
+          label_cols == preferred_language |
+            grepl(preferred_language, label_cols, ignore.case = TRUE)
+        ]
+        label_cols <- c(pref, setdiff(label_cols, pref))
+      }
+      if (length(label_cols) > 0) {
+        lab_mat <- as.matrix(tool_choices[, label_cols, drop = FALSE])
+        first_nonempty <- apply(lab_mat, 1, function(vals) {
+          vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+          if (length(vals) == 0) NA_character_ else vals[[1]]
+        })
+        ck <- paste(
+          as.character(tool_choices$list_name),
+          as.character(tool_choices$name),
+          sep = "\u0001"
+        )
+        choice_fallback_map <- stats::setNames(
+          as.character(first_nonempty),
+          ck
+        )
+      }
+    }
+
+    # Resolve a code's label: preferred language first (via get_label_from_name),
+    # then any other language (via the fallback map), then the raw code
+    # (never NA when fallback_to_code = TRUE).
+    resolve_label <- function(list_name, code) {
+      lab <- tryCatch(
+        as.character(get_label_from_name(
+          list_name,
+          code,
+          tool_choices,
+          label_column = preferred_language
+        ))[1],
+        error = function(e) NA_character_
+      )
+      if (!is.na(lab) && nzchar(lab) && !identical(lab, "NA")) {
+        return(lab)
+      }
+      if (!is.null(choice_fallback_map)) {
+        alt <- unname(
+          choice_fallback_map[paste(list_name, code, sep = "\u0001")]
+        )
+        if (!is.na(alt) && nzchar(alt)) {
+          return(alt)
+        }
+      }
+      if (isTRUE(fallback_to_code)) {
+        return(code)
+      }
+      NA_character_
+    }
 
     if (length(sm_idx) > 0) {
       ref_for_row <- as.character(ref_row[sm_idx])
@@ -404,79 +506,6 @@ prepare_other_responses <- function(
       ))
       pair_keys <- pair_keys[!is.na(pair_keys)]
 
-      # Build a language fallback map from tool_choices: for each
-      # (list_name, name) pair, the first non-empty label column value. XLSForm tools like Kobo/ONA
-      # label columns start with "label" (e.g. "label::English (en)",
-      # "label::Arabic (ar)"). When preferred_language is set, that column is put
-      # first so the fallback also prefers it; otherwise columns keep their order.
-      choice_fallback_map <- NULL
-      if (
-        isTRUE(label_language_fallback) &&
-          !is.null(tool_choices) &&
-          all(c("list_name", "name") %in% names(tool_choices)) &&
-          nrow(tool_choices) > 0
-      ) {
-        label_cols <- grep(
-          "^label",
-          names(tool_choices),
-          ignore.case = TRUE,
-          value = TRUE
-        )
-        if (!is.null(preferred_language) && length(label_cols) > 0) {
-          pref <- label_cols[
-            label_cols == preferred_language |
-              grepl(preferred_language, label_cols, ignore.case = TRUE)
-          ]
-          label_cols <- c(pref, setdiff(label_cols, pref))
-        }
-        if (length(label_cols) > 0) {
-          lab_mat <- as.matrix(tool_choices[, label_cols, drop = FALSE])
-          first_nonempty <- apply(lab_mat, 1, function(vals) {
-            vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-            if (length(vals) == 0) NA_character_ else vals[[1]]
-          })
-          ck <- paste(
-            as.character(tool_choices$list_name),
-            as.character(tool_choices$name),
-            sep = "\u0001"
-          )
-          choice_fallback_map <- stats::setNames(
-            as.character(first_nonempty),
-            ck
-          )
-        }
-      }
-
-      # Resolve a code's label: preferred language first (via get_label_from_name),
-      # then any other language (via the fallback map), then the raw code
-      # (never NA when fallback_to_code = TRUE).
-      resolve_label <- function(list_name, code) {
-        lab <- tryCatch(
-          as.character(get_label_from_name(
-            list_name,
-            code,
-            tool_choices,
-            label_column = preferred_language
-          ))[1],
-          error = function(e) NA_character_
-        )
-        if (!is.na(lab) && nzchar(lab) && !identical(lab, "NA")) {
-          return(lab)
-        }
-        if (!is.null(choice_fallback_map)) {
-          alt <- unname(
-            choice_fallback_map[paste(list_name, code, sep = "\u0001")]
-          )
-          if (!is.na(alt) && nzchar(alt)) {
-            return(alt)
-          }
-        }
-        if (isTRUE(fallback_to_code)) {
-          return(code)
-        }
-        NA_character_
-      }
-
       for (pk in pair_keys) {
         parts <- strsplit(pk, "\u0001", fixed = TRUE)[[1]]
         assign(
@@ -506,6 +535,60 @@ prepare_other_responses <- function(
             character(1)
           )
           paste0(labs, collapse = ";\n")
+        },
+        character(1)
+      )
+    }
+
+    # -------------------------------------------------------------------------
+    # "selected choices" for select_one questions.
+    #
+    # A select_one "other" response only exists because the respondent picked the
+    # question's "other" option, so the selected choice is known without reading
+    # the parent column: it is other_db$option_other (the code the relevance
+    # expression compares against). We resolve that code to its label through the
+    # same resolver used for select_multiple, so the wording and language match
+    # the tool ("Other", "Other (please specify)", the Arabic label, ...). If the
+    # code is missing or cannot be resolved, the literal "Other" is written, so
+    # the column is never left blank for a select_one row.
+    # -------------------------------------------------------------------------
+    if (length(so_idx) > 0) {
+      other_code_row <- if ("option_other" %in% names(other_db)) {
+        as.character(other_db[["option_other"]][meta_idx][so_idx])
+      } else {
+        rep(NA_character_, length(so_idx))
+      }
+      list_so <- as.character(df$list_name[so_idx])
+
+      resolvable <- !is.na(other_code_row) &
+        nzchar(other_code_row) &
+        !is.na(list_so) &
+        nzchar(list_so)
+
+      so_keys <- rep(NA_character_, length(so_idx))
+      so_keys[resolvable] <- paste(
+        list_so[resolvable],
+        other_code_row[resolvable],
+        sep = "\u0001"
+      )
+
+      so_cache <- new.env(parent = emptyenv())
+      for (pk in unique(so_keys[resolvable])) {
+        parts <- strsplit(pk, "\u0001", fixed = TRUE)[[1]]
+        lab <- resolve_label(parts[1], parts[2])
+        if (is.na(lab) || !nzchar(lab)) {
+          lab <- "Other"
+        }
+        assign(pk, lab, envir = so_cache)
+      }
+
+      df$selected_choices[so_idx] <- vapply(
+        seq_along(so_idx),
+        function(k) {
+          if (!resolvable[k]) {
+            return("Other")
+          }
+          get0(so_keys[k], envir = so_cache, ifnotfound = "Other")
         },
         character(1)
       )

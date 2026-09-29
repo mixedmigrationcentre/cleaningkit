@@ -1,5 +1,25 @@
 # cleaningkit (development version)
 
+## Other responses
+* `prepare_other_responses()` now fills **`selected_choices` for `select_one`
+  questions** as well. The column was populated only for `select_multiple`, so a
+  reviewer scanning the sheet saw it blank on every `select_one` row and could
+  not tell a missing lookup from a question type that simply never wrote one. A
+  `select_one` "other" response can only exist because the respondent picked the
+  question's own "other" option, so that option (`other_db$option_other`) is
+  written, resolved to its label in `tool_choices` &mdash; it reads exactly as in
+  the tool (`Other`, `Other (please specify)`, the Arabic label) and goes through
+  the same resolver and the same `preferred_language` /
+  `label_language_fallback` settings as `select_multiple`. When the option code
+  is missing or cannot be resolved, the literal `Other` is written, so the cell
+  is never blank on a `select_one` row.
+* `select_multiple` behaviour is unchanged: every selected choice, resolved to
+  labels and separated by `";\n"`. Rows whose parent question is neither type
+  (e.g. a plain `text` question) still keep `NA`.
+* `save_other_responses()` needed no change &mdash; it writes and styles
+  `selected_choices` as an ordinary column, so the newly filled cells appear
+  with no change to the dropdowns or the reviewer columns.
+
 ## Cleaning log fixes
 * `create_cleaning_log()` no longer errors on an **empty combined log** &mdash; a
   round where no check flagged anything. The reviewer columns left blank for
