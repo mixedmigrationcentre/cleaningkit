@@ -44,10 +44,12 @@ ck_issue_values <- function(df) {
 #' all are not treated as mismatches - they are warned about and skipped as
 #' before. Run \code{check_log_files()} directly for the full report.
 #'
-#' \strong{Sheet selection:} \code{sheet} accepts either a sheet name or an
-#' integer index. The default \code{2} matches the output of
-#' \code{create_cleaning_log()} where sheet 1 is the dataset and sheet 2 is
-#' the cleaning log.
+#' \strong{Sheet selection:} the default \code{NULL} finds the sheet by name,
+#' per file - \code{"cleaning_log"}, falling back to the first sheet if no
+#' sheet carries that name. Naming it rather than numbering it is what lets the
+#' log live in a workbook that also holds the dataset, the readme and the other
+#' responses without the reader having to know the tab order. Pass a name or an
+#' integer index to override.
 #'
 #' \strong{Blank actions:} a reviewer only fills in the rows that need a
 #' change, so a flagged row left with an empty \strong{Action taken} means the
@@ -96,8 +98,10 @@ ck_issue_values <- function(df) {
 #'   \code{"Question number"}.
 #' @param old_value_col Name of the old-value column. Default \code{"Old value"}.
 #' @param new_value_col Name of the new-value column. Default \code{"New value"}.
-#' @param sheet Sheet to read from each Excel file. Accepts a name or integer.
-#'   Default \code{2}.
+#' @param sheet Sheet to read from each Excel file. Default \code{NULL}
+#'   resolves it per file by name (\code{"cleaning_log"}, then the first
+#'   sheet). Accepts a name or an integer to override, or a vector/list of the
+#'   same length as the files.
 #' @param file_pattern Regex pattern used to identify cleaning log files when
 #'   \code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xls[xm]$"},
 #'   which matches both plain and macro-enabled logs (see the \code{macro}
@@ -126,7 +130,7 @@ read_cleaning_log <- function(
   question_col = "Question number",
   old_value_col = "Old value",
   new_value_col = "New value",
-  sheet = 2,
+  sheet = NULL,
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
   default_blank_action = "no_action",
@@ -168,10 +172,26 @@ read_cleaning_log <- function(
     stop(paste0("'path' does not exist: ", path))
   }
 
+  # ---- resolve the sheet, per file ----
+  # By name rather than by number: the cleaning log is the first sheet today,
+  # but it sits in a workbook that also carries the dataset, the readme and -
+  # since the merge - the other responses, and a hard-coded index silently
+  # reads the wrong tab the moment that order changes.
+  sheet_for <- if (is.null(sheet)) {
+    lapply(
+      files,
+      ck_resolve_sheet,
+      candidates = ck_sheet_candidates("cleaning_log"),
+      fallback = 1
+    )
+  } else {
+    rep_len(if (is.list(sheet)) sheet else as.list(sheet), length(files))
+  }
+
   if (verbose) {
     message("read_cleaning_log: reading ", length(files), " file(s):")
-    for (f in files) {
-      message("  ", f)
+    for (i in seq_along(files)) {
+      message("  ", files[i], "  [sheet: ", sheet_for[[i]], "]")
     }
   }
 
@@ -181,15 +201,16 @@ read_cleaning_log <- function(
   # match" into a message that names the offending file and the columns to fix.
   ck_assert_log_columns(
     files = files,
-    sheet = sheet,
+    sheet = sheet_for,
     caller = "read_cleaning_log",
     verbose = verbose
   )
 
   # ---- read all files ----
-  log_list <- lapply(files, function(f) {
+  log_list <- lapply(seq_along(files), function(i) {
+    f <- files[i]
     tryCatch(
-      readxl::read_excel(f, col_types = "text", sheet = sheet),
+      readxl::read_excel(f, col_types = "text", sheet = sheet_for[[i]]),
       error = function(e) {
         warning(paste0("Could not read '", f, "': ", conditionMessage(e)))
         NULL

@@ -173,9 +173,11 @@ create_cleaning_log_vba <- function(
       call. = FALSE
     )
   }
-  if (is.list(write_list) && "_ck_config" %in% names(write_list)) {
+  if (is.list(write_list) && ck_sheet_name("config") %in% names(write_list)) {
     stop(
-      "The list already has an element named `_ck_config`. Please rename it.",
+      "The list already has an element named `",
+      ck_sheet_name("config"),
+      "`. Please rename it.",
       call. = FALSE
     )
   }
@@ -228,18 +230,6 @@ create_cleaning_log_vba <- function(
     group_by = group_by
   )
 
-  if (!("dataset" %in% names(workbook))) {
-    stop(
-      "The workbook has no `dataset` sheet, so there is nothing for the macro ",
-      "to watch.",
-      call. = FALSE
-    )
-  }
-
-  # ---- the macro's configuration sheet ----
-  # Row layout of the dataset sheet as written: openxlsx puts the column names
-  # on row 1, so the ONA label row lands on row 2 and the records start on
-  # row 3. Without a label row everything shifts up by one.
   # The flag columns restate what the checks already found, so an edit to one
   # is not a data change: their headers go to the macro as `ignore_columns` and
   # it appends nothing for a cell in any of them.
@@ -248,8 +238,77 @@ create_cleaning_log_vba <- function(
     names(write_list[[dataset_name]])
   )
 
+  output_path <- .ck_finalise_macro_workbook(
+    workbook = workbook,
+    output_path = output_path,
+    cleaning_log_name = cleaning_log_name,
+    uuid_column = uuid_column,
+    date_column = date_column,
+    enumerator_column = enumerator_column,
+    macro_issue_prefix = macro_issue_prefix,
+    body_front = body_front,
+    body_front_size = body_front_size,
+    skip_label_row = skip_label_row,
+    ignore_columns = ignore_columns,
+    vba_project = resolved_vba,
+    caller = "create_cleaning_log_vba"
+  )
+
+  invisible(output_path)
+}
+
+
+#' Attach the change-capture macro to a finished workbook and write it out
+#'
+#' The tail end of \code{create_cleaning_log_vba()}, pulled out so that
+#' \code{create_review_workbook()} can reach the same code rather than
+#' re-implementing the configuration sheet and the injection steps. Called last,
+#' after every other sheet has been added, so \code{_ck_config} stays at the end
+#' of the workbook.
+#'
+#' @param workbook The openxlsx \code{Workbook} to finish.
+#' @param output_path Path to write to. An \code{.xlsx} extension is corrected
+#'   to \code{.xlsm} with a message.
+#' @param ignore_columns Headers on the dataset sheet the macro must not log.
+#' @param vba_project Path to an existing \code{vbaProject.bin}, already
+#'   resolved and checked by the caller.
+#' @param caller Name of the calling function, used in messages.
+#' @param cleaning_log_name,uuid_column,date_column,enumerator_column,macro_issue_prefix,body_front,body_front_size,skip_label_row
+#'   As documented on \code{create_cleaning_log_vba()}.
+#'
+#' @return The (possibly corrected) \code{output_path}.
+#' @noRd
+.ck_finalise_macro_workbook <- function(
+  workbook,
+  output_path,
+  cleaning_log_name,
+  uuid_column,
+  date_column,
+  enumerator_column,
+  macro_issue_prefix,
+  body_front,
+  body_front_size,
+  skip_label_row,
+  ignore_columns,
+  vba_project,
+  caller = "create_cleaning_log_vba"
+) {
+  dataset_sheet <- ck_sheet_name("dataset")
+  if (!(dataset_sheet %in% names(workbook))) {
+    stop(
+      "The workbook has no `",
+      dataset_sheet,
+      "` sheet, so there is nothing for the macro to watch.",
+      call. = FALSE
+    )
+  }
+
+  # ---- the macro's configuration sheet ----
+  # Row layout of the dataset sheet as written: openxlsx puts the column names
+  # on row 1, so the ONA label row lands on row 2 and the records start on
+  # row 3. Without a label row everything shifts up by one.
   config <- ck_macro_config_df(
-    dataset_sheet = "dataset",
+    dataset_sheet = dataset_sheet,
     log_sheet = cleaning_log_name,
     uuid_column = uuid_column,
     date_column = date_column,
@@ -266,8 +325,9 @@ create_cleaning_log_vba <- function(
 
   # Added last so the positions of the existing sheets do not move, and
   # veryHidden so it stays out of Excel's Unhide dialog.
-  openxlsx::addWorksheet(workbook, "_ck_config", visible = "veryHidden")
-  openxlsx::writeData(workbook, sheet = "_ck_config", config, rowNames = FALSE)
+  config_sheet <- ck_sheet_name("config")
+  openxlsx::addWorksheet(workbook, config_sheet, visible = "veryHidden")
+  openxlsx::writeData(workbook, sheet = config_sheet, config, rowNames = FALSE)
 
   # ---- save and inject ----
   if (!grepl("\\.xlsm$", output_path, ignore.case = TRUE)) {
@@ -276,8 +336,8 @@ create_cleaning_log_vba <- function(
       ".xlsm"
     )
     message(
-      "create_cleaning_log_vba: a macro-enabled workbook must be .xlsm; ",
-      "output_path changed to '",
+      caller,
+      ": a macro-enabled workbook must be .xlsm; output_path changed to '",
       output_path,
       "'."
     )
@@ -290,9 +350,9 @@ create_cleaning_log_vba <- function(
   add_vba_project(
     xlsx_path = tmp_xlsx,
     xlsm_path = output_path,
-    vba_project = resolved_vba,
+    vba_project = vba_project,
     overwrite = TRUE
   )
 
-  invisible(output_path)
+  output_path
 }

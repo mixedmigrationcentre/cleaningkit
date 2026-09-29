@@ -610,51 +610,48 @@ prepare_other_responses <- function(
   return(df)
 }
 
-#' Save Other Responses
+#' Write the other-responses sheets into an existing workbook
 #'
-#' This function saves the other responses into an Excel workbook with specific
-#' formatting and data validation. Target columns are identified dynamically by
-#' name, allowing flexibility such as adding an `enumerator_id`.
+#' The part of \code{save_other_responses()} that can be reused. It takes a
+#' workbook, adds the review sheet and the drop-down source sheet to it, and
+#' hands the workbook back. \code{save_other_responses()} wraps it to produce a
+#' standalone file; \code{create_review_workbook()} calls it on the workbook
+#' \code{create_cleaning_log()} returns, which is how both logs end up in one
+#' file.
 #'
-#' @param df Data frame containing the responses to write.
-#' @param ref_date Reference date for the filename (default is "").
-#' @param enumerator_id Optional string indicating the enumerator id column
-#'   (default is NULL).
-#' @param save_location Directory to save the output file (default is "output").
-#' @param other_db Data frame containing dropdown mapping for existing choices
-#'   (default is NULL).
-#' @param apply_styles Logical. If TRUE (default) apply the coloured/bordered
-#'   cell styling. Set to FALSE for very large exports where per-cell styling
-#'   makes openxlsx slow or memory-hungry; the data and dropdowns are still
-#'   written.
-#' @param skip_label_row Logical. If \code{TRUE} (the default), guard against an
-#'   ONA label/description row still sitting at the top of \code{df}. When \code{df}
-#'   comes from \code{prepare_other_responses()} the label row was already handled
-#'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
-#'   dropped. Only when \code{df} has no such provenance is its first row dropped,
-#'   with a message. Set to \code{FALSE} to always keep every row.
-#' @param freeze_header Logical. Freeze the header row so it stays visible while
-#'   scrolling (default \code{TRUE}). Navigation only - it does not change the
-#'   cell styling.
-#' @param add_filter Logical. Add a column filter on the header row (default
-#'   \code{TRUE}). Navigation only - it does not change the cell styling.
-#' @param file_name Name of the output file. Default \code{NULL} keeps the
-#'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
-#'   passed without the \code{.xlsx} extension gets it appended. The name is
-#'   written inside \code{save_location}.
-#' @return NULL. Saves an Excel file.
-#' @export
-save_other_responses <- function(
+#' Nothing here touches the workbook's base font: \code{modifyBaseFont()} is
+#' workbook-wide and would reach the cleaning log's sheets, so the fonts are set
+#' on this function's own styles instead and the caller decides whether to set a
+#' base font as well.
+#'
+#' @param wb An openxlsx \code{Workbook} object to write into.
+#' @param df Data frame of other responses, from \code{prepare_other_responses()}.
+#' @param other_db Data frame from \code{get_other_db()}, used for the
+#'   per-question drop-downs. \code{NULL} writes the sheet without them.
+#' @param sheet_name Name of the review sheet. Default \code{"other_responses"}.
+#' @param dropdown_sheet Name of the drop-down source sheet. Default
+#'   \code{"Dropdown_values"}.
+#' @param enumerator_id,apply_styles,skip_label_row,freeze_header,add_filter
+#'   As documented on \code{save_other_responses()}.
+#' @param body_font,body_font_size Font applied to this function's own cell
+#'   styles, so the sheet looks the same whether or not the caller sets a
+#'   workbook base font.
+#'
+#' @return \code{wb}, invisibly.
+#' @noRd
+.ck_write_other_sheets <- function(
+  wb,
   df,
-  ref_date = "",
-  enumerator_id = NULL,
-  save_location = "output",
   other_db = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown"),
+  enumerator_id = NULL,
   apply_styles = TRUE,
   skip_label_row = TRUE,
   freeze_header = TRUE,
   add_filter = TRUE,
-  file_name = NULL
+  body_font = "Calibri",
+  body_font_size = 12
 ) {
   get_column_letter <- function(r) {
     result <- character(length(r))
@@ -726,28 +723,49 @@ save_other_responses <- function(
     ))
   }
 
-  wb <- createWorkbook()
+  # --- Guard against writing over a sheet that is already there ---------------
+  # In a merged workbook the cleaning log's sheets are added first, so a name
+  # clash is a real possibility and openxlsx's own error is opaque.
+  existing <- names(wb)
+  clash <- intersect(
+    tolower(c(sheet_name, dropdown_sheet)),
+    tolower(existing)
+  )
+  if (length(clash) > 0) {
+    stop(
+      "The workbook already has a sheet named ",
+      paste(clash, collapse = ", "),
+      ". Pass a different `sheet_name` / `dropdown_sheet`.",
+      call. = FALSE
+    )
+  }
 
   style.col.color <- createStyle(
     fgFill = "#E5FFCC",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color1 <- createStyle(
     fgFill = "#E5FFEC",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color2 <- createStyle(
     fgFill = "#CCE5FF",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first <- createStyle(
     textDecoration = "bold",
@@ -755,7 +773,9 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first1 <- createStyle(
     textDecoration = "bold",
@@ -763,7 +783,9 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first2 <- createStyle(
     textDecoration = "bold",
@@ -771,13 +793,24 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
-  style.default.body <- createStyle(valign = "top", wrapText = TRUE)
-  style.default.header <- createStyle(textDecoration = "bold")
+  style.default.body <- createStyle(
+    valign = "top",
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
+  )
+  style.default.header <- createStyle(
+    textDecoration = "bold",
+    fontName = body_font,
+    fontSize = body_font_size
+  )
 
-  addWorksheet(wb, "Sheet1")
-  writeData(wb = wb, x = df, sheet = "Sheet1", startRow = 1)
+  addWorksheet(wb, sheet_name)
+  writeData(wb = wb, x = df, sheet = sheet_name, startRow = 1)
 
   # Column groups are found from the start of the header rather than the full
   # string, so the number of "correct to existing answer option" columns does not
@@ -847,7 +880,7 @@ save_other_responses <- function(
       }
       addStyle(
         wb,
-        "Sheet1",
+        sheet_name,
         body_style,
         rows = seq_len(n_rows + 1L),
         cols = cols,
@@ -855,7 +888,7 @@ save_other_responses <- function(
       )
       addStyle(
         wb,
-        "Sheet1",
+        sheet_name,
         header_style,
         rows = 1,
         cols = cols,
@@ -873,23 +906,25 @@ save_other_responses <- function(
   # Frozen header row and a column filter. Navigation only - neither touches the
   # cell styling above.
   if (n_cols > 0 && isTRUE(add_filter)) {
-    addFilter(wb, "Sheet1", row = 1, cols = seq_len(n_cols))
+    addFilter(wb, sheet_name, row = 1, cols = seq_len(n_cols))
   }
   if (isTRUE(freeze_header)) {
-    freezePane(wb, "Sheet1", firstRow = TRUE)
+    freezePane(wb, sheet_name, firstRow = TRUE)
   }
 
-  addWorksheet(wb, "Dropdown_values")
+  addWorksheet(wb, dropdown_sheet)
   if (!is.null(other_db) && nrow(other_db) > 0) {
     for (r in seq_len(nrow(other_db))) {
       if (other_db$q_type[r] != "text") {
         choices <- str_split(other_db$choices[r], ";;")[[1]]
-        writeData(wb, sheet = "Dropdown_values", x = choices, startCol = r)
+        writeData(wb, sheet = dropdown_sheet, x = choices, startCol = r)
         uuids <- which(df$question_name == other_db$name[r])
         if (length(uuids) > 0 && length(exist_cols) > 0) {
           column_letter <- get_column_letter(r)
           values <- paste0(
-            "='Dropdown_values'!$",
+            "='",
+            dropdown_sheet,
+            "'!$",
             column_letter,
             "$1:$",
             column_letter,
@@ -899,7 +934,7 @@ save_other_responses <- function(
           for (c_idx in exist_cols) {
             dataValidation(
               wb,
-              "Sheet1",
+              sheet_name,
               cols = c_idx,
               rows = uuids + 1,
               type = "list",
@@ -915,14 +950,16 @@ save_other_responses <- function(
 
   writeData(
     wb,
-    sheet = "Dropdown_values",
+    sheet = dropdown_sheet,
     x = c("Yes"),
     startCol = r + 1,
     colNames = FALSE
   )
   column_letter <- get_column_letter(r + 1)
   values <- paste0(
-    "='Dropdown_values'!$",
+    "='",
+    dropdown_sheet,
+    "'!$",
     column_letter,
     "$1:$",
     column_letter,
@@ -931,7 +968,7 @@ save_other_responses <- function(
   if (length(invalid_col) > 0) {
     dataValidation(
       wb,
-      "Sheet1",
+      sheet_name,
       cols = invalid_col,
       rows = 2:(n_rows + 1L),
       type = "list",
@@ -939,9 +976,99 @@ save_other_responses <- function(
     )
   }
 
-  setColWidths(wb, "Sheet1", cols = seq_len(n_cols), widths = 25)
-  setColWidths(wb, "Sheet1", cols = seq_len(min(5L, n_cols)), widths = 15)
+  setColWidths(wb, sheet_name, cols = seq_len(n_cols), widths = 25)
+  setColWidths(wb, sheet_name, cols = seq_len(min(5L, n_cols)), widths = 15)
 
+  invisible(wb)
+}
+
+
+#' Save Other Responses
+#'
+#' This function saves the other responses into an Excel workbook with specific
+#' formatting and data validation. Target columns are identified dynamically by
+#' name, allowing flexibility such as adding an `enumerator_id`.
+#'
+#' @details
+#' The workbook carries two sheets: \code{other_responses}, which the reviewer
+#' fills in, and \code{Dropdown_values}, which backs its drop-downs. The review
+#' sheet was called \code{Sheet1} before version 2026.09.0;
+#' \code{read_other_responses()} accepts either name, so files already out with
+#' reviewers still read back.
+#'
+#' To put these sheets in the same workbook as the cleaning log rather than in a
+#' file of their own, use \code{create_review_workbook()}.
+#'
+#' @param df Data frame containing the responses to write.
+#' @param ref_date Reference date for the filename (default is "").
+#' @param enumerator_id Optional string indicating the enumerator id column
+#'   (default is NULL).
+#' @param save_location Directory to save the output file (default is "output").
+#' @param other_db Data frame containing dropdown mapping for existing choices
+#'   (default is NULL).
+#' @param apply_styles Logical. If TRUE (default) apply the coloured/bordered
+#'   cell styling. Set to FALSE for very large exports where per-cell styling
+#'   makes openxlsx slow or memory-hungry; the data and dropdowns are still
+#'   written.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), guard against an
+#'   ONA label/description row still sitting at the top of \code{df}. When \code{df}
+#'   comes from \code{prepare_other_responses()} the label row was already handled
+#'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
+#'   dropped. Only when \code{df} has no such provenance is its first row dropped,
+#'   with a message. Set to \code{FALSE} to always keep every row.
+#' @param freeze_header Logical. Freeze the header row so it stays visible while
+#'   scrolling (default \code{TRUE}). Navigation only - it does not change the
+#'   cell styling.
+#' @param add_filter Logical. Add a column filter on the header row (default
+#'   \code{TRUE}). Navigation only - it does not change the cell styling.
+#' @param file_name Name of the output file. Default \code{NULL} keeps the
+#'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
+#'   passed without the \code{.xlsx} extension gets it appended. The name is
+#'   written inside \code{save_location}.
+#' @param sheet_name Name of the review sheet. Default \code{"other_responses"}.
+#' @param dropdown_sheet Name of the drop-down source sheet. Default
+#'   \code{"Dropdown_values"}.
+#' @return NULL. Saves an Excel file.
+#' @export
+save_other_responses <- function(
+  df,
+  ref_date = "",
+  enumerator_id = NULL,
+  save_location = "output",
+  other_db = NULL,
+  apply_styles = TRUE,
+  skip_label_row = TRUE,
+  freeze_header = TRUE,
+  add_filter = TRUE,
+  file_name = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown")
+) {
+  ck_assert_sheet_names(
+    c(sheet_name, dropdown_sheet),
+    caller = "save_other_responses"
+  )
+
+  wb <- createWorkbook()
+
+  .ck_write_other_sheets(
+    wb = wb,
+    df = df,
+    other_db = other_db,
+    sheet_name = sheet_name,
+    dropdown_sheet = dropdown_sheet,
+    enumerator_id = enumerator_id,
+    apply_styles = apply_styles,
+    skip_label_row = skip_label_row,
+    freeze_header = freeze_header,
+    add_filter = add_filter,
+    body_font = "Calibri",
+    body_font_size = 12
+  )
+
+  # Safe here, where the workbook holds nothing but these two sheets. It is not
+  # safe in .ck_write_other_sheets(), which may be writing into a workbook that
+  # already carries the cleaning log.
   modifyBaseFont(wb, fontSize = 12, fontColour = "black", fontName = "Calibri")
 
   # Output file name: the standard dated name unless the caller supplies one.

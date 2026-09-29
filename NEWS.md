@@ -1,5 +1,70 @@
 # cleaningkit (development version)
 
+## One review workbook instead of two
+* **New `create_review_workbook()`** writes the cleaning log and the "other"
+  text responses into a single Excel file, so a reviewer opens one workbook and
+  the second stage reads one file. The sheets, in order:
+  `cleaning_log`, `dataset`, `readme`, `validation_rules` (hidden),
+  `other_responses`, `Dropdown_values`, and `_ck_config` (very hidden) when the
+  macro is attached. Pass `vba = TRUE`, or simply an `.xlsm` path, for the
+  macro-enabled version.
+* Called without `other_responses`, it produces exactly what
+  `create_cleaning_log()` / `create_cleaning_log_vba()` produce, so it can
+  replace either.
+* **The other-responses review sheet is now called `other_responses`**, not
+  `Sheet1` &mdash; in the merged workbook and in the standalone file
+  `save_other_responses()` still writes.
+* **The macro is unchanged.** It watches the `dataset` sheet and nothing else,
+  so an edit there still appends one row to `cleaning_log`, and an edit on
+  `other_responses` appends nothing: that sheet is read back column by column
+  as before. Extra sheets change nothing, because the macro addresses sheets by
+  name.
+* Both sheet names are now taken from one internal helper, `ck_sheet_names()`,
+  so a writer and a reader can no longer drift apart.
+
+## Reading the logs back
+* **`read_cleaning_log()` and `read_other_responses()` find their sheet by
+  name, per file**, instead of by position. `read_cleaning_log(sheet = )`
+  defaults to `NULL`, which resolves to `"cleaning_log"` and falls back to the
+  first sheet; the old default of `2` pointed at the wrong sheet and only
+  worked because the examples passed `sheet = 1` explicitly.
+  `read_other_responses()` gains a `sheet` argument with the same behaviour,
+  resolving `"other_responses"`, then `"Sheet1"`, then the first sheet. It read
+  the first sheet unconditionally before, which in a merged workbook is the
+  cleaning log.
+* `read_other_responses(file_pattern = )` now defaults to
+  `"_follow-ups_edited\\.xls[xm]$"`, the merged workbook, and accepts `.xlsm`.
+  Pass `"_other_responses_edited\\.xlsx$"` to read files from the older
+  standalone route.
+* **Files already out with reviewers still read**, in either layout, with no
+  extra argument &mdash; including a folder holding one of each.
+* `check_log_files(sheet = )` accepts a vector or list of the same length as
+  the files, so a mixed folder can be checked in one call. Its documentation no
+  longer suggests `sheet = 2`.
+
+## The readme sheet
+* The `readme` now opens with what each sheet in the workbook is for, then the
+  `Action taken` codes, and &mdash; when the other responses share the workbook
+  &mdash; the three review columns on that sheet and what each one does to the
+  data. Its columns are `Item` / `Description` rather than
+  `Action taken` / `Description`, since it describes more than the codes.
+* `create_cleaning_log()` gains `readme_include_other` (default `FALSE`) to
+  control that last block. `create_review_workbook()` sets it.
+
+## Guards
+* Sheet names are checked before a workbook is built: blank, longer than
+  Excel's 31 characters, containing `[ ] : * ? / \`, or colliding with another
+  sheet (Excel ignores case) now fails with a message naming the offender
+  instead of an opaque openxlsx error.
+* `create_review_workbook()` warns when given `other_db` without
+  `other_responses`, and forces `include_dataset = TRUE` when the macro is
+  asked for.
+
+## Project folders
+* `setup_project_folders()` still creates `output/other_responses/`, now
+  documented as legacy: the merged workbook is written to and read from
+  `output/follow_ups/`.
+
 ## Other responses: reviewer column headers renamed
 * The five reviewer columns on the other-responses sheet are now headed, in
   order:

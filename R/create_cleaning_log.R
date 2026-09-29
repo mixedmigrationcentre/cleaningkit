@@ -1,3 +1,168 @@
+#' Build the readme sheet
+#'
+#' The readme is the landing page of the review workbook: what each tab is for,
+#' the \code{Action taken} codes for the cleaning log, and - once the other
+#' responses share the workbook - the three review columns on that sheet and
+#' what each of them does.
+#'
+#' Two columns rather than the old \code{Action taken} / \code{Description}
+#' pair, because the sheet now describes more than the action codes. Section
+#' headings are ordinary rows with a blank description, so the whole thing is
+#' still one plain dataframe that \code{create_formated_wb()} can style like
+#' any other sheet.
+#'
+#' @param action_codes,action_descriptions The \code{Action taken} vocabulary,
+#'   in matching order.
+#' @param cleaning_log_name Name given to the cleaning-log sheet, so the readme
+#'   refers to the tab the reviewer can actually see.
+#' @param include_dataset Logical. Describe the \code{dataset} sheet.
+#' @param include_other Logical. Describe the \code{other_responses} and
+#'   \code{Dropdown_values} sheets and the other-responses review columns.
+#'
+#' @return A two-column dataframe.
+#' @noRd
+ck_readme_df <- function(
+  action_codes,
+  action_descriptions,
+  cleaning_log_name = ck_sheet_name("cleaning_log"),
+  include_dataset = TRUE,
+  include_other = FALSE
+) {
+  sheets <- ck_sheet_names()
+  item <- character(0)
+  desc <- character(0)
+
+  add <- function(i, d = "") {
+    item <<- c(item, i)
+    desc <<- c(desc, d)
+  }
+
+  # ---- what each tab is for ----
+  add("SHEETS IN THIS WORKBOOK")
+  add(
+    cleaning_log_name,
+    paste0(
+      "One row per flagged value. Fill in 'Action taken' and, where the action ",
+      "needs one, 'New value'. Rows that need no change can be left blank."
+    )
+  )
+  if (include_dataset) {
+    add(
+      sheets[["dataset"]],
+      paste0(
+        "The checked dataset. The check-flag columns at the front say which ",
+        "checks fired for each record. In the macro-enabled (.xlsm) workbook, ",
+        "editing a value here appends a row to the ",
+        cleaning_log_name,
+        " sheet by itself."
+      )
+    )
+  }
+  if (include_other) {
+    add(
+      sheets[["other_responses"]],
+      paste0(
+        "Every 'other' text response to review. Fill in at most one of the ",
+        "three review columns per row - see the key below. Edits here are not ",
+        "copied to the ",
+        cleaning_log_name,
+        " sheet; they are read straight off this sheet."
+      )
+    )
+    add(
+      sheets[["dropdown"]],
+      paste0(
+        "Source of the drop-downs on the ",
+        sheets[["other_responses"]],
+        " sheet. Nothing to fill in."
+      )
+    )
+  }
+  add(sheets[["readme"]], "This sheet.")
+
+  # ---- the action vocabulary ----
+  add("")
+  add(paste0("ACTION TAKEN - the codes used on the ", cleaning_log_name, " sheet"))
+  for (k in seq_along(action_codes)) {
+    add(action_codes[k], action_descriptions[k])
+  }
+  add(
+    "(left blank)",
+    paste0(
+      "Treated as 'no_action'. Only fill in the rows that need a change - ",
+      "a flagged row left blank means the data point stays the same."
+    )
+  )
+
+  # ---- the other-responses vocabulary ----
+  if (include_other) {
+    # Short forms of the full headers: the sheet itself carries the long
+    # versions with their parenthetical instructions, and repeating those here
+    # would make the column unreadable.
+    hdr <- sub(" \\(.*$", "", .ck_other_review_headers())
+
+    add("")
+    add(paste0(
+      "OTHER RESPONSES - the review columns on the ",
+      sheets[["other_responses"]],
+      " sheet"
+    ))
+    add(
+      hdr[["true_other"]],
+      paste0(
+        "A genuine new answer, e.g. a translation or a tidied spelling. The ",
+        "'other' text is replaced by what you type here; the parent question ",
+        "is left alone."
+      )
+    )
+    add(
+      hdr[["existing_other"]],
+      paste0(
+        "The response is really one of the existing choices. Pick it from the ",
+        "drop-down: the 'other' text is cleared and the parent question is set ",
+        "to that choice."
+      )
+    )
+    add(
+      hdr[["invalid_other"]],
+      paste0(
+        "Select 'Yes' when the response is not usable. The 'other' text is ",
+        "cleared and the parent question's reference to it is removed."
+      )
+    )
+    add(
+      hdr[["fu_message"]],
+      "Free text for the IM. Not applied to the data."
+    )
+    add(
+      hdr[["explanation"]],
+      "Free text for the field team's reply. Not applied to the data."
+    )
+    add(
+      "(all three left blank)",
+      paste0(
+        "The 'other' text is a valid answer as it stands. Nothing changes and ",
+        "no cleaning-log row is produced."
+      )
+    )
+    add(
+      "Note",
+      paste0(
+        "Fill in at most ONE of the three review columns per row. A row with ",
+        "two of them filled asks for two different things at once, so it is ",
+        "skipped and its uuid reported."
+      )
+    )
+  }
+
+  data.frame(
+    check.names = FALSE,
+    stringsAsFactors = FALSE,
+    "Item" = item,
+    "Description" = desc
+  )
+}
+
 #' Normalise a column name for tolerant matching
 #'
 #' Lower-cases and strips every non-alphanumeric character so that
@@ -543,6 +708,10 @@ create_formated_wb <- function(
 #'   underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
 #'   survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
 #'   order. An unrecognised column name is an error rather than a silent fallback.
+#' @param readme_include_other Logical. If \code{TRUE}, the readme also describes the
+#'   \code{other_responses} and \code{Dropdown_values} sheets and the three other-responses
+#'   review columns. Default \code{FALSE}, because those sheets are not part of this
+#'   workbook. \code{create_review_workbook()}, which adds them, sets this to \code{TRUE}.
 #'
 #' @return A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
 #' @export
@@ -623,7 +792,8 @@ create_cleaning_log <- function(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by = "issue"
+  group_by = "issue",
+  readme_include_other = FALSE
 ) {
   # ---- action codes shared by the drop-down and the readme ----
   action_codes <- c(
@@ -655,11 +825,26 @@ create_cleaning_log <- function(
   if (!(dataset_name %in% names(write_list))) {
     stop(paste0("'", dataset_name, "' not found in the given list."))
   }
-  if ("validation_rules" %in% names(write_list)) {
+  if (ck_sheet_name("validation") %in% names(write_list)) {
     stop(
-      "The list already has an element named `validation_rules`. Please rename it."
+      "The list already has an element named `",
+      ck_sheet_name("validation"),
+      "`. Please rename it."
     )
   }
+
+  # Excel is unforgiving about sheet names and openxlsx's own error is opaque,
+  # so a clashing or illegal `cleaning_log_name` is caught here rather than
+  # halfway through building the workbook.
+  ck_assert_sheet_names(
+    c(
+      cleaning_log_name,
+      if (include_dataset) ck_sheet_name("dataset"),
+      ck_sheet_name("readme"),
+      ck_sheet_name("validation")
+    ),
+    caller = "create_cleaning_log"
+  )
 
   color_mode <- resolve_color_mode(color_mode)
   flag_columns <- resolve_flag_columns(flag_columns)
@@ -802,17 +987,12 @@ create_cleaning_log <- function(
   # change, and the cleaning-log functions read a blank cell as no_action, so
   # the sheet says so. validation_df stays on action_codes alone, so the
   # drop-down is unchanged.
-  readme_df <- data.frame(
-    check.names = FALSE,
-    stringsAsFactors = FALSE,
-    "Action taken" = c(action_codes, "(left blank)"),
-    "Description" = c(
-      action_descriptions,
-      paste0(
-        "Treated as 'no_action'. Only fill in the rows that need a change - ",
-        "a flagged row left blank means the data point stays the same."
-      )
-    )
+  readme_df <- ck_readme_df(
+    action_codes = action_codes,
+    action_descriptions = action_descriptions,
+    cleaning_log_name = cleaning_log_name,
+    include_dataset = include_dataset,
+    include_other = readme_include_other
   )
   validation_df <- data.frame(
     check.names = FALSE,
@@ -828,7 +1008,7 @@ create_cleaning_log <- function(
     # a reviewer scrolls right through the raw answers. Attached here rather
     # than earlier so the label lookup and the uuid keys above are built from
     # the dataset exactly as the checks saw it.
-    out_list[["dataset"]] <- ck_attach_flag_columns(
+    out_list[[ck_sheet_name("dataset")]] <- ck_attach_flag_columns(
       raw = raw,
       cl = cl,
       uuid_column = uuid_column,
@@ -837,8 +1017,8 @@ create_cleaning_log <- function(
       separator = flag_separator
     )
   }
-  out_list[["readme"]] <- readme_df
-  out_list[["validation_rules"]] <- validation_df
+  out_list[[ck_sheet_name("readme")]] <- readme_df
+  out_list[[ck_sheet_name("validation")]] <- validation_df
 
   workbook <- out_list |>
     create_formated_wb(
@@ -859,8 +1039,8 @@ create_cleaning_log <- function(
   if (include_dataset && length(flag_columns) > 0) {
     ck_style_flag_columns(
       workbook = workbook,
-      sheet = "dataset",
-      dataset = out_list[["dataset"]],
+      sheet = ck_sheet_name("dataset"),
+      dataset = out_list[[ck_sheet_name("dataset")]],
       flag_headers = ck_resolved_flag_headers(flag_columns, names(raw)),
       header_fill = flag_header_fill_color,
       header_font_size = header_front_size,
@@ -870,7 +1050,7 @@ create_cleaning_log <- function(
   }
 
   # hide the validation source sheet
-  hide_sheet <- which(names(workbook) == "validation_rules")
+  hide_sheet <- which(names(workbook) == ck_sheet_name("validation"))
   if (length(hide_sheet) == 1) {
     openxlsx::sheetVisibility(workbook)[hide_sheet] <- FALSE
   }
@@ -891,7 +1071,12 @@ create_cleaning_log <- function(
   if (nrow(final_log) > 0) {
     col_number <- which(names(final_log) == "Action taken")
     row_numbers <- 2:(nrow(final_log) + 1)
-    val_range <- paste0("'validation_rules'!$A$2:$A$", length(action_codes) + 1)
+    val_range <- paste0(
+      "'",
+      ck_sheet_name("validation"),
+      "'!$A$2:$A$",
+      length(action_codes) + 1
+    )
 
     openxlsx::dataValidation(
       workbook,

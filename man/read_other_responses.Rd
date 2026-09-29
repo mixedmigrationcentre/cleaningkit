@@ -12,7 +12,8 @@ read_other_responses(
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
   sm_separator = "/",
-  file_pattern = "_other_responses_edited\\\\.xlsx$",
+  sheet = NULL,
+  file_pattern = "_follow-ups_edited\\\\.xls[xm]$",
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -46,8 +47,19 @@ Set to \code{"_uuid"} if your files use the raw ONA column name.}
 and its binary sub-columns in \code{dataset}. Default \code{"/"} (ONA
 export style).}
 
+\item{sheet}{Sheet holding the other responses. Default \code{NULL} resolves
+it per file by name: \code{"other_responses"} as written by
+\code{create_review_workbook()} and \code{save_other_responses()},
+falling back to \code{"Sheet1"} for a file produced before the two logs
+were merged, and to the first sheet if neither name is present. Pass a name
+or an integer to override. Resolving by name is what lets the same file
+carry the cleaning log on one sheet and the other responses on another.}
+
 \item{file_pattern}{Regex pattern used when \code{path} is a directory.
-Default \code{"_other_responses_edited\\\\.xlsx$"}.}
+Default \code{"_follow-ups_edited\\\\.xls[xm]$"} - the merged review
+workbook, which holds both logs. Pass
+\code{"_other_responses_edited\\\\.xlsx$"} to read files produced by the
+older standalone \code{save_other_responses()} route.}
 
 \item{skip_questions}{Character vector of question names to exclude from
 processing (e.g. free-text comments columns). Default \code{NULL}.}
@@ -90,6 +102,13 @@ parent concatenation, and adds the matched choice(s).}
 Blanks the \code{_other} text column and removes/blanks the parent
 question reference.}
 }
+
+\strong{Which sheet is read:} the sheet is found by name, not by position -
+\code{"other_responses"} first, then \code{"Sheet1"} as written before the
+cleaning log and the other responses were merged into one workbook, then the
+first sheet. A merged review workbook and an older standalone
+other-responses file therefore both read with no extra argument, even when
+they sit side by side in the same folder.
 
 \strong{Header names:} the reviewer columns are matched by prefix, case
 insensitively, against both the headers written by the current

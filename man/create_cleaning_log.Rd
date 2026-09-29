@@ -26,7 +26,8 @@ create_cleaning_log(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by = "issue"
+  group_by = "issue",
+  readme_include_other = FALSE
 )
 }
 \arguments{
@@ -102,6 +103,11 @@ rows keep their original order inside a block. Accepts either the raw log names
 underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
 survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
 order. An unrecognised column name is an error rather than a silent fallback.}
+
+\item{readme_include_other}{Logical. If \code{TRUE}, the readme also describes the
+\code{other_responses} and \code{Dropdown_values} sheets and the three other-responses
+review columns. Default \code{FALSE}, because those sheets are not part of this
+workbook. \code{create_review_workbook()}, which adds them, sets this to \code{TRUE}.}
 }
 \value{
 A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.

@@ -27,6 +27,13 @@
 #'     question reference.}
 #' }
 #'
+#' \strong{Which sheet is read:} the sheet is found by name, not by position -
+#' \code{"other_responses"} first, then \code{"Sheet1"} as written before the
+#' cleaning log and the other responses were merged into one workbook, then the
+#' first sheet. A merged review workbook and an older standalone
+#' other-responses file therefore both read with no extra argument, even when
+#' they sit side by side in the same folder.
+#'
 #' \strong{Header names:} the reviewer columns are matched by prefix, case
 #' insensitively, against both the headers written by the current
 #' \code{prepare_other_responses()} and the earlier \code{TRUE other} /
@@ -88,8 +95,18 @@
 #' @param sm_separator Separator between a select-multiple parent column name
 #'   and its binary sub-columns in \code{dataset}. Default \code{"/"} (ONA
 #'   export style).
+#' @param sheet Sheet holding the other responses. Default \code{NULL} resolves
+#'   it per file by name: \code{"other_responses"} as written by
+#'   \code{create_review_workbook()} and \code{save_other_responses()},
+#'   falling back to \code{"Sheet1"} for a file produced before the two logs
+#'   were merged, and to the first sheet if neither name is present. Pass a name
+#'   or an integer to override. Resolving by name is what lets the same file
+#'   carry the cleaning log on one sheet and the other responses on another.
 #' @param file_pattern Regex pattern used when \code{path} is a directory.
-#'   Default \code{"_other_responses_edited\\\\.xlsx$"}.
+#'   Default \code{"_follow-ups_edited\\\\.xls[xm]$"} - the merged review
+#'   workbook, which holds both logs. Pass
+#'   \code{"_other_responses_edited\\\\.xlsx$"} to read files produced by the
+#'   older standalone \code{save_other_responses()} route.
 #' @param skip_questions Character vector of question names to exclude from
 #'   processing (e.g. free-text comments columns). Default \code{NULL}.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
@@ -109,7 +126,8 @@ read_other_responses <- function(
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
   sm_separator = "/",
-  file_pattern = "_other_responses_edited\\.xlsx$",
+  sheet = NULL,
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -137,8 +155,27 @@ read_other_responses <- function(
     stop(paste0("'path' does not exist: ", path))
   }
 
+  # ---- resolve the sheet, per file ----
+  # Named rather than numbered, so it does not matter whether the file is a
+  # merged review workbook (where the other responses sit behind the cleaning
+  # log and the dataset) or an older standalone one. A mixed folder is handled
+  # too, because each file is resolved on its own.
+  sheet_for <- if (is.null(sheet)) {
+    lapply(
+      files,
+      ck_resolve_sheet,
+      candidates = ck_sheet_candidates("other_responses"),
+      fallback = 1
+    )
+  } else {
+    rep_len(if (is.list(sheet)) sheet else as.list(sheet), length(files))
+  }
+
   if (verbose) {
     message("read_other_responses: reading ", length(files), " file(s).")
+    for (i in seq_along(files)) {
+      message("  ", files[i], "  [sheet: ", sheet_for[[i]], "]")
+    }
   }
 
   # ---- guard: every file must have the same columns ----
@@ -149,15 +186,16 @@ read_other_responses <- function(
   # usual cause.
   ck_assert_log_columns(
     files = files,
-    sheet = 1,
+    sheet = sheet_for,
     caller = "read_other_responses",
     verbose = verbose
   )
 
   # ---- read and stack ----
-  raw_list <- lapply(files, function(f) {
+  raw_list <- lapply(seq_along(files), function(i) {
+    f <- files[i]
     tryCatch(
-      readxl::read_excel(f, col_types = "text"),
+      readxl::read_excel(f, col_types = "text", sheet = sheet_for[[i]]),
       error = function(e) {
         warning(paste0("Could not read '", f, "': ", conditionMessage(e)))
         NULL
