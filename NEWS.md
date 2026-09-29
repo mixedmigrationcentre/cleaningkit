@@ -1,5 +1,12 @@
 # cleaningkit (development version)
 
+## Duration check
+* `validate_duration()` no longer logs surveys that run **longer** than
+  `upper_bound`. Long surveys are normally valid and only added rows to the
+  cleaning log. The new `flag_above_upper` argument (default `FALSE`) restores
+  the old behaviour when set to `TRUE`; surveys below `lower_bound` are still
+  flagged as before.
+
 ## Similar-answer check
 * **Breaking:** `validate_duplicate_questions()` has been renamed to
   `validate_similar_questions()`, and its default `log_name` is now

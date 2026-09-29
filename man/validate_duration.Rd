@@ -11,6 +11,7 @@ validate_duration(
   log_name = "duration_log",
   lower_bound = 15,
   upper_bound = 60,
+  flag_above_upper = FALSE,
   skip_label_row = TRUE
 )
 }
@@ -27,6 +28,10 @@ validate_duration(
 
 \item{upper_bound}{The upper threshold for duration in minutes. Default is \code{60}.}
 
+\item{flag_above_upper}{Logical. If \code{FALSE} (the default), surveys longer than
+\code{upper_bound} are \strong{not} reported, because long surveys are normally valid and
+would only inflate the cleaning log. Set to \code{TRUE} to also log them.}
+
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of the dataset is removed
 before validation. ONA exports include a label/description row immediately after the header
 that should not be treated as survey data.}
@@ -35,10 +40,16 @@ that should not be treated as survey data.}
 A list containing the original dataset and the new log dataframe. The \code{issue}
 column states the direction of the breach: \code{"Duration is lower than the thresholds"}
 when the duration falls below \code{lower_bound}, and
-\code{"Duration is higher than the thresholds"} when it exceeds \code{upper_bound}.
+\code{"Duration is higher than the thresholds"} when it exceeds \code{upper_bound}
+(the latter only when \code{flag_above_upper = TRUE}).
 }
 \description{
 Checks whether the survey duration (typically stored in a column like \verb{_duration} in seconds)
 falls within specified lower and upper bounds (in minutes). It generates a validation log
-of surveys that are either too short or too long.
+of surveys that breach those thresholds.
+}
+\details{
+By default only surveys \strong{below} \code{lower_bound} are logged. Surveys running longer than
+\code{upper_bound} are usually legitimate (interruptions, long interviews) and simply add
+noise to the cleaning log, so they are excluded unless \code{flag_above_upper = TRUE}.
 }
