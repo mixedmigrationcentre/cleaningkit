@@ -113,9 +113,10 @@ dataset and a log of flagged issues.
   defined in an external checklist against the dataset.
 - **`validate_interview_time()`**: Flags interviews conducted at
   implausible times of the day (e.g., middle of the night).
-- **`validate_duplicates()`**: Detects suspiciously similar surveys
-  (soft duplicates) based on differing column counts.
-- **`validate_duplicate_questions()`**: Flags specific questions where
+- **`validate_similar_surveys()`**: Detects suspiciously similar surveys
+  (soft duplicates) based on the number of columns that match between
+  surveys.
+- **`validate_similar_questions()`**: Flags specific questions where
   an enumerator has repeatedly recorded the exact same answer across
   multiple surveys.
 - **`validate_country_of_interview()`**: Flags cases where the interview
@@ -154,9 +155,9 @@ checked_data <- raw_data |>
   # 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)
   validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
   # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
-  validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
-  # 6. Duplicated answers for specific questions by the same enumerator
-  validate_duplicate_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
+  validate_similar_surveys(tool_survey = survey_sheet, threshold = 7) |>
+  # 6. Repeated answers for specific questions by the same enumerator
+  validate_similar_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
   # 7. Outliers in all integer columns in the dataset or particular columns
   validate_outliers(
     columns_to_check = c("Q141_3"),

@@ -1,5 +1,23 @@
 # cleaningkit (development version)
 
+## Similar-answer check
+* **Breaking:** `validate_duplicate_questions()` has been renamed to
+  `validate_similar_questions()`, and its default `log_name` is now
+  `"similar_questions_log"` (was `"duplicate_questions_log"`). The arguments,
+  issue text and `check_binding` format are unchanged.
+
+## Similar-survey check
+* **Breaking:** `validate_duplicates()` has been renamed to
+  `validate_similar_surveys()`. The arguments, defaults and log shape are
+  unchanged &mdash; update the call name only.
+* The issue text is now phrased in terms of how many columns *match* rather than
+  how many differ, e.g. "Similarity with surveys from enumerator 'x': 226 of 227
+  columns are similar from survey <uuid> &mdash; threshold is 30".
+* **Breaking:** the log now reports the similar-column count instead of the
+  differing-column count: `question` is `"number_similar_columns"` (was
+  `"number_different_columns"`) and `old_value` holds that count. `threshold`
+  still applies to *differing* columns, so existing calls need no change.
+
 ## Cleaning log layout
 * `create_cleaning_log()` and `create_cleaning_log_vba()` now group the reviewer
   log by **Issue** by default, so every row raising the same issue sits in one

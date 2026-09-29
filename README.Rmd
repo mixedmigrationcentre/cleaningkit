@@ -89,8 +89,8 @@ The package provides a suite of `validate_*` functions to run various data quali
 *   **`validate_refused()`**: Identifies surveys with an excessive number of "Refused" answers.
 *   **`validate_logical_with_list()`**: Runs a batch of logical checks defined in an external checklist against the dataset.
 *   **`validate_interview_time()`**: Flags interviews conducted at implausible times of the day (e.g., middle of the night).
-*   **`validate_duplicates()`**: Detects suspiciously similar surveys (soft duplicates) based on differing column counts.
-*   **`validate_duplicate_questions()`**: Flags specific questions where an enumerator has repeatedly recorded the exact same answer across multiple surveys.
+*   **`validate_similar_surveys()`**: Detects suspiciously similar surveys (soft duplicates) based on the number of columns that match between surveys.
+*   **`validate_similar_questions()`**: Flags specific questions where an enumerator has repeatedly recorded the exact same answer across multiple surveys.
 *   **`validate_country_of_interview()`**: Flags cases where the interview country matches the respondent's nationality or journey start.
 *   **`validate_back_to_back()`**: Flags interviews conducted by the same enumerator with suspiciously short or negative gaps between them.
 *   **`validate_outliers()`**: Flags interviews whose integer values are of much larger or smaller that the set for that column
@@ -120,9 +120,9 @@ checked_data <- raw_data |>
   # 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)
   validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
   # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
-  validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
-  # 6. Duplicated answers for specific questions by the same enumerator
-  validate_duplicate_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
+  validate_similar_surveys(tool_survey = survey_sheet, threshold = 7) |>
+  # 6. Repeated answers for specific questions by the same enumerator
+  validate_similar_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
   # 7. Outliers in all integer columns in the dataset or particular columns
   validate_outliers(
     columns_to_check = c("Q141_3"),

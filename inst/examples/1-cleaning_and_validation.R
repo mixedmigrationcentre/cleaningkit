@@ -204,22 +204,22 @@ interview_time_log <- cleaningkit::validate_interview_time(
 )
 
 #----------------------------------
-# validate duplicate surveys
+# validate similar surveys
 # groups data by enumerator and checks surveys which are similar
 #----------------------------------
-duplicate_log <- raw_data %>%
-  cleaningkit::validate_duplicates(
+similar_surveys_log <- raw_data %>%
+  cleaningkit::validate_similar_surveys(
     tool_survey = tool_survey,
     idnk_value = "Don't know",
     threshold = 30
   )
 
 #----------------------------------
-# validate duplicate questions
+# validate similar questions
 # groups data by enumerator and checks questions passed for similarity
 #----------------------------------
-duplicate_questions_log <- raw_data %>%
-  cleaningkit::validate_duplicate_questions(
+similar_questions_log <- raw_data %>%
+  cleaningkit::validate_similar_questions(
     questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
   )
 
@@ -293,8 +293,8 @@ list_of_log_all <- c(
   interview_time_log,
   interview_location_log,
   logical_check_log,
-  duplicate_log,
-  duplicate_questions_log
+  similar_surveys_log,
+  similar_questions_log
 )
 
 combined_log <- cleaningkit::create_combined_log(

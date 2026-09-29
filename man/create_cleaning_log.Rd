@@ -12,8 +12,8 @@ create_cleaning_log(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
-  color_mode = "on",
-  color_columns = NULL,
+  color_mode = "partial",
+  color_columns = c("old_value"),
   include_dataset = TRUE,
   header_front_size = 12,
   header_front_color = "#FFFFFF",
@@ -23,7 +23,7 @@ create_cleaning_log(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by_uuid = TRUE
+  group_by = "issue"
 )
 }
 \arguments{
@@ -74,11 +74,16 @@ record and \strong{Question text} is left blank (no label row to read from).}
 
 \item{output_path}{Output path. Default \code{NULL} returns a workbook instead of writing a file.}
 
-\item{group_by_uuid}{Logical. If \code{TRUE} (the default), the log rows are regrouped so all
-rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
-another. Blocks keep the order in which their uuid is first met in the combined log, and
-rows keep their original order inside a block. \code{FALSE} keeps the incoming
-check-by-check order.}
+\item{group_by}{Column used to group the log rows, so that all rows sharing a value form one
+contiguous block. Default \code{"issue"}, which puts every row raising the same issue
+together. Blocks keep the order in which their value is first met in the combined log, and
+rows keep their original order inside a block. Accepts either the raw log names
+(\code{"issue"}, \code{"uuid"}, \code{"question"}, \code{"old_value"},
+\code{"check_binding"}) or the reviewer-facing headers (\code{"Issue"},
+\code{"Survey UUID"}, \code{"Enumerator"}, ...); matching ignores case, spaces and
+underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
+survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
+order. An unrecognised column name is an error rather than a silent fallback.}
 }
 \value{
 A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
@@ -104,13 +109,15 @@ The \strong{Action taken} drop-down and the \code{readme} sheet share these five
 \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 headers stay visible while a reviewer scrolls right and down.
 
-\strong{Row order.} The combined log arrives stacked check by check, so the rows for one
-interview are scattered down the sheet. By default the reviewer log is regrouped so that
-every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
-after another. Blocks appear in the order the uuids are first met in the combined log, and
-the original order is kept inside each block, so the rows themselves are untouched - only
-their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
-order.
+\strong{Row order.} The combined log arrives stacked check by check, so rows that belong
+together are scattered down the sheet. By default the reviewer log is regrouped by
+\strong{Issue}, so every row raising the same issue sits in one contiguous block and a
+reviewer can work through one kind of problem at a time. Blocks appear in the order each
+value is first met in the combined log, and the original order is kept inside each block,
+so the rows themselves are untouched - only their arrangement changes. \code{group_by}
+chooses the column: \code{"uuid"} restores the previous survey-by-survey layout, any other
+log column or reviewer header works too, and \code{NULL} or \code{FALSE} keeps the incoming
+check-by-check order.
 
 \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 with the same light MMC shade across the whole row. \code{color_mode} changes that:
@@ -136,10 +143,24 @@ create_cleaning_log(
 # no colouring at all
 create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
 
-# keep the old check-by-check row order instead of grouping by survey
+# group the rows survey by survey instead of issue by issue
 create_cleaning_log(
   write_list,
-  group_by_uuid = FALSE,
+  group_by = "uuid",
+  output_path = "cleaning_log.xlsx"
+)
+
+# group by enumerator, using the reviewer-facing header
+create_cleaning_log(
+  write_list,
+  group_by = "Enumerator",
+  output_path = "cleaning_log.xlsx"
+)
+
+# keep the incoming check-by-check row order, no grouping at all
+create_cleaning_log(
+  write_list,
+  group_by = NULL,
   output_path = "cleaning_log.xlsx"
 )
 }
