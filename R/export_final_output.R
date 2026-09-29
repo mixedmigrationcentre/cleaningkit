@@ -59,14 +59,9 @@ export_final_output <- function(
   clean_dataset,
   combined_log,
   output_path = "path to output .xlsx",
-  project_name = "Mixed Migration Centre Data Cleaning",
+  project_name = "Project Name",
   project_description = paste0(
-    "This workbook contains the outputs of the data cleaning process. ",
-    "The raw_data sheet holds the original survey export from ONA; ",
-    "clean_data holds the dataset after all validated changes were applied; ",
-    "cleaning_log holds the full record of every change made, including ",
-    "other-response recoding. Update this description to reflect the specific ",
-    "round, location, and scope of this data collection exercise."
+    "Project description"
   ),
   data_collection_round = NULL,
   prepared_by = NULL,
@@ -590,8 +585,7 @@ export_final_output <- function(
     names(log_for_output)
   )
   if (length(lead_cols) > 0) {
-    log_for_output <- log_for_output[
-      ,
+    log_for_output <- log_for_output[,
       c(lead_cols, setdiff(names(log_for_output), lead_cols)),
       drop = FALSE
     ]
