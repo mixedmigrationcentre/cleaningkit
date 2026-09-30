@@ -827,3 +827,113 @@ apply_tool_labels <- function(dataset, column_name, tool_choices) {
 
   return(dataset_updated)
 }
+
+
+#' Is an "Action taken" cell blank?
+#'
+#' Shared blank test for the reviewer-filled action column. A cell counts as
+#' blank when it is \code{NA}, empty, whitespace only, or the literal text
+#' \code{"NA"} that Excel and \code{readxl} leave behind (in any case, since
+#' the calling functions lower-case the column before testing).
+#'
+#' @param x A vector from the action column.
+#'
+#' @return Logical vector, \code{TRUE} where the cell is blank.
+#' @noRd
+ck_is_blank_action <- function(x) {
+  v <- trimws(as.character(x))
+  is.na(v) | toupper(v) %in% c("", "NA")
+}
+
+
+#' Default blank "Action taken" cells to no_action
+#'
+#' Reviewers only fill in the rows that need a change: a flagged value left
+#' untouched means "this data point stays as it is", which is exactly
+#' \code{no_action}. Rather than making the reviewer type \code{no_action}
+#' into every remaining row, the cleaning-log functions call this helper so a
+#' blank cell is read as \code{no_action} everywhere - when the log is read,
+#' when it is evaluated, when it is applied, and when the clean data is
+#' reviewed.
+#'
+#' @param x A vector from the action column.
+#' @param default Value written into the blank cells. \code{NULL} leaves the
+#'   blanks untouched, which restores the behaviour from before this default
+#'   existed.
+#'
+#' @return \code{x} as character, with blank cells replaced by \code{default}.
+#' @noRd
+ck_default_blank_action <- function(x, default = "no_action") {
+  x <- as.character(x)
+  if (is.null(default) || length(default) != 1) {
+    return(x)
+  }
+  if (is.na(default) || !nzchar(trimws(as.character(default)))) {
+    return(x)
+  }
+  x[ck_is_blank_action(x)] <- as.character(default)
+  x
+}
+
+# ---------------------------------------------------------------------------
+# Reviewer columns on the other-responses sheet
+#
+# The five columns a reviewer fills in are written by prepare_other_responses(),
+# styled and given dropdowns by save_other_responses(), and read back by
+# read_other_responses(). Defining the headers and the patterns that recognise
+# them in one place keeps those three functions in step: renaming a column is a
+# change to .ck_other_review_headers() alone.
+# ---------------------------------------------------------------------------
+
+#' Headers of the reviewer columns on the other-responses sheet
+#'
+#' The names are the internal working names used by
+#' \code{read_other_responses()}; the values are the headers written into the
+#' Excel file, in the order they appear on the sheet.
+#'
+#' @return A named character vector of length 5.
+#' @noRd
+.ck_other_review_headers <- function() {
+  c(
+    true_other = paste0(
+      "Input translation or improved text ",
+      "(the text in \"other\" will be replaced by this)"
+    ),
+    existing_other = paste0(
+      "Correct to existing answer option ",
+      "(select the existing most appropriate choice, which will replace other)"
+    ),
+    invalid_other = paste0(
+      "Invalid other ",
+      "(select yes if \"other\" should be removed and not replaced)"
+    ),
+    fu_message = "Comment from IM",
+    explanation = "Response from field team"
+  )
+}
+
+#' Patterns matching the reviewer columns, current and legacy
+#'
+#' Each pattern is anchored at the start of the header and is meant to be used
+#' with \code{ignore.case = TRUE}. Both the current headers (see
+#' \code{.ck_other_review_headers()}) and the earlier
+#' \code{TRUE other} / \code{EXISTING other} / \code{INVALID other} /
+#' \code{FOLLOW-UP message} / \code{Explanation} headers are matched, so a
+#' reviewed file produced by an older version of the package is still read
+#' correctly.
+#'
+#' The \code{existing_other} pattern deliberately matches several columns: older
+#' templates carried three numbered \code{EXISTING other} slots, which
+#' \code{read_other_responses()} numbers and merges.
+#'
+#' @return A named character vector of length 5 of regular expressions.
+#' @noRd
+.ck_other_review_patterns <- function() {
+  c(
+    true_other = "^(input translation|true other)",
+    existing_other = "^(correct to existing|existing other)",
+    invalid_other = "^invalid other",
+    fu_message = "^(comment from im|follow[- ]?up)",
+    explanation = "^(response from field team|explanation)"
+  )
+}

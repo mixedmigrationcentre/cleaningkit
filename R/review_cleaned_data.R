@@ -69,6 +69,11 @@
 #'   \code{"discard"}.
 #' @param no_action_values Action values meaning "no change". Default
 #'   \code{"no_action"}.
+#' @param default_blank_action Action used for rows whose \code{log_action_col}
+#'   cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+#'   not fill in means the data point stays as it is, so it is checked like any
+#'   other \code{no_action} row. Set to \code{NULL} to leave blank cells blank,
+#'   in which case those rows fall outside every check below.
 #' @param columns_to_skip Column names to exclude from the undocumented-change
 #'   check (e.g. system columns). Default covers common ONA metadata columns.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
@@ -97,6 +102,7 @@ review_cleaned_data <- function(
   blank_response_values = "delete_data_point",
   discard_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   columns_to_skip = c(
     "start",
     "end",
@@ -209,6 +215,16 @@ review_cleaned_data <- function(
   cl[[log_question_col]] <- trimws(as.character(cl[[log_question_col]]))
   cl[[log_new_value_col]] <- as.character(cl[[log_new_value_col]])
   cl[[log_old_value_col]] <- as.character(cl[[log_old_value_col]])
+
+  # ---- blank action -> no_action ----
+  # Matches read_cleaning_log() / apply_cleaning_log(): a flagged row the
+  # reviewer left blank means "this data point stays as it is". Without this,
+  # blank rows match none of the action groups below and quietly escape every
+  # check, so an unchanged-value row would never be verified.
+  cl[[log_action_col]] <- ck_default_blank_action(
+    cl[[log_action_col]],
+    default = default_blank_action
+  )
 
   # convenience accessors
   cl_uuid <- cl[[log_uuid_col]]

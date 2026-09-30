@@ -37,14 +37,17 @@
 #'   after the header; if it is kept it is mistaken for a respondent and produces
 #'   one spurious "other" response (label text, bogus uuid) per question.
 #' @param label_language_fallback Logical. If \code{TRUE} (the default), when the
-#'   English label lookup for a selected \code{select_multiple} code returns
-#'   nothing, the first non-empty label column in \code{tool_choices} (e.g. an
-#'   Arabic \code{label::Arabic (ar)} column) is used instead, so responses in
+#'   English label lookup for a selected choice code returns nothing, the first
+#'   non-empty label column in \code{tool_choices} (e.g. an Arabic
+#'   \code{label::Arabic (ar)} column) is used instead, so responses in
 #'   other languages are shown as they appear in the raw data rather than as
-#'   \code{NA}.
+#'   \code{NA}. Applies to both \code{select_multiple} and \code{select_one}
+#'   rows.
 #' @param fallback_to_code Logical. If \code{TRUE} (the default), a selected code
 #'   with no label in any language is displayed as the raw code itself, so no
-#'   \code{"NA"} is ever written into \code{selected_choices}.
+#'   \code{"NA"} is ever written into \code{selected_choices}. For
+#'   \code{select_one} rows the final fallback is the literal \code{"Other"}, so
+#'   the column is never blank there regardless of this setting.
 #' @param preferred_language Optional. The label language to prefer when resolving
 #'   \code{select_multiple} choice labels. May be an exact label column name (e.g.
 #'   \code{"label::Arabic (ar)"}) or a substring (e.g. \code{"Arabic"}). Passed to
@@ -59,9 +62,32 @@
 #' @return A dataframe formatted for \code{save_other_responses()}. It carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
-#'   The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
-#'   (earlier versions wrote three numbered slots), \strong{INVALID other},
-#'   \strong{FOLLOW-UP message} and \strong{Explanation}.
+#'   The five reviewer columns, in sheet order, are
+#'   \strong{Input translation or improved text}, a single
+#'   \strong{Correct to existing answer option} (earlier versions wrote three
+#'   numbered slots), \strong{Invalid other}, \strong{Comment from IM} and
+#'   \strong{Response from field team}. Earlier versions of the package headed
+#'   these \code{TRUE other}, \code{EXISTING other}, \code{INVALID other},
+#'   \code{FOLLOW-UP message} and \code{Explanation};
+#'   \code{save_other_responses()} and \code{read_other_responses()} still
+#'   recognise those, so a file exported before the rename can be styled and
+#'   read back unchanged.
+#' @section selected_choices:
+#' \code{selected_choices} is filled for both question types, so a reviewer never
+#' sees a blank cell where a selection exists:
+#' \itemize{
+#'   \item \code{select_multiple} - every choice the respondent selected in the
+#'     parent question, resolved to labels and separated by \code{";\\n"}.
+#'   \item \code{select_one} - the question's own "other" option
+#'     (\code{other_db$option_other}), resolved to its label in
+#'     \code{tool_choices} so it reads exactly as in the tool (e.g. \code{"Other"},
+#'     \code{"Other (please specify)"}). A select_one "other" response can only
+#'     come from that option being picked, so nothing is read from the parent
+#'     column. When the option code is missing or unresolvable, the literal
+#'     \code{"Other"} is written.
+#' }
+#' Rows whose parent question is neither type (e.g. a plain \code{text} question)
+#' keep \code{NA}.
 #' @export
 prepare_other_responses <- function(
   raw_data,
@@ -194,33 +220,116 @@ prepare_other_responses <- function(
       select(other_db, name, full_label, list_name),
       by = c("question_name" = "name")
     ) %>%
-    select(all_of(select_cols)) %>%
-    mutate(
-      "TRUE other (copy response_en or provide a better translation)" = NA,
-      "EXISTING other (select the most appropriate choice)" = NA,
-      "INVALID other (select yes or leave blank)" = NA,
-      "FOLLOW-UP message (what is unclear about this response?)" = NA,
-      "Explanation" = NA,
-      selected_choices = NA_character_
-    )
+    select(all_of(select_cols))
+
+  # The five reviewer columns, appended in sheet order. Their headers live in
+  # .ck_other_review_headers() so that save_other_responses() (styling and
+  # dropdowns) and read_other_responses() (reading the reviewed file back) stay
+  # in step with whatever they are called. rep() rather than a scalar so a df
+  # with no rows gets zero-length columns instead of a recycling error.
+  for (header in .ck_other_review_headers()) {
+    df[[header]] <- rep(NA, nrow(df))
+  }
+  df$selected_choices <- rep(NA_character_, nrow(df))
 
   # ---------------------------------------------------------------------------
-  # Vectorized "selected choices" for select_multiple questions.
+  # Vectorized "selected choices" for select_multiple and select_one questions.
   #
   # Here we:
   #   1. resolve ref_question / q_type once via match(),
-  #   2. build a uuid -> value lookup per referenced column (main data first,
-  #      loops fill only missing/NA uuids, first occurrence wins),
-  #   3. memoize get_label_from_name() over unique (list_name, code) pairs.
+  #   2. build the shared choice-label resolver (preferred language, then any
+  #      other language, then the raw code),
+  #   3. select_multiple - build a uuid -> value lookup per referenced column
+  #      (main data first, loops fill only missing/NA uuids, first occurrence
+  #      wins) and resolve every selected code,
+  #   4. select_one - resolve the question's own "other" option, which is the
+  #      only choice that can produce an "other" response,
+  #   5. memoize get_label_from_name() over unique (list_name, code) pairs.
   # ---------------------------------------------------------------------------
-  df$selected_choices <- NA_character_
-
   if (nrow(df) > 0) {
     meta_idx <- match(df$question_name, other_db$name)
     type_row <- other_db[["q_type"]][meta_idx]
     ref_row <- other_db[["ref_question"]][meta_idx]
 
     sm_idx <- which(!is.na(type_row) & type_row == "select_multiple")
+    so_idx <- which(!is.na(type_row) & type_row == "select_one")
+
+    # --- Shared choice-label resolution ---------------------------------------
+    # Built once here (rather than inside the select_multiple branch) because
+    # both select_multiple and select_one rows resolve choice codes to labels.
+
+    # Build a language fallback map from tool_choices: for each
+    # (list_name, name) pair, the first non-empty label column value. XLSForm tools like Kobo/ONA
+    # label columns start with "label" (e.g. "label::English (en)",
+    # "label::Arabic (ar)"). When preferred_language is set, that column is put
+    # first so the fallback also prefers it; otherwise columns keep their order.
+    choice_fallback_map <- NULL
+    if (
+      isTRUE(label_language_fallback) &&
+        !is.null(tool_choices) &&
+        all(c("list_name", "name") %in% names(tool_choices)) &&
+        nrow(tool_choices) > 0
+    ) {
+      label_cols <- grep(
+        "^label",
+        names(tool_choices),
+        ignore.case = TRUE,
+        value = TRUE
+      )
+      if (!is.null(preferred_language) && length(label_cols) > 0) {
+        pref <- label_cols[
+          label_cols == preferred_language |
+            grepl(preferred_language, label_cols, ignore.case = TRUE)
+        ]
+        label_cols <- c(pref, setdiff(label_cols, pref))
+      }
+      if (length(label_cols) > 0) {
+        lab_mat <- as.matrix(tool_choices[, label_cols, drop = FALSE])
+        first_nonempty <- apply(lab_mat, 1, function(vals) {
+          vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+          if (length(vals) == 0) NA_character_ else vals[[1]]
+        })
+        ck <- paste(
+          as.character(tool_choices$list_name),
+          as.character(tool_choices$name),
+          sep = "\u0001"
+        )
+        choice_fallback_map <- stats::setNames(
+          as.character(first_nonempty),
+          ck
+        )
+      }
+    }
+
+    # Resolve a code's label: preferred language first (via get_label_from_name),
+    # then any other language (via the fallback map), then the raw code
+    # (never NA when fallback_to_code = TRUE).
+    resolve_label <- function(list_name, code) {
+      lab <- tryCatch(
+        as.character(get_label_from_name(
+          list_name,
+          code,
+          tool_choices,
+          label_column = preferred_language
+        ))[1],
+        error = function(e) NA_character_
+      )
+      if (!is.na(lab) && nzchar(lab) && !identical(lab, "NA")) {
+        return(lab)
+      }
+      if (!is.null(choice_fallback_map)) {
+        alt <- unname(
+          choice_fallback_map[paste(list_name, code, sep = "\u0001")]
+        )
+        if (!is.na(alt) && nzchar(alt)) {
+          return(alt)
+        }
+      }
+      if (isTRUE(fallback_to_code)) {
+        return(code)
+      }
+      NA_character_
+    }
 
     if (length(sm_idx) > 0) {
       ref_for_row <- as.character(ref_row[sm_idx])
@@ -404,79 +513,6 @@ prepare_other_responses <- function(
       ))
       pair_keys <- pair_keys[!is.na(pair_keys)]
 
-      # Build a language fallback map from tool_choices: for each
-      # (list_name, name) pair, the first non-empty label column value. XLSForm tools like Kobo/ONA
-      # label columns start with "label" (e.g. "label::English (en)",
-      # "label::Arabic (ar)"). When preferred_language is set, that column is put
-      # first so the fallback also prefers it; otherwise columns keep their order.
-      choice_fallback_map <- NULL
-      if (
-        isTRUE(label_language_fallback) &&
-          !is.null(tool_choices) &&
-          all(c("list_name", "name") %in% names(tool_choices)) &&
-          nrow(tool_choices) > 0
-      ) {
-        label_cols <- grep(
-          "^label",
-          names(tool_choices),
-          ignore.case = TRUE,
-          value = TRUE
-        )
-        if (!is.null(preferred_language) && length(label_cols) > 0) {
-          pref <- label_cols[
-            label_cols == preferred_language |
-              grepl(preferred_language, label_cols, ignore.case = TRUE)
-          ]
-          label_cols <- c(pref, setdiff(label_cols, pref))
-        }
-        if (length(label_cols) > 0) {
-          lab_mat <- as.matrix(tool_choices[, label_cols, drop = FALSE])
-          first_nonempty <- apply(lab_mat, 1, function(vals) {
-            vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-            if (length(vals) == 0) NA_character_ else vals[[1]]
-          })
-          ck <- paste(
-            as.character(tool_choices$list_name),
-            as.character(tool_choices$name),
-            sep = "\u0001"
-          )
-          choice_fallback_map <- stats::setNames(
-            as.character(first_nonempty),
-            ck
-          )
-        }
-      }
-
-      # Resolve a code's label: preferred language first (via get_label_from_name),
-      # then any other language (via the fallback map), then the raw code
-      # (never NA when fallback_to_code = TRUE).
-      resolve_label <- function(list_name, code) {
-        lab <- tryCatch(
-          as.character(get_label_from_name(
-            list_name,
-            code,
-            tool_choices,
-            label_column = preferred_language
-          ))[1],
-          error = function(e) NA_character_
-        )
-        if (!is.na(lab) && nzchar(lab) && !identical(lab, "NA")) {
-          return(lab)
-        }
-        if (!is.null(choice_fallback_map)) {
-          alt <- unname(
-            choice_fallback_map[paste(list_name, code, sep = "\u0001")]
-          )
-          if (!is.na(alt) && nzchar(alt)) {
-            return(alt)
-          }
-        }
-        if (isTRUE(fallback_to_code)) {
-          return(code)
-        }
-        NA_character_
-      }
-
       for (pk in pair_keys) {
         parts <- strsplit(pk, "\u0001", fixed = TRUE)[[1]]
         assign(
@@ -510,6 +546,60 @@ prepare_other_responses <- function(
         character(1)
       )
     }
+
+    # -------------------------------------------------------------------------
+    # "selected choices" for select_one questions.
+    #
+    # A select_one "other" response only exists because the respondent picked the
+    # question's "other" option, so the selected choice is known without reading
+    # the parent column: it is other_db$option_other (the code the relevance
+    # expression compares against). We resolve that code to its label through the
+    # same resolver used for select_multiple, so the wording and language match
+    # the tool ("Other", "Other (please specify)", the Arabic label, ...). If the
+    # code is missing or cannot be resolved, the literal "Other" is written, so
+    # the column is never left blank for a select_one row.
+    # -------------------------------------------------------------------------
+    if (length(so_idx) > 0) {
+      other_code_row <- if ("option_other" %in% names(other_db)) {
+        as.character(other_db[["option_other"]][meta_idx][so_idx])
+      } else {
+        rep(NA_character_, length(so_idx))
+      }
+      list_so <- as.character(df$list_name[so_idx])
+
+      resolvable <- !is.na(other_code_row) &
+        nzchar(other_code_row) &
+        !is.na(list_so) &
+        nzchar(list_so)
+
+      so_keys <- rep(NA_character_, length(so_idx))
+      so_keys[resolvable] <- paste(
+        list_so[resolvable],
+        other_code_row[resolvable],
+        sep = "\u0001"
+      )
+
+      so_cache <- new.env(parent = emptyenv())
+      for (pk in unique(so_keys[resolvable])) {
+        parts <- strsplit(pk, "\u0001", fixed = TRUE)[[1]]
+        lab <- resolve_label(parts[1], parts[2])
+        if (is.na(lab) || !nzchar(lab)) {
+          lab <- "Other"
+        }
+        assign(pk, lab, envir = so_cache)
+      }
+
+      df$selected_choices[so_idx] <- vapply(
+        seq_along(so_idx),
+        function(k) {
+          if (!resolvable[k]) {
+            return("Other")
+          }
+          get0(so_keys[k], envir = so_cache, ifnotfound = "Other")
+        },
+        character(1)
+      )
+    }
   }
 
   df <- relocate(df, "selected_choices", .before = "response_en")
@@ -520,51 +610,48 @@ prepare_other_responses <- function(
   return(df)
 }
 
-#' Save Other Responses
+#' Write the other-responses sheets into an existing workbook
 #'
-#' This function saves the other responses into an Excel workbook with specific
-#' formatting and data validation. Target columns are identified dynamically by
-#' name, allowing flexibility such as adding an `enumerator_id`.
+#' The part of \code{save_other_responses()} that can be reused. It takes a
+#' workbook, adds the review sheet and the drop-down source sheet to it, and
+#' hands the workbook back. \code{save_other_responses()} wraps it to produce a
+#' standalone file; \code{create_review_workbook()} calls it on the workbook
+#' \code{create_cleaning_log()} returns, which is how both logs end up in one
+#' file.
 #'
-#' @param df Data frame containing the responses to write.
-#' @param ref_date Reference date for the filename (default is "").
-#' @param enumerator_id Optional string indicating the enumerator id column
-#'   (default is NULL).
-#' @param save_location Directory to save the output file (default is "output").
-#' @param other_db Data frame containing dropdown mapping for existing choices
-#'   (default is NULL).
-#' @param apply_styles Logical. If TRUE (default) apply the coloured/bordered
-#'   cell styling. Set to FALSE for very large exports where per-cell styling
-#'   makes openxlsx slow or memory-hungry; the data and dropdowns are still
-#'   written.
-#' @param skip_label_row Logical. If \code{TRUE} (the default), guard against an
-#'   ONA label/description row still sitting at the top of \code{df}. When \code{df}
-#'   comes from \code{prepare_other_responses()} the label row was already handled
-#'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
-#'   dropped. Only when \code{df} has no such provenance is its first row dropped,
-#'   with a message. Set to \code{FALSE} to always keep every row.
-#' @param freeze_header Logical. Freeze the header row so it stays visible while
-#'   scrolling (default \code{TRUE}). Navigation only - it does not change the
-#'   cell styling.
-#' @param add_filter Logical. Add a column filter on the header row (default
-#'   \code{TRUE}). Navigation only - it does not change the cell styling.
-#' @param file_name Name of the output file. Default \code{NULL} keeps the
-#'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
-#'   passed without the \code{.xlsx} extension gets it appended. The name is
-#'   written inside \code{save_location}.
-#' @return NULL. Saves an Excel file.
-#' @export
-save_other_responses <- function(
+#' Nothing here touches the workbook's base font: \code{modifyBaseFont()} is
+#' workbook-wide and would reach the cleaning log's sheets, so the fonts are set
+#' on this function's own styles instead and the caller decides whether to set a
+#' base font as well.
+#'
+#' @param wb An openxlsx \code{Workbook} object to write into.
+#' @param df Data frame of other responses, from \code{prepare_other_responses()}.
+#' @param other_db Data frame from \code{get_other_db()}, used for the
+#'   per-question drop-downs. \code{NULL} writes the sheet without them.
+#' @param sheet_name Name of the review sheet. Default \code{"other_responses"}.
+#' @param dropdown_sheet Name of the drop-down source sheet. Default
+#'   \code{"Dropdown_values"}.
+#' @param enumerator_id,apply_styles,skip_label_row,freeze_header,add_filter
+#'   As documented on \code{save_other_responses()}.
+#' @param body_font,body_font_size Font applied to this function's own cell
+#'   styles, so the sheet looks the same whether or not the caller sets a
+#'   workbook base font.
+#'
+#' @return \code{wb}, invisibly.
+#' @noRd
+.ck_write_other_sheets <- function(
+  wb,
   df,
-  ref_date = "",
-  enumerator_id = NULL,
-  save_location = "output",
   other_db = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown"),
+  enumerator_id = NULL,
   apply_styles = TRUE,
   skip_label_row = TRUE,
   freeze_header = TRUE,
   add_filter = TRUE,
-  file_name = NULL
+  body_font = "Calibri",
+  body_font_size = 12
 ) {
   get_column_letter <- function(r) {
     result <- character(length(r))
@@ -636,28 +723,49 @@ save_other_responses <- function(
     ))
   }
 
-  wb <- createWorkbook()
+  # --- Guard against writing over a sheet that is already there ---------------
+  # In a merged workbook the cleaning log's sheets are added first, so a name
+  # clash is a real possibility and openxlsx's own error is opaque.
+  existing <- names(wb)
+  clash <- intersect(
+    tolower(c(sheet_name, dropdown_sheet)),
+    tolower(existing)
+  )
+  if (length(clash) > 0) {
+    stop(
+      "The workbook already has a sheet named ",
+      paste(clash, collapse = ", "),
+      ". Pass a different `sheet_name` / `dropdown_sheet`.",
+      call. = FALSE
+    )
+  }
 
   style.col.color <- createStyle(
     fgFill = "#E5FFCC",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color1 <- createStyle(
     fgFill = "#E5FFEC",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color2 <- createStyle(
     fgFill = "#CCE5FF",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
     valign = "top",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first <- createStyle(
     textDecoration = "bold",
@@ -665,7 +773,9 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first1 <- createStyle(
     textDecoration = "bold",
@@ -673,7 +783,9 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
   style.col.color.first2 <- createStyle(
     textDecoration = "bold",
@@ -681,22 +793,53 @@ save_other_responses <- function(
     valign = "top",
     border = "TopBottomLeftRight",
     borderColour = "#000000",
-    wrapText = TRUE
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
   )
-  style.default.body <- createStyle(valign = "top", wrapText = TRUE)
-  style.default.header <- createStyle(textDecoration = "bold")
+  style.default.body <- createStyle(
+    valign = "top",
+    wrapText = TRUE,
+    fontName = body_font,
+    fontSize = body_font_size
+  )
+  style.default.header <- createStyle(
+    textDecoration = "bold",
+    fontName = body_font,
+    fontSize = body_font_size
+  )
 
-  addWorksheet(wb, "Sheet1")
-  writeData(wb = wb, x = df, sheet = "Sheet1", startRow = 1)
+  addWorksheet(wb, sheet_name)
+  writeData(wb = wb, x = df, sheet = sheet_name, startRow = 1)
 
   # Column groups are found from the start of the header rather than the full
-  # string, so the number of "EXISTING other" columns does not matter: the
-  # current single column is picked up, and an older log that still carries
-  # "EXISTING other 1/2/3" keeps working unchanged.
-  exist_cols <- grep("^EXISTING other", names(df))
-  invalid_col <- grep("^INVALID other", names(df))
-  true_other_cols <- grep("^TRUE other", names(df))
-  follow_up_cols <- grep("^(FOLLOW-UP|Explanation)", names(df))
+  # string, so the number of "correct to existing answer option" columns does not
+  # matter: the current single column is picked up, and an older log that still
+  # carries "EXISTING other 1/2/3" keeps working unchanged. The patterns match
+  # both the current headers and the earlier TRUE/EXISTING/INVALID/FOLLOW-UP
+  # ones, so a df built by an older version of the package still styles
+  # correctly.
+  review_pat <- .ck_other_review_patterns()
+  exist_cols <- grep(
+    review_pat[["existing_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  invalid_col <- grep(
+    review_pat[["invalid_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  true_other_cols <- grep(
+    review_pat[["true_other"]],
+    names(df),
+    ignore.case = TRUE
+  )
+  follow_up_cols <- grep(
+    paste0(review_pat[["fu_message"]], "|", review_pat[["explanation"]]),
+    names(df),
+    ignore.case = TRUE
+  )
 
   # --- Styling: assign a category per column, then style in batches -----------
   # Batching with gridExpand = TRUE reduces ~2*ncol addStyle calls to a handful,
@@ -716,13 +859,15 @@ save_other_responses <- function(
       category[follow_up_cols] <- "postinvalid"
     }
 
-    # fallback if the "TRUE other" header was renamed: the column immediately
-    # before the first "EXISTING other" column is the translation column
+    # fallback if the translation header was renamed again: the column
+    # immediately before the first "correct to existing" column is the
+    # translation column
     if (length(true_other_cols) == 0 && length(exist_cols) > 0) {
       pre <- min(exist_cols) - 1L
       if (pre >= 1L && category[pre] == "default") category[pre] <- "trueother"
     }
-    # any extra column added after "INVALID other" belongs to the follow-up block
+    # any extra column added after the invalid-other column belongs to the
+    # follow-up block
     if (length(invalid_col) > 0) {
       post <- which(seq_len(n_cols) > max(invalid_col) & category == "default")
       category[post] <- "postinvalid"
@@ -735,7 +880,7 @@ save_other_responses <- function(
       }
       addStyle(
         wb,
-        "Sheet1",
+        sheet_name,
         body_style,
         rows = seq_len(n_rows + 1L),
         cols = cols,
@@ -743,7 +888,7 @@ save_other_responses <- function(
       )
       addStyle(
         wb,
-        "Sheet1",
+        sheet_name,
         header_style,
         rows = 1,
         cols = cols,
@@ -761,23 +906,25 @@ save_other_responses <- function(
   # Frozen header row and a column filter. Navigation only - neither touches the
   # cell styling above.
   if (n_cols > 0 && isTRUE(add_filter)) {
-    addFilter(wb, "Sheet1", row = 1, cols = seq_len(n_cols))
+    addFilter(wb, sheet_name, row = 1, cols = seq_len(n_cols))
   }
   if (isTRUE(freeze_header)) {
-    freezePane(wb, "Sheet1", firstRow = TRUE)
+    freezePane(wb, sheet_name, firstRow = TRUE)
   }
 
-  addWorksheet(wb, "Dropdown_values")
+  addWorksheet(wb, dropdown_sheet)
   if (!is.null(other_db) && nrow(other_db) > 0) {
     for (r in seq_len(nrow(other_db))) {
       if (other_db$q_type[r] != "text") {
         choices <- str_split(other_db$choices[r], ";;")[[1]]
-        writeData(wb, sheet = "Dropdown_values", x = choices, startCol = r)
+        writeData(wb, sheet = dropdown_sheet, x = choices, startCol = r)
         uuids <- which(df$question_name == other_db$name[r])
         if (length(uuids) > 0 && length(exist_cols) > 0) {
           column_letter <- get_column_letter(r)
           values <- paste0(
-            "='Dropdown_values'!$",
+            "='",
+            dropdown_sheet,
+            "'!$",
             column_letter,
             "$1:$",
             column_letter,
@@ -787,7 +934,7 @@ save_other_responses <- function(
           for (c_idx in exist_cols) {
             dataValidation(
               wb,
-              "Sheet1",
+              sheet_name,
               cols = c_idx,
               rows = uuids + 1,
               type = "list",
@@ -803,14 +950,16 @@ save_other_responses <- function(
 
   writeData(
     wb,
-    sheet = "Dropdown_values",
+    sheet = dropdown_sheet,
     x = c("Yes"),
     startCol = r + 1,
     colNames = FALSE
   )
   column_letter <- get_column_letter(r + 1)
   values <- paste0(
-    "='Dropdown_values'!$",
+    "='",
+    dropdown_sheet,
+    "'!$",
     column_letter,
     "$1:$",
     column_letter,
@@ -819,7 +968,7 @@ save_other_responses <- function(
   if (length(invalid_col) > 0) {
     dataValidation(
       wb,
-      "Sheet1",
+      sheet_name,
       cols = invalid_col,
       rows = 2:(n_rows + 1L),
       type = "list",
@@ -827,9 +976,99 @@ save_other_responses <- function(
     )
   }
 
-  setColWidths(wb, "Sheet1", cols = seq_len(n_cols), widths = 25)
-  setColWidths(wb, "Sheet1", cols = seq_len(min(5L, n_cols)), widths = 15)
+  setColWidths(wb, sheet_name, cols = seq_len(n_cols), widths = 25)
+  setColWidths(wb, sheet_name, cols = seq_len(min(5L, n_cols)), widths = 15)
 
+  invisible(wb)
+}
+
+
+#' Save Other Responses
+#'
+#' This function saves the other responses into an Excel workbook with specific
+#' formatting and data validation. Target columns are identified dynamically by
+#' name, allowing flexibility such as adding an `enumerator_id`.
+#'
+#' @details
+#' The workbook carries two sheets: \code{other_responses}, which the reviewer
+#' fills in, and \code{Dropdown_values}, which backs its drop-downs. The review
+#' sheet was called \code{Sheet1} before version 2026.09.0;
+#' \code{read_other_responses()} accepts either name, so files already out with
+#' reviewers still read back.
+#'
+#' To put these sheets in the same workbook as the cleaning log rather than in a
+#' file of their own, use \code{create_review_workbook()}.
+#'
+#' @param df Data frame containing the responses to write.
+#' @param ref_date Reference date for the filename (default is "").
+#' @param enumerator_id Optional string indicating the enumerator id column
+#'   (default is NULL).
+#' @param save_location Directory to save the output file (default is "output").
+#' @param other_db Data frame containing dropdown mapping for existing choices
+#'   (default is NULL).
+#' @param apply_styles Logical. If TRUE (default) apply the coloured/bordered
+#'   cell styling. Set to FALSE for very large exports where per-cell styling
+#'   makes openxlsx slow or memory-hungry; the data and dropdowns are still
+#'   written.
+#' @param skip_label_row Logical. If \code{TRUE} (the default), guard against an
+#'   ONA label/description row still sitting at the top of \code{df}. When \code{df}
+#'   comes from \code{prepare_other_responses()} the label row was already handled
+#'   (tracked via the \code{"ona_label_row_skipped"} attribute) and nothing is
+#'   dropped. Only when \code{df} has no such provenance is its first row dropped,
+#'   with a message. Set to \code{FALSE} to always keep every row.
+#' @param freeze_header Logical. Freeze the header row so it stays visible while
+#'   scrolling (default \code{TRUE}). Navigation only - it does not change the
+#'   cell styling.
+#' @param add_filter Logical. Add a column filter on the header row (default
+#'   \code{TRUE}). Navigation only - it does not change the cell styling.
+#' @param file_name Name of the output file. Default \code{NULL} keeps the
+#'   standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
+#'   passed without the \code{.xlsx} extension gets it appended. The name is
+#'   written inside \code{save_location}.
+#' @param sheet_name Name of the review sheet. Default \code{"other_responses"}.
+#' @param dropdown_sheet Name of the drop-down source sheet. Default
+#'   \code{"Dropdown_values"}.
+#' @return NULL. Saves an Excel file.
+#' @export
+save_other_responses <- function(
+  df,
+  ref_date = "",
+  enumerator_id = NULL,
+  save_location = "output",
+  other_db = NULL,
+  apply_styles = TRUE,
+  skip_label_row = TRUE,
+  freeze_header = TRUE,
+  add_filter = TRUE,
+  file_name = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown")
+) {
+  ck_assert_sheet_names(
+    c(sheet_name, dropdown_sheet),
+    caller = "save_other_responses"
+  )
+
+  wb <- createWorkbook()
+
+  .ck_write_other_sheets(
+    wb = wb,
+    df = df,
+    other_db = other_db,
+    sheet_name = sheet_name,
+    dropdown_sheet = dropdown_sheet,
+    enumerator_id = enumerator_id,
+    apply_styles = apply_styles,
+    skip_label_row = skip_label_row,
+    freeze_header = freeze_header,
+    add_filter = add_filter,
+    body_font = "Calibri",
+    body_font_size = 12
+  )
+
+  # Safe here, where the workbook holds nothing but these two sheets. It is not
+  # safe in .ck_write_other_sheets(), which may be writing into a workbook that
+  # already carries the cleaning log.
   modifyBaseFont(wb, fontSize = 12, fontColour = "black", fontName = "Calibri")
 
   # Output file name: the standard dated name unless the caller supplies one.

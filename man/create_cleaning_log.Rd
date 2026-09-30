@@ -12,9 +12,12 @@ create_cleaning_log(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
-  color_mode = "on",
-  color_columns = NULL,
+  color_mode = "partial",
+  color_columns = c("old_value"),
   include_dataset = TRUE,
+  flag_columns = ck_flag_column_defaults(),
+  flag_separator = " | ",
+  flag_header_fill_color = "#003D58",
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -23,7 +26,8 @@ create_cleaning_log(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by_uuid = TRUE
+  group_by = "issue",
+  readme_include_other = FALSE
 )
 }
 \arguments{
@@ -55,6 +59,21 @@ underscores; numeric column positions are also accepted. Default \code{NULL}.}
 \item{include_dataset}{Logical. If \code{TRUE} (the default), the checked dataset is written to
 a sheet named \code{"dataset"} so reviewers can refer back to the raw data.}
 
+\item{flag_columns}{Helper columns prepended to the \code{dataset} sheet, one per survey-level
+check, so a reviewer can filter the raw data down to the surveys a check flagged. A named
+list mapping a column header to the \code{check_binding} prefixes that feed it; default
+\code{\link{ck_flag_column_defaults}()} gives \strong{duration}, \strong{completeness},
+\strong{refused}, \strong{back to back} and \strong{similarity}. Use \code{NULL} to add no
+flag columns. Ignored when \code{include_dataset = FALSE}.}
+
+\item{flag_separator}{String used to join several flagged values for the same record within one
+flag column. Default \code{" | "}.}
+
+\item{flag_header_fill_color}{Hexcode for the header fill of the flag columns. Deliberately
+different from \code{header_fill_color} so the block reads as helper columns rather than part
+of the export. Default MMC dark blue \code{"#003D58"}. The cells below keep the ordinary body
+formatting.}
+
 \item{header_front_size}{Header font size (default is 12).}
 
 \item{header_front_color}{Hexcode for header font color (default is white).}
@@ -74,11 +93,21 @@ record and \strong{Question text} is left blank (no label row to read from).}
 
 \item{output_path}{Output path. Default \code{NULL} returns a workbook instead of writing a file.}
 
-\item{group_by_uuid}{Logical. If \code{TRUE} (the default), the log rows are regrouped so all
-rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
-another. Blocks keep the order in which their uuid is first met in the combined log, and
-rows keep their original order inside a block. \code{FALSE} keeps the incoming
-check-by-check order.}
+\item{group_by}{Column used to group the log rows, so that all rows sharing a value form one
+contiguous block. Default \code{"issue"}, which puts every row raising the same issue
+together. Blocks keep the order in which their value is first met in the combined log, and
+rows keep their original order inside a block. Accepts either the raw log names
+(\code{"issue"}, \code{"uuid"}, \code{"question"}, \code{"old_value"},
+\code{"check_binding"}) or the reviewer-facing headers (\code{"Issue"},
+\code{"Survey UUID"}, \code{"Enumerator"}, ...); matching ignores case, spaces and
+underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
+survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
+order. An unrecognised column name is an error rather than a silent fallback.}
+
+\item{readme_include_other}{Logical. If \code{TRUE}, the readme also describes the
+\code{other_responses} and \code{Dropdown_values} sheets and the three other-responses
+review columns. Default \code{FALSE}, because those sheets are not part of this
+workbook. \code{create_review_workbook()}, which adds them, sets this to \code{TRUE}.}
 }
 \value{
 A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
@@ -97,20 +126,27 @@ from \code{date_column} and \code{enumerator_column}. The remaining reviewer col
 \strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
 be completed during review.
 
-The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-\code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
+\code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
+\code{no_action}, \code{other}. A reviewer only has to fill in the rows that need a
+change: the \code{readme} sheet also carries a row explaining that a cell left blank is
+read as \code{no_action} by \code{read_cleaning_log()}, \code{evaluate_cleaning_log()}
+and \code{apply_cleaning_log()}. The blank entry is documentation only - it is not added
+to the drop-down, which still offers the six codes above.
 
 \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 headers stay visible while a reviewer scrolls right and down.
 
-\strong{Row order.} The combined log arrives stacked check by check, so the rows for one
-interview are scattered down the sheet. By default the reviewer log is regrouped so that
-every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
-after another. Blocks appear in the order the uuids are first met in the combined log, and
-the original order is kept inside each block, so the rows themselves are untouched - only
-their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
-order.
+\strong{Row order.} The combined log arrives stacked check by check, so rows that belong
+together are scattered down the sheet. By default the reviewer log is regrouped by
+\strong{Issue}, so every row raising the same issue sits in one contiguous block and a
+reviewer can work through one kind of problem at a time. Blocks appear in the order each
+value is first met in the combined log, and the original order is kept inside each block,
+so the rows themselves are untouched - only their arrangement changes. \code{group_by}
+chooses the column: \code{"uuid"} restores the previous survey-by-survey layout, any other
+log column or reviewer header works too, and \code{NULL} or \code{FALSE} keeps the incoming
+check-by-check order.
 
 \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 with the same light MMC shade across the whole row. \code{color_mode} changes that:
@@ -119,6 +155,37 @@ with the same light MMC shade across the whole row. \code{color_mode} changes th
 formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
 \code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
 underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
+
+\strong{Flag columns on the dataset sheet.} Deciding whether to keep or discard a whole
+interview usually means weighing several survey-level checks at once - a short interview that
+is also nearly empty, or a back-to-back interview that is also a soft duplicate. To make that
+judgement without leaving the raw data, the \code{dataset} sheet is written with a block of
+helper columns in front of the ONA columns: \strong{duration}, \strong{completeness},
+\strong{refused}, \strong{back to back} and \strong{similarity}. Each one carries, for that
+record's uuid, what every cleaning-log row raised by the matching check says, and is left blank
+when the check did not flag the survey. A reviewer can therefore filter on one column, or on
+several at once, and cross-check the flagged surveys directly against their raw answers.
+
+\strong{duration}, \strong{completeness} and \strong{refused} show the log's \code{old_value},
+which is a figure that speaks for itself: the duration in minutes, the count of non-empty
+cells, the count of refused responses. \strong{back to back} and \strong{similarity} show the
+\code{issue} instead, because their raw values cannot be judged on their own - a bare interview
+start time, or a bare count of similar columns, says nothing without the gap, the threshold,
+the enumerator and the other survey involved, all of which the issue names. Any column can be
+switched either way with \code{list(prefixes = ..., value = "issue")} or
+\code{value = "old_value"}.
+
+Rows are matched through \code{check_binding}, whose leading segment names the check that
+Rows are matched through \code{check_binding}, whose leading segment names the check that
+raised them, so a log assembled from any combination of \code{validate_*} functions works
+without further configuration. \code{flag_columns} changes which columns are written and which
+checks feed them; see \code{\link{ck_flag_column_defaults}}. In the macro-enabled workbook
+produced by \code{\link{create_cleaning_log_vba}} these columns are exempt from change capture:
+editing one never appends a cleaning-log row.
+
+The five headers carry an MMC dark-blue fill (\code{flag_header_fill_color}) rather than the
+teal used for the ONA headers, so the block is not mistaken for exported data. Everything below
+the header row keeps the ordinary body formatting.
 }
 \examples{
 \dontrun{
@@ -136,10 +203,41 @@ create_cleaning_log(
 # no colouring at all
 create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
 
-# keep the old check-by-check row order instead of grouping by survey
+# group the rows survey by survey instead of issue by issue
 create_cleaning_log(
   write_list,
-  group_by_uuid = FALSE,
+  group_by = "uuid",
+  output_path = "cleaning_log.xlsx"
+)
+
+# group by enumerator, using the reviewer-facing header
+create_cleaning_log(
+  write_list,
+  group_by = "Enumerator",
+  output_path = "cleaning_log.xlsx"
+)
+
+# keep the incoming check-by-check row order, no grouping at all
+create_cleaning_log(
+  write_list,
+  group_by = NULL,
+  output_path = "cleaning_log.xlsx"
+)
+
+# add a flag column for a check of your own, and drop one you do not use
+my_flags <- ck_flag_column_defaults()
+my_flags[["outliers"]] <- "outlier_check"
+my_flags[["refused"]] <- NULL
+create_cleaning_log(
+  write_list,
+  flag_columns = my_flags,
+  output_path = "cleaning_log.xlsx"
+)
+
+# plain dataset sheet, no flag columns at all
+create_cleaning_log(
+  write_list,
+  flag_columns = NULL,
   output_path = "cleaning_log.xlsx"
 )
 }

@@ -48,15 +48,18 @@ after the header; if it is kept it is mistaken for a respondent and produces
 one spurious "other" response (label text, bogus uuid) per question.}
 
 \item{label_language_fallback}{Logical. If \code{TRUE} (the default), when the
-English label lookup for a selected \code{select_multiple} code returns
-nothing, the first non-empty label column in \code{tool_choices} (e.g. an
-Arabic \code{label::Arabic (ar)} column) is used instead, so responses in
+English label lookup for a selected choice code returns nothing, the first
+non-empty label column in \code{tool_choices} (e.g. an Arabic
+\code{label::Arabic (ar)} column) is used instead, so responses in
 other languages are shown as they appear in the raw data rather than as
-\code{NA}.}
+\code{NA}. Applies to both \code{select_multiple} and \code{select_one}
+rows.}
 
 \item{fallback_to_code}{Logical. If \code{TRUE} (the default), a selected code
 with no label in any language is displayed as the raw code itself, so no
-\code{"NA"} is ever written into \code{selected_choices}.}
+\code{"NA"} is ever written into \code{selected_choices}. For
+\code{select_one} rows the final fallback is the literal \code{"Other"}, so
+the column is never blank there regardless of this setting.}
 
 \item{preferred_language}{Optional. The label language to prefer when resolving
 \code{select_multiple} choice labels. May be an exact label column name (e.g.
@@ -69,12 +72,38 @@ with no label in any language is displayed as the raw code itself, so no
 A dataframe formatted for \code{save_other_responses()}. It carries an
 attribute \code{"ona_label_row_skipped"} recording whether the label row was
 dropped, so \code{save_other_responses()} does not drop a row a second time.
-The reviewer columns are \strong{TRUE other}, a single \strong{EXISTING other}
-(earlier versions wrote three numbered slots), \strong{INVALID other},
-\strong{FOLLOW-UP message} and \strong{Explanation}.
+The five reviewer columns, in sheet order, are
+\strong{Input translation or improved text}, a single
+\strong{Correct to existing answer option} (earlier versions wrote three
+numbered slots), \strong{Invalid other}, \strong{Comment from IM} and
+\strong{Response from field team}. Earlier versions of the package headed
+these \code{TRUE other}, \code{EXISTING other}, \code{INVALID other},
+\code{FOLLOW-UP message} and \code{Explanation};
+\code{save_other_responses()} and \code{read_other_responses()} still
+recognise those, so a file exported before the rename can be styled and
+read back unchanged.
 }
 \description{
 Combines other responses from all sheets/loops into a single dataframe
 ready for use with \code{save_other_responses()}. The function dynamically
 includes extra columns (e.g., enumerator, sample_area) if provided.
 }
+\section{selected_choices}{
+
+\code{selected_choices} is filled for both question types, so a reviewer never
+sees a blank cell where a selection exists:
+\itemize{
+\item \code{select_multiple} - every choice the respondent selected in the
+parent question, resolved to labels and separated by \code{";\\n"}.
+\item \code{select_one} - the question's own "other" option
+(\code{other_db$option_other}), resolved to its label in
+\code{tool_choices} so it reads exactly as in the tool (e.g. \code{"Other"},
+\code{"Other (please specify)"}). A select_one "other" response can only
+come from that option being picked, so nothing is read from the parent
+column. When the option code is missing or unresolvable, the literal
+\code{"Other"} is written.
+}
+Rows whose parent question is neither type (e.g. a plain \code{text} question)
+keep \code{NA}.
+}
+

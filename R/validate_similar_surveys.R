@@ -1,8 +1,8 @@
-#' Validate Survey Similarities (Soft Duplicates)
+#' Validate Similar Surveys (Soft Duplicates)
 #'
 #' Detects suspiciously similar surveys by computing the Gower distance between
 #' every pair of records and flagging any survey whose closest neighbour differs
-#' in fewer than \code{threshold} columns. A low number of differing columns
+#' in fewer than \code{threshold} columns. A high number of similar columns
 #' suggests the enumerator may have duplicated or fabricated a response rather
 #' than interviewing a distinct respondent.
 #'
@@ -48,7 +48,7 @@
 #'   sub-columns are excluded from the comparison; only the concatenated parent
 #'   is kept.
 #' @param log_name Name of the log element in the returned list.
-#'   Default \code{"soft_duplicate_log"}.
+#'   Default \code{"similar_surveys_log"}.
 #' @param threshold Flag all surveys whose closest neighbour differs in at most
 #'   this many columns. Default \code{7}.
 #' @param return_all_results If \code{TRUE}, return a row for every survey (not
@@ -61,25 +61,26 @@
 #' @return A list containing:
 #'   \item{checked_dataset}{The original dataset, unchanged.}
 #'   \item{<log_name>}{A dataframe with columns \code{uuid},
-#'     \code{old_value} (number of differing columns),
-#'     \code{question} (\code{"number_different_columns"}),
+#'     \code{old_value} (number of columns similar to the closest survey,
+#'     i.e. total columns compared minus differing columns),
+#'     \code{question} (\code{"number_similar_columns"}),
 #'     \code{issue}, and \code{check_binding}.}
 #' @export
-validate_duplicates <- function(
+validate_similar_surveys <- function(
   dataset,
   tool_survey,
   uuid_column = "_uuid",
   enumerator_column = "username",
   idnk_value = "Don't know",
   sm_separator = "/",
-  log_name = "soft_duplicate_log",
+  log_name = "similar_surveys_log",
   threshold = 7,
   return_all_results = FALSE,
   skip_label_row = TRUE
 ) {
   if (!requireNamespace("cluster", quietly = TRUE)) {
     stop(
-      "The 'cluster' package is required for validate_duplicates(). ",
+      "The 'cluster' package is required for validate_similar_surveys(). ",
       "Install it with: install.packages('cluster')"
     )
   }
@@ -308,6 +309,7 @@ validate_duplicates <- function(
     total_columns_compared = total_cols,
     num_cols_idnk = rowSums(df_work == tolower(idnk_value)),
     number_different_columns = num_diff,
+    number_similar_columns = total_cols - num_diff,
     stringsAsFactors = FALSE
   )
   summary_df <- summary_df[
@@ -351,34 +353,37 @@ validate_duplicates <- function(
         ),
       flagged_df$number_different_columns <= threshold ~
         paste0(
-          "Possible duplicate within enumerator",
+          "Similarity with surveys from enumerator",
           if (!is.null(enum_vals)) {
             paste0(" '", flagged_df$enumerator, "'")
           } else {
             ""
           },
-          ": only ",
-          flagged_df$number_different_columns,
+          ": ",
+          flagged_df$number_similar_columns,
           " of ",
           flagged_df$total_columns_compared,
-          " columns differ from survey ",
+          " columns are similar from survey ",
           flagged_df$id_most_similar_survey,
           " \u2014 threshold is ",
           threshold
         ),
       TRUE ~
         paste0(
-          "Similar survey found within enumerator",
+          "Similarity with surveys from enumerator",
           if (!is.null(enum_vals)) {
             paste0(" '", flagged_df$enumerator, "'")
           } else {
             ""
           },
-          " (",
-          flagged_df$number_different_columns,
-          " differing columns from survey ",
+          ": ",
+          flagged_df$number_similar_columns,
+          " of ",
+          flagged_df$total_columns_compared,
+          " columns are similar from survey ",
           flagged_df$id_most_similar_survey,
-          ")"
+          " \u2014 not flagged, threshold is ",
+          threshold
         )
     )
 
@@ -403,8 +408,8 @@ validate_duplicates <- function(
 
     log <- data.frame(
       uuid = flagged_df$uuid,
-      old_value = as.character(flagged_df$number_different_columns),
-      question = "number_different_columns",
+      old_value = as.character(flagged_df$number_similar_columns),
+      question = "number_similar_columns",
       issue = issue_text,
       # Both surveys in a pair share the same binding (lexicographic min ~/~ max)
       # so they get the same colour in the review workbook.
@@ -418,7 +423,7 @@ validate_duplicates <- function(
 }
 
 
-#' Validate Duplicate Answers for Specific Questions Per Enumerator
+#' Validate Similar Answers for Specific Questions Per Enumerator
 #'
 #' For each question in \code{questions_to_check}, groups surveys by enumerator
 #' and flags any answer value that appears in more than one of that enumerator's
@@ -428,7 +433,7 @@ validate_duplicates <- function(
 #' review workbook.
 #'
 #' @details
-#' This is complementary to \code{validate_duplicates()}: where that function
+#' This is complementary to \code{validate_similar_surveys()}: where that function
 #' uses Gower distance to detect globally similar surveys, this function
 #' pinpoints specific questions (e.g. a destination country, a landmark, a
 #' journey start point) that should vary between respondents but are suspiciously
@@ -450,7 +455,7 @@ validate_duplicates <- function(
 #' @param enumerator_column Name of the enumerator column used to group surveys.
 #'   Default \code{"username"}.
 #' @param log_name Name of the log element in the returned list.
-#'   Default \code{"duplicate_questions_log"}.
+#'   Default \code{"similar_questions_log"}.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row of
 #'   the dataset is removed before validation. ONA exports include a
 #'   label/description row immediately after the header that must not be treated
@@ -464,12 +469,12 @@ validate_duplicates <- function(
 #'     \code{issue}, and \code{check_binding}. One row per survey per flagged
 #'     question. Empty (zero rows) if no duplicates are found.}
 #' @export
-validate_duplicate_questions <- function(
+validate_similar_questions <- function(
   dataset,
   questions_to_check,
   uuid_column = "_uuid",
   enumerator_column = "username",
-  log_name = "duplicate_questions_log",
+  log_name = "similar_questions_log",
   skip_label_row = TRUE
 ) {
   # ---- normalise input ----

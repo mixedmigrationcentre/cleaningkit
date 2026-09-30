@@ -13,9 +13,10 @@ read_cleaning_log(
   question_col = "Question number",
   old_value_col = "Old value",
   new_value_col = "New value",
-  sheet = 2,
+  sheet = NULL,
   file_pattern = "_follow-ups_edited\\\\.xls[xm]$",
   extra_questions = NULL,
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 )
@@ -43,8 +44,10 @@ uuids and known question columns.}
 
 \item{new_value_col}{Name of the new-value column. Default \code{"New value"}.}
 
-\item{sheet}{Sheet to read from each Excel file. Accepts a name or integer.
-Default \code{2}.}
+\item{sheet}{Sheet to read from each Excel file. Default \code{NULL}
+resolves it per file by name (\code{"cleaning_log"}, then the first
+sheet). Accepts a name or an integer to override, or a vector/list of the
+same length as the files.}
 
 \item{file_pattern}{Regex pattern used to identify cleaning log files when
 \code{path} is a directory. Default \code{"_follow-ups_edited\\\\.xls[xm]$"},
@@ -54,6 +57,11 @@ argument of \code{create_cleaning_log()}).}
 \item{extra_questions}{Optional character vector of additional question values
 to allow through the question filter (e.g. computed columns that are not
 in the raw dataset but are valid targets). Default \code{NULL}.}
+
+\item{default_blank_action}{Action written into rows whose \code{action_col}
+cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+not fill in is taken to mean the data point stays as it is. Set to
+\code{NULL} to leave blank cells blank.}
 
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row of
 \code{raw_dataset} is removed before extracting valid uuids.}
@@ -86,10 +94,20 @@ the exact columns that are missing or extra. Files that cannot be opened at
 all are not treated as mismatches - they are warned about and skipped as
 before. Run \code{check_log_files()} directly for the full report.
 
-\strong{Sheet selection:} \code{sheet} accepts either a sheet name or an
-integer index. The default \code{2} matches the output of
-\code{create_cleaning_log()} where sheet 1 is the dataset and sheet 2 is
-the cleaning log.
+\strong{Sheet selection:} the default \code{NULL} finds the sheet by name,
+per file - \code{"cleaning_log"}, falling back to the first sheet if no
+sheet carries that name. Naming it rather than numbering it is what lets the
+log live in a workbook that also holds the dataset, the readme and the other
+responses without the reader having to know the tab order. Pass a name or an
+integer index to override.
+
+\strong{Blank actions:} a reviewer only fills in the rows that need a
+change, so a flagged row left with an empty \strong{Action taken} means the
+data point stays as it is. Those blanks are filled with
+\code{default_blank_action} (\code{"no_action"} by default) as soon as the
+files are stacked, before any filtering or deduplication, so every later
+step sees an explicit action on every row. Pass
+\code{default_blank_action = NULL} to leave blank cells untouched.
 
 \strong{Filtering:} rows whose \code{uuid} is not in the raw dataset and rows
 whose \code{question} is not a column in the raw dataset are silently dropped

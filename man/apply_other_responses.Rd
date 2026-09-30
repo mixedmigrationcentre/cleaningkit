@@ -38,3 +38,20 @@ A list with:
 Applies every row of the cleaning log produced by \code{read_other_responses()}
 to the dataset. A direct replacement for the manual apply loop.
 }
+\details{
+Values are written back in whatever convention the export already uses.
+For select-multiple sub-columns this is detected from the data by
+\code{read_other_responses()} (see \code{.detect_sm_convention()}): in a
+label export a selected choice holds the choice text and an unselected one
+stays blank, and in a binary export they hold \code{"1"} and \code{"0"}.
+\code{0}/\code{1} are only ever introduced where the export already
+contains them.
+
+Choices are matched to the dataset's own column headers first, and only then
+translated through \code{tool_choices}. The \code{list_name} recorded in
+\code{other_db} comes from whichever version of the tool produced the
+original output, so when it is missing from the current \code{tool_choices}
+the choice text is looked up across the remaining lists (and matched
+ignoring case, spacing and punctuation). A recoded choice is written in the
+form the column itself uses, so a label export is never given choice codes.
+}

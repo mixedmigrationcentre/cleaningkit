@@ -24,6 +24,10 @@
 '
 ' Appended rows are written with formatting cleared, so none of the
 ' create_formated_wb() row colours carry down onto them.
+'
+' Exempt columns: the headers listed in `ignore_columns` on _ck_config -
+' the check-flag block create_cleaning_log() prepends to the dataset
+' sheet - are skipped entirely. Editing one changes nothing in the log.
 '======================================================================
 
 Option Explicit
@@ -213,7 +217,13 @@ Private Sub CkLogEdits(ByVal ds As Worksheet, ByVal lg As Worksheet, _
             uuid = CkText(ds.Cells(c.Row, uuidCol))
             newVal = CkText(c)
 
-            If Len(question) > 0 And Len(uuid) > 0 Then
+            ' The check-flag columns (duration, completeness, refused, back to
+            ' back, similarity) are working aids, not survey answers: a reviewer
+            ' may sort, tick off or annotate them while deciding whether to keep
+            ' a survey, and none of that belongs in the cleaning log. The edit
+            ' is left standing; it is simply not recorded.
+            If Len(question) > 0 And Len(uuid) > 0 And _
+               Not CkIsIgnoredColumn(question) Then
                 key = CkLedgerKey(uuid, question)
                 CkLedgerGet key, ledgerFound, ledgerLast, ledgerCount
 

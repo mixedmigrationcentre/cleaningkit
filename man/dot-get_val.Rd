@@ -4,7 +4,14 @@
 \alias{.get_val}
 \title{Look up current value from dataset by uuid and column}
 \usage{
-.get_val(dataset, uuid_column, uuid, column, skip_label_row = TRUE)
+.get_val(
+  dataset,
+  uuid_column,
+  uuid,
+  column,
+  skip_label_row = TRUE,
+  uuid_index = NULL
+)
 }
 \description{
 Look up current value from dataset by uuid and column

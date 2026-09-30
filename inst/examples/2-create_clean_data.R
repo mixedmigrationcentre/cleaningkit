@@ -40,21 +40,25 @@ raw_data <- cleaningkit::read_raw_data(
 )
 #----------------------------------
 # read cleaning log
-# read the cleaning log file
+#
+# one reviewed workbook now carries both logs, so this and
+# read_other_responses() below are pointed at the same folder and the same
+# file. each finds its own sheet by name - `cleaning_log` here,
+# `other_responses` there - so neither depends on the tab order.
 #----------------------------------
 cl <- cleaningkit::read_cleaning_log(
   raw_dataset = raw_data,
   path = "./output/follow_ups/",
-  sheet = 1,
   raw_uuid_column = "_uuid",
   uuid_col = "Survey UUID",
   action_col = "Action taken",
   question_col = "Question number",
   old_value_col = "Old value",
   new_value_col = "New value",
-  # matches both the plain log and a macro-enabled one written by
-  # create_cleaning_log_vba(); readxl reads .xlsm exactly like .xlsx
+  # matches both the plain workbook and a macro-enabled one; readxl reads
+  # .xlsm exactly like .xlsx
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
+  # sheet = "cleaning_log" is the default; pass a name or a number to override
   extra_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -122,17 +126,22 @@ clean_data <- cleaningkit::apply_cleaning_log(
 
 #----------------------------------
 # read other responses log
-# read and classify other responses
+#
+# the same reviewed file as above, read from its `other_responses` sheet.
+# for a file produced by the older standalone save_other_responses() route,
+# point `path` at ./output/other_responses/ and set
+# file_pattern = "_other_responses_edited\\.xlsx$" - the sheet is found either
+# way, whether it is called `other_responses` or the older `Sheet1`.
 #----------------------------------
 other_log <- cleaningkit::read_other_responses(
-  path = "./output/other_responses/",
+  path = "./output/follow_ups/",
   dataset = clean_data$clean_dataset,
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
   other_db = other_db,
   tool_choices = tool_choices,
   sm_separator = "/",
-  file_pattern = "_other_responses_edited\\.xlsx$",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE

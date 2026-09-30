@@ -14,7 +14,9 @@ save_other_responses(
   skip_label_row = TRUE,
   freeze_header = TRUE,
   add_filter = TRUE,
-  file_name = NULL
+  file_name = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown")
 )
 }
 \arguments{
@@ -53,6 +55,11 @@ cell styling.}
 standard name \code{paste0(Sys.Date(), "_other_responses.xlsx")}. A name
 passed without the \code{.xlsx} extension gets it appended. The name is
 written inside \code{save_location}.}
+
+\item{sheet_name}{Name of the review sheet. Default \code{"other_responses"}.}
+
+\item{dropdown_sheet}{Name of the drop-down source sheet. Default
+\code{"Dropdown_values"}.}
 }
 \value{
 NULL. Saves an Excel file.
@@ -61,4 +68,14 @@ NULL. Saves an Excel file.
 This function saves the other responses into an Excel workbook with specific
 formatting and data validation. Target columns are identified dynamically by
 name, allowing flexibility such as adding an \code{enumerator_id}.
+}
+\details{
+The workbook carries two sheets: \code{other_responses}, which the reviewer
+fills in, and \code{Dropdown_values}, which backs its drop-downs. The review
+sheet was called \code{Sheet1} before version 2026.09.0;
+\code{read_other_responses()} accepts either name, so files already out with
+reviewers still read back.
+
+To put these sheets in the same workbook as the cleaning log rather than in a
+file of their own, use \code{create_review_workbook()}.
 }

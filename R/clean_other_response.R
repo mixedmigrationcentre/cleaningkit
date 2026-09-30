@@ -11,18 +11,35 @@
 #' \describe{
 #'   \item{\code{true_other}}{A genuine new answer (e.g. a translation).
 #'     Overwrites the \code{_other} text column with the value in
-#'     \code{TRUE other ...}. The parent question is not touched.}
+#'     \code{Input translation or improved text ...}. The parent question is not
+#'     touched.}
 #'   \item{\code{recode}}{The response actually matches an existing choice.
-#'     The \code{EXISTING other ...} column is filled (older logs with several
-#'     numbered \code{EXISTING other} columns are still read and merged). For
+#'     The \code{Correct to existing answer option ...} column is filled (older
+#'     logs with several numbered \code{EXISTING other} columns are still read
+#'     and merged). For
 #'     \code{select_one}: blanks the \code{_other} text column, sets the parent
 #'     to the matched choice code. For \code{select_multiple}: blanks the
 #'     \code{_other} text column, removes the \code{other} option from the
 #'     parent concatenation, and adds the matched choice(s).}
-#'   \item{\code{remove}}{The response is invalid (\code{INVALID other == "Yes"}).
+#'   \item{\code{remove}}{The response is invalid
+#'     (\code{Invalid other ... == "Yes"}).
 #'     Blanks the \code{_other} text column and removes/blanks the parent
 #'     question reference.}
 #' }
+#'
+#' \strong{Which sheet is read:} the sheet is found by name, not by position -
+#' \code{"other_responses"} first, then \code{"Sheet1"} as written before the
+#' cleaning log and the other responses were merged into one workbook, then the
+#' first sheet. A merged review workbook and an older standalone
+#' other-responses file therefore both read with no extra argument, even when
+#' they sit side by side in the same folder.
+#'
+#' \strong{Header names:} the reviewer columns are matched by prefix, case
+#' insensitively, against both the headers written by the current
+#' \code{prepare_other_responses()} and the earlier \code{TRUE other} /
+#' \code{EXISTING other} / \code{INVALID other} / \code{FOLLOW-UP message}
+#' headers, so a file reviewed before the rename is read exactly as before. The
+#' patterns are defined once in \code{.ck_other_review_patterns()}.
 #'
 #' \strong{Column check:} before the files are stacked, their headers are
 #' compared with \code{check_log_files()}. Because the files are combined with
@@ -40,10 +57,19 @@
 #' dataset and \code{"uuid"} in the log file). The ONA label/description row
 #' is excluded from the dataset uuid list when \code{skip_label_row = TRUE}.
 #'
-#' \strong{Mutual exclusivity:} each row must have exactly one of
+#' \strong{Mutual exclusivity:} a row may have at most one of
 #' \code{true_other}, \code{existing_other}, or \code{invalid_other} filled.
-#' Rows with zero or more than one filled are flagged with a warning and
-#' excluded.
+#' Rows with more than one filled are contradictory - the reviewer has asked for
+#' two different things on one response - so they are excluded and their uuids
+#' named in a warning.
+#'
+#' \strong{Rows left blank:} a row with all three action columns blank is not an
+#' error. It is the normal way a reviewer records that the "other" text is a
+#' valid answer as it stands and the record should not change. Such rows produce
+#' no cleaning-log entry (there is no data point to change, so logging one would
+#' only pad the log) and no warning; they are counted in the \code{verbose}
+#' summary as \emph{no change (kept as-is)}. A file in which every row is blank
+#' therefore returns an empty log quietly rather than warning.
 #'
 #' \strong{Output shape:} the returned dataframe has columns
 #' \code{uuid}, \code{question}, \code{action_taken}, \code{old_value},
@@ -69,8 +95,18 @@
 #' @param sm_separator Separator between a select-multiple parent column name
 #'   and its binary sub-columns in \code{dataset}. Default \code{"/"} (ONA
 #'   export style).
+#' @param sheet Sheet holding the other responses. Default \code{NULL} resolves
+#'   it per file by name: \code{"other_responses"} as written by
+#'   \code{create_review_workbook()} and \code{save_other_responses()},
+#'   falling back to \code{"Sheet1"} for a file produced before the two logs
+#'   were merged, and to the first sheet if neither name is present. Pass a name
+#'   or an integer to override. Resolving by name is what lets the same file
+#'   carry the cleaning log on one sheet and the other responses on another.
 #' @param file_pattern Regex pattern used when \code{path} is a directory.
-#'   Default \code{"_other_responses_edited\\\\.xlsx$"}.
+#'   Default \code{"_follow-ups_edited\\\\.xls[xm]$"} - the merged review
+#'   workbook, which holds both logs. Pass
+#'   \code{"_other_responses_edited\\\\.xlsx$"} to read files produced by the
+#'   older standalone \code{save_other_responses()} route.
 #' @param skip_questions Character vector of question names to exclude from
 #'   processing (e.g. free-text comments columns). Default \code{NULL}.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
@@ -90,7 +126,8 @@ read_other_responses <- function(
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
   sm_separator = "/",
-  file_pattern = "_other_responses_edited\\.xlsx$",
+  sheet = NULL,
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -118,8 +155,27 @@ read_other_responses <- function(
     stop(paste0("'path' does not exist: ", path))
   }
 
+  # ---- resolve the sheet, per file ----
+  # Named rather than numbered, so it does not matter whether the file is a
+  # merged review workbook (where the other responses sit behind the cleaning
+  # log and the dataset) or an older standalone one. A mixed folder is handled
+  # too, because each file is resolved on its own.
+  sheet_for <- if (is.null(sheet)) {
+    lapply(
+      files,
+      ck_resolve_sheet,
+      candidates = ck_sheet_candidates("other_responses"),
+      fallback = 1
+    )
+  } else {
+    rep_len(if (is.list(sheet)) sheet else as.list(sheet), length(files))
+  }
+
   if (verbose) {
     message("read_other_responses: reading ", length(files), " file(s).")
+    for (i in seq_along(files)) {
+      message("  ", files[i], "  [sheet: ", sheet_for[[i]], "]")
+    }
   }
 
   # ---- guard: every file must have the same columns ----
@@ -130,15 +186,16 @@ read_other_responses <- function(
   # usual cause.
   ck_assert_log_columns(
     files = files,
-    sheet = 1,
+    sheet = sheet_for,
     caller = "read_other_responses",
     verbose = verbose
   )
 
   # ---- read and stack ----
-  raw_list <- lapply(files, function(f) {
+  raw_list <- lapply(seq_along(files), function(i) {
+    f <- files[i]
     tryCatch(
-      readxl::read_excel(f, col_types = "text"),
+      readxl::read_excel(f, col_types = "text", sheet = sheet_for[[i]]),
       error = function(e) {
         warning(paste0("Could not read '", f, "': ", conditionMessage(e)))
         NULL
@@ -160,20 +217,30 @@ read_other_responses <- function(
   }
 
   # ---- rename verbose column headers to short working names ----
-  rename_starts <- function(df, pattern, replacement) {
-    hits <- stringr::str_starts(names(df), pattern)
+  # The patterns come from .ck_other_review_patterns(), which matches both the
+  # current headers written by prepare_other_responses() ("Input translation
+  # ...", "Correct to existing answer option ...", "Invalid other ...",
+  # "Comment from IM") and the earlier TRUE / EXISTING / INVALID / FOLLOW-UP
+  # ones, so a file reviewed before the rename is still read correctly.
+  rename_matching <- function(df, pattern, replacement) {
+    hits <- grepl(pattern, names(df), ignore.case = TRUE)
     names(df)[hits] <- replacement
     df
   }
+  review_pat <- .ck_other_review_patterns()
   or <- or |>
-    rename_starts("TRUE", "true_other") |>
-    rename_starts("INVALID", "invalid_other") |>
-    rename_starts("FOLLOW", "fu_message")
+    rename_matching(review_pat[["true_other"]], "true_other") |>
+    rename_matching(review_pat[["invalid_other"]], "invalid_other") |>
+    rename_matching(review_pat[["fu_message"]], "fu_message")
 
-  # "EXISTING other" columns are numbered by the order they appear in the file,
-  # so both layouts are handled: the current single "EXISTING other" column, and
-  # older logs that still carry "EXISTING other 1/2/3".
-  exist_hits <- which(stringr::str_starts(names(or), "EXISTING"))
+  # The recode columns are numbered by the order they appear in the file, so
+  # both layouts are handled: the current single "Correct to existing answer
+  # option" column, and older logs that still carry "EXISTING other 1/2/3".
+  exist_hits <- which(grepl(
+    review_pat[["existing_other"]],
+    names(or),
+    ignore.case = TRUE
+  ))
   if (length(exist_hits) > 0) {
     names(or)[exist_hits] <- paste0("existing_other_", seq_along(exist_hits))
   }
@@ -337,20 +404,50 @@ read_other_responses <- function(
         (!is.na(invalid_other) & nzchar(trimws(invalid_other)))
     )
 
-  bad_rows <- or[or$.n_filled != 1, , drop = FALSE]
-  if (nrow(bad_rows) > 0) {
+  # Zero filled and more than one filled are different situations and are not
+  # reported the same way.
+  #
+  # Zero filled is the normal outcome for a response the reviewer read and
+  # accepted as it stands: the "other" text is a valid answer and nothing about
+  # the record should change. There is nothing to fix and nothing to apply, so
+  # the row is dropped quietly and only counted in the verbose summary. It used
+  # to be lumped in with the conflict case below and raise a warning, which read
+  # as an error on a sheet where most rows are legitimately blank.
+  #
+  # More than one filled is a genuine conflict - the reviewer asked for two
+  # contradictory things on one response - so it still warns and names the
+  # uuids.
+  n_no_change <- sum(or$.n_filled == 0)
+
+  conflict_rows <- or[or$.n_filled > 1, , drop = FALSE]
+  if (nrow(conflict_rows) > 0) {
     warning(paste0(
-      nrow(bad_rows),
-      " row(s) have zero or more than one action column filled ",
+      nrow(conflict_rows),
+      " row(s) have more than one action column filled ",
       "and will be excluded. uuids: ",
-      paste(unique(bad_rows$uuid), collapse = ", ")
+      paste(unique(conflict_rows$uuid), collapse = ", ")
     ))
   }
+
   or <- or[or$.n_filled == 1, , drop = FALSE]
   or$.n_filled <- NULL
 
   if (nrow(or) == 0) {
-    warning("No rows remain after action-type classification.")
+    # Every row being "no change" is a valid review outcome, not a problem, so
+    # it is reported as a message. A warning is kept for the cases where rows
+    # were actually lost (conflicts, or nothing recognisable at all).
+    if (nrow(conflict_rows) == 0 && n_no_change > 0) {
+      if (verbose) {
+        message(
+          "read_other_responses: all ",
+          n_no_change,
+          " other-response row(s) were left blank by the reviewer ",
+          "(valid as they stand); no cleaning-log rows to apply."
+        )
+      }
+    } else {
+      warning("No rows remain after action-type classification.")
+    }
     return(.empty_other_log())
   }
 
@@ -365,7 +462,7 @@ read_other_responses <- function(
     nrow(or_remove) > 0 && any(or_remove$invalid_other != "Yes", na.rm = TRUE)
   ) {
     stop(
-      "INVALID other column contains values other than 'Yes'. Fix before proceeding."
+      "The invalid-other column ('Invalid other ...') contains values other than 'Yes'. Fix before proceeding."
     )
   }
 
@@ -377,7 +474,9 @@ read_other_responses <- function(
       nrow(or_recode),
       " recode | ",
       nrow(or_remove),
-      " remove (",
+      " remove | ",
+      n_no_change,
+      " no change (kept as-is) (",
       nrow(or_true) + nrow(or_recode) + nrow(or_remove),
       " other-response row(s) to apply)."
     )

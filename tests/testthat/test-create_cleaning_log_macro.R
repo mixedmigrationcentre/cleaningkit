@@ -79,9 +79,14 @@ test_that("create_cleaning_log_vba() mirrors create_cleaning_log()'s arguments",
   plain <- names(formals(create_cleaning_log))
   vba <- names(formals(create_cleaning_log_vba))
 
-  # include_dataset is forced TRUE by the vba version, so it is the one
-  # argument deliberately dropped
-  expect_setequal(setdiff(plain, vba), "include_dataset")
+  # Two arguments are deliberately dropped: include_dataset, which the vba
+  # version forces to TRUE, and readme_include_other, which only makes sense
+  # for a workbook that also carries the other-responses sheets - that is
+  # create_review_workbook()'s job, and it sets the flag itself.
+  expect_setequal(
+    setdiff(plain, vba),
+    c("include_dataset", "readme_include_other")
+  )
   expect_setequal(
     setdiff(vba, plain),
     c("macro_issue_prefix", "vba_project")

@@ -19,6 +19,7 @@ review_cleaned_data(
   blank_response_values = "delete_data_point",
   discard_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   columns_to_skip = c("start", "end", "today", "deviceid", "uuid", "_uuid", "id", "_id",
     "submission_time", "_submission_time", "index", "_index", "df_name", "username",
     "simserial", "phonenumber", "_submission_time", "check_binding", "evaluation_issue"),
@@ -66,6 +67,12 @@ Default \code{"Question number"}.}
 
 \item{no_action_values}{Action values meaning "no change". Default
 \code{"no_action"}.}
+
+\item{default_blank_action}{Action used for rows whose \code{log_action_col}
+cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+not fill in means the data point stays as it is, so it is checked like any
+other \code{no_action} row. Set to \code{NULL} to leave blank cells blank,
+in which case those rows fall outside every check below.}
 
 \item{columns_to_skip}{Column names to exclude from the undocumented-change
 check (e.g. system columns). Default covers common ONA metadata columns.}

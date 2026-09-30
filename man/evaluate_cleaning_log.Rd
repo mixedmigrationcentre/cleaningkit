@@ -15,6 +15,7 @@ evaluate_cleaning_log(
   raw_uuid_column = "_uuid",
   valid_actions = c("recoded", "delete_data_point", "addition", "discard", "other",
     "no_action"),
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   flag_issues_inline = TRUE
 )
@@ -45,8 +46,14 @@ Default \code{"New value"}.}
 Default \code{"_uuid"}.}
 
 \item{valid_actions}{Character vector of accepted action-type values.
-Default matches the five types defined in the \code{create_cleaning_log()}
+Default matches the six types defined in the \code{create_cleaning_log()}
 readme sheet.}
+
+\item{default_blank_action}{Action used for rows whose \code{action_col}
+cell is blank. Default \code{"no_action"}: a flagged row the reviewer did
+not fill in is taken to mean the data point stays as it is, and the value
+is written back into the returned cleaning log. Set to \code{NULL} to flag
+blank cells as \code{missing_action} instead.}
 
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row
 of \code{raw_dataset} is removed before checking uuid existence. ONA exports
@@ -88,6 +95,20 @@ in the raw dataset.}
 \item{\code{no_action}}{No change is applied. Rows are skipped entirely
 during cleaning.}
 }
+
+\strong{Blank actions:} an empty \strong{Action taken} cell is filled with
+\code{default_blank_action} (\code{"no_action"} by default) before the
+checks run, so a reviewer who only filled in the rows that needed a change
+does not get an issue on every row they left alone. The filled value is
+written back into the returned \code{cleaning_log}, so the action is
+explicit from here on. Set \code{default_blank_action = NULL} to restore the
+old behaviour, where a blank cell is reported as \code{missing_action}.
+
+One case is still reported: a row with a blank action but a
+\strong{New value} that differs from the \strong{Old value}
+(\code{blank_action_has_new_value}). The reviewer most likely typed the new
+value and forgot the action, and defaulting the row to \code{no_action}
+would throw that change away, so it is surfaced rather than applied.
 
 The function returns a list with two elements: \code{cleaning_log} (the
 original log, possibly with an added \code{evaluation_issue} column when

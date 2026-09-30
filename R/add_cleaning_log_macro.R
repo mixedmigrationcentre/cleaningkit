@@ -106,6 +106,10 @@ ck_vba_missing_message <- function() {
 #' @param body_front Body font name.
 #' @param body_front_size Body font size.
 #' @param header_row,label_row,first_data_row Row layout of the dataset sheet.
+#' @param ignore_columns Character vector of dataset-sheet headers the macro
+#'   must not log - the check-flag columns \code{create_cleaning_log()} prepends.
+#'   An edit to a cell in one of these columns is left alone and appends nothing
+#'   to the cleaning log. Written as one comma-separated value.
 #'
 #' @return A two-column dataframe of key/value pairs.
 #' @noRd
@@ -121,7 +125,8 @@ ck_macro_config_df <- function(
   body_front_size,
   header_row = 1,
   label_row = 2,
-  first_data_row = 3
+  first_data_row = 3,
+  ignore_columns = character(0)
 ) {
   data.frame(
     check.names = FALSE,
@@ -141,7 +146,8 @@ ck_macro_config_df <- function(
       "body_font_size",
       "header_row",
       "label_row",
-      "first_data_row"
+      "first_data_row",
+      "ignore_columns"
     ),
     value = c(
       dataset_sheet,
@@ -158,7 +164,8 @@ ck_macro_config_df <- function(
       as.character(body_front_size),
       as.character(header_row),
       as.character(label_row),
-      as.character(first_data_row)
+      as.character(first_data_row),
+      paste(ignore_columns, collapse = ",")
     )
   )
 }

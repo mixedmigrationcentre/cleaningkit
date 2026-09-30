@@ -81,9 +81,11 @@ raw_data <- cleaningkit::read_raw_data(
 #----------------------------------
 
 #----------------------------------
-# prepare and save other responses
+# prepare other responses
 # add the other responses questions you to be included in the output
-# in the question argument
+# in the question argument.
+# the result is written into the same workbook as the cleaning log further
+# down, by create_review_workbook() - there is no separate file any more
 #----------------------------------
 
 df <- cleaningkit::prepare_other_responses(
@@ -101,13 +103,6 @@ df <- cleaningkit::prepare_other_responses(
     "Q41_1",
     "Q33_1"
   )
-)
-
-cleaningkit::save_other_responses(
-  df = df,
-  other_db = other_db,
-  save_location = "./output/other_responses",
-  enumerator_id = "username"
 )
 
 #----------------------------------
@@ -204,22 +199,22 @@ interview_time_log <- cleaningkit::validate_interview_time(
 )
 
 #----------------------------------
-# validate duplicate surveys
+# validate similar surveys
 # groups data by enumerator and checks surveys which are similar
 #----------------------------------
-duplicate_log <- raw_data %>%
-  cleaningkit::validate_duplicates(
+similar_surveys_log <- raw_data %>%
+  cleaningkit::validate_similar_surveys(
     tool_survey = tool_survey,
     idnk_value = "Don't know",
     threshold = 30
   )
 
 #----------------------------------
-# validate duplicate questions
+# validate similar questions
 # groups data by enumerator and checks questions passed for similarity
 #----------------------------------
-duplicate_questions_log <- raw_data %>%
-  cleaningkit::validate_duplicate_questions(
+similar_questions_log <- raw_data %>%
+  cleaningkit::validate_similar_questions(
     questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
   )
 
@@ -293,8 +288,8 @@ list_of_log_all <- c(
   interview_time_log,
   interview_location_log,
   logical_check_log,
-  duplicate_log,
-  duplicate_questions_log
+  similar_surveys_log,
+  similar_questions_log
 )
 
 combined_log <- cleaningkit::create_combined_log(
@@ -303,23 +298,33 @@ combined_log <- cleaningkit::create_combined_log(
 )
 
 #----------------------------------
-# create cleaning log
-# the row colours are controlled with `color_mode`:
-#   "on"      -> default, the whole row is coloured by check_binding
-#   "partial" -> only the columns listed in `color_columns` are coloured
+# create the review workbook
+#
+# one file for the reviewer, holding both logs:
+#   cleaning_log      the flagged values to act on
+#   dataset           the checked dataset, flag columns in front
+#   readme            what each sheet is for, and the codes to use
+#   other_responses   the "other" text responses to review
+#   Dropdown_values   backs the other-responses drop-downs
+#
+# pass `other_responses` and `other_db` and the last two sheets are added;
+# leave them out and you get exactly what create_cleaning_log() produced.
+#
+# the row colours on the cleaning_log sheet are controlled with `color_mode`:
+#   "on"      -> the whole row is coloured by check_binding
+#   "partial" -> default, only the columns listed in `color_columns`
 #   "off"     -> no colouring at all
 # the header keeps the same MMC formatting in all three cases
-# uncomment the option you want to use
 #----------------------------------
 
-#----------------------------------
-# 1. colours on (default)
-# every row that shares a check_binding gets the same shade
-#----------------------------------
-
-cleaningkit::create_cleaning_log(
+cleaningkit::create_review_workbook(
+  vba = TRUE,
   write_list = combined_log,
-  color_mode = "on",
+  other_responses = df,
+  other_db = other_db,
+  other_enumerator_id = "username",
+  color_mode = "partial",
+  color_columns = c("old_value"),
   output_path = paste0(
     "output/follow_ups/",
     Sys.Date(),
@@ -328,62 +333,17 @@ cleaningkit::create_cleaning_log(
 )
 
 #----------------------------------
-# 2. colours partial
-# only the columns passed to `color_columns` are coloured, the rest stay plain
-# the raw log names ("old_value") and the log headers ("Old value") both work
-#----------------------------------
-
-# cleaningkit::create_cleaning_log(
-#   write_list = combined_log,
-#   color_mode = "partial",
-#   color_columns = c("old_value"),
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsx"
-#   )
-# )
-
-#----------------------------------
-# 3. colours off
-# no colouring at all, header formatting is kept
-#----------------------------------
-
-# cleaningkit::create_cleaning_log(
-#   write_list = combined_log,
-#   color_mode = "off",
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsx"
-#   )
-# )
-
-#----------------------------------
-# macro-enabled cleaning log (VBA)
-# same workbook, written as .xlsm with a change-capture macro attached.
-# the reviewer edits a value on the `dataset` sheet and the change is appended
-# to the bottom of the cleaning log automatically - old value, new value,
-# question, uuid, enumerator and a mapped "Action taken" - so nothing has to be
-# copied across by hand.
+# the same workbook, macro-enabled (VBA)
 #
-# create_cleaning_log() above is untouched by this and carries none of the macro
-# machinery, so the plain .xlsx route is always still available.
-#----------------------------------
-
-# cleaningkit::create_cleaning_log_vba(
-#   write_list = combined_log,
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsm"
-#   )
-# )
-
-#----------------------------------
-# every create_cleaning_log() argument works here too, except include_dataset,
-# which is forced to TRUE - without the `dataset` sheet there is nothing for the
-# macro to watch. an .xlsx extension is corrected to .xlsm with a message.
+# written as .xlsm with the change-capture macro attached. the reviewer edits a
+# value on the `dataset` sheet and the change is appended to the bottom of the
+# cleaning_log sheet automatically - old value, new value, question, uuid,
+# enumerator and a mapped "Action taken" - so nothing has to be copied across
+# by hand.
+#
+# the macro watches the `dataset` sheet and nothing else: edits on
+# `other_responses` append nothing to the cleaning log, because that sheet is
+# read back column by column instead.
 #
 # repeat edits are APPENDED, not overwritten: editing the same cell again adds
 # another row, its "Old value" being the value immediately before that edit, and
@@ -391,18 +351,52 @@ cleaningkit::create_cleaning_log(
 # manual_edit_002, ...). that keeps uuid + question + issue unique, so
 # read_cleaning_log() keeps every row rather than collapsing them to the first,
 # and apply_cleaning_log() writes the most recent value.
+#
+# an .xlsx extension is corrected to .xlsm with a message; `include_dataset` is
+# forced TRUE, since without the dataset sheet there is nothing to watch.
 #----------------------------------
 
-# cleaningkit::create_cleaning_log_vba(
+# cleaningkit::create_review_workbook(
 #   write_list = combined_log,
-#   color_mode = "partial",
-#   color_columns = c("old_value"),
+#   other_responses = df,
+#   other_db = other_db,
+#   other_enumerator_id = "username",
+#   vba = TRUE,
 #   macro_issue_prefix = "reviewer_edit",
 #   output_path = paste0(
 #     "output/follow_ups/",
 #     Sys.Date(),
 #     "_follow-ups.xlsm"
 #   )
+# )
+
+#----------------------------------
+# the two logs in separate files (the pre-merge route)
+#
+# both functions are still there and unchanged. use them when you want the
+# cleaning log and the other responses reviewed by different people, or at
+# different times.
+#
+# note that read_other_responses() then needs its old file pattern:
+#   file_pattern = "_other_responses_edited\\.xlsx$"
+#----------------------------------
+
+# cleaningkit::create_cleaning_log(
+#   write_list = combined_log,
+#   color_mode = "partial",
+#   color_columns = c("old_value"),
+#   output_path = paste0(
+#     "output/follow_ups/",
+#     Sys.Date(),
+#     "_follow-ups.xlsx"
+#   )
+# )
+#
+# cleaningkit::save_other_responses(
+#   df = df,
+#   other_db = other_db,
+#   save_location = "./output/other_responses",
+#   enumerator_id = "username"
 # )
 
 #----------------------------------
@@ -417,22 +411,12 @@ cleaningkit::create_cleaning_log(
 # build_vba_bin()
 
 #----------------------------------
-# if the binary cannot be found, create_cleaning_log_vba() stops and lists every
-# location it searched. point at it directly, or set the option once in a setup
-# script - handy when these functions are sourced into a project instead of
-# being used from the installed package.
+# if the binary cannot be found, the macro route stops and lists every location
+# it searched. point at it directly, or set the option once in a setup script -
+# handy when these functions are sourced into a project instead of being used
+# from the installed package.
 #----------------------------------
 
 # options(
 #   cleaningkit.vba_project = "resources/cleaningkit_vba.bin"
-# )
-
-# cleaningkit::create_cleaning_log_vba(
-#   write_list = combined_log,
-#   vba_project = "resources/cleaningkit_vba.bin",
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsm"
-#   )
 # )

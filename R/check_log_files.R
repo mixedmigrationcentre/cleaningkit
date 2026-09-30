@@ -26,9 +26,11 @@
 #' every file shares the same set the reference is simply that set.
 #'
 #' \strong{Sheet selection:} \code{sheet} is passed to
-#' \code{readxl::read_excel()} and accepts a name or an integer. Use
-#' \code{sheet = 2} for cleaning logs produced by \code{create_cleaning_log()},
-#' where sheet 1 is the dataset and sheet 2 is the log. Ignored for csv files.
+#' \code{readxl::read_excel()} and accepts a name or an integer. Name the sheet
+#' rather than numbering it - \code{sheet = "cleaning_log"} or
+#' \code{sheet = "other_responses"} - so the check is unaffected by where the
+#' tab happens to sit in the workbook. Pass a vector or list the same length as
+#' the files to use a different sheet per file. Ignored for csv files.
 #'
 #' \strong{Unreadable files:} a file that cannot be opened (corrupt, locked by
 #' Excel, missing the requested sheet) is reported with \code{n_columns = NA}
@@ -41,8 +43,10 @@
 #'   you give to \code{read_cleaning_log()} or \code{read_other_responses()} to
 #'   check exactly the set of files those functions will read, e.g.
 #'   \code{"_follow-ups_edited\\\\.xls[xm]$"}.
-#' @param sheet Sheet to read from each Excel file. Accepts a name or integer.
-#'   Default \code{1}. Use \code{2} for \code{create_cleaning_log()} output.
+#' @param sheet Sheet to read from each Excel file. Accepts a name or an
+#'   integer, or a vector/list of the same length as the files to use a
+#'   different sheet per file. Default \code{1}. Prefer a name, e.g.
+#'   \code{"cleaning_log"} or \code{"other_responses"}.
 #' @param recursive Logical. If \code{TRUE} (the default), sub-folders of
 #'   \code{path} are searched too - matching the behaviour of
 #'   \code{read_cleaning_log()} and \code{read_other_responses()}.
@@ -76,13 +80,14 @@
 #' check_log_files(
 #'   "output/follow_ups",
 #'   file_pattern = "_follow-ups_edited\\.xls[xm]$",
-#'   sheet = 2
+#'   sheet = "cleaning_log"
 #' )
 #'
-#' # other-responses logs - same pattern as read_other_responses()
+#' # other responses - the same files, the other sheet
 #' check_log_files(
-#'   "output/other_responses",
-#'   file_pattern = "_other_responses_edited\\.xlsx$"
+#'   "output/follow_ups",
+#'   file_pattern = "_follow-ups_edited\\.xls[xm]$",
+#'   sheet = "other_responses"
 #' )
 #'
 #' # everything in a folder, whatever the format
@@ -137,7 +142,13 @@ check_log_files <- function(
   }
 
   # ---- read the header of each file ---------------------------------------
-  header_of <- function(f) {
+  # `sheet` may be a single value for every file, or one value per file. The
+  # latter matters once the same folder can hold a merged review workbook and a
+  # legacy single-purpose one, where the sheet of interest sits in a different
+  # place in each. A list is used so names and indices can be mixed.
+  sheet_for <- rep_len(if (is.list(sheet)) sheet else as.list(sheet), length(files))
+
+  header_of <- function(f, sheet) {
     ext <- tolower(tools::file_ext(f))
     if (ext %in% c("csv", "txt")) {
       hdr <- tryCatch(
@@ -187,7 +198,7 @@ check_log_files <- function(
     statuses[i] <- "ok"
     res <- suppressWarnings(
       tryCatch(
-        header_of(files[i]),
+        header_of(files[i], sheet_for[[i]]),
         error = function(e) {
           statuses[i] <<- conditionMessage(e)
           NULL

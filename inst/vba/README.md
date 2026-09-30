@@ -16,6 +16,16 @@ source plus a p-code cache, and the libraries that try to synthesise one are
 immature and do not document Excel compatibility. The `.bas` / `.cls` text here
 is the artefact to review and diff; the `.bin` is what ships.
 
+> **The `.bin` must be rebuilt after any change to the `.bas` / `.cls` here.**
+> R writes the config sheet the macro reads, so a *new configuration key* is
+> forward-compatible on its own — an older `.bin` just ignores it — but the
+> behaviour that key drives only exists once the sources are recompiled. The
+> current example is `ignore_columns`, which tells the macro to skip the
+> check-flag columns (`duration`, `completeness`, `refused`, `back to back`,
+> `similarity`) that `create_cleaning_log()` prepends to the `dataset` sheet.
+> Until the `.bin` is rebuilt, editing one of those columns still appends a
+> cleaning-log row.
+
 ## Building the .bin
 
 ### Automatic (preferred)
@@ -73,6 +83,11 @@ no R test can tell you whether Excel is happy. Run this once per rebuild:
 3. Enable macros, go to the `dataset` sheet, change one value. A new row must
    appear at the bottom of the cleaning log with the right uuid, question, old
    and new value — and **no fill colour**.
+   1. Then edit a cell in one of the five flag columns at the far left
+      (`duration`, `completeness`, `refused`, `back to back`, `similarity`).
+      **Nothing** must be appended to the log, and the edit must stand rather
+      than being put back. If a row does appear, the workbook is running an
+      older `.bin` that predates `ignore_columns` — rebuild it.
 4. Change the same cell again. A **second** row must appear, with `Issue`
    `manual_edit_002` and `Old value` equal to the previous edit.
 5. Try to edit a cell in rows 1–2, or in the uuid column: it must be put back

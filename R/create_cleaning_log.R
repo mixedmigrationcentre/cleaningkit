@@ -1,3 +1,168 @@
+#' Build the readme sheet
+#'
+#' The readme is the landing page of the review workbook: what each tab is for,
+#' the \code{Action taken} codes for the cleaning log, and - once the other
+#' responses share the workbook - the three review columns on that sheet and
+#' what each of them does.
+#'
+#' Two columns rather than the old \code{Action taken} / \code{Description}
+#' pair, because the sheet now describes more than the action codes. Section
+#' headings are ordinary rows with a blank description, so the whole thing is
+#' still one plain dataframe that \code{create_formated_wb()} can style like
+#' any other sheet.
+#'
+#' @param action_codes,action_descriptions The \code{Action taken} vocabulary,
+#'   in matching order.
+#' @param cleaning_log_name Name given to the cleaning-log sheet, so the readme
+#'   refers to the tab the reviewer can actually see.
+#' @param include_dataset Logical. Describe the \code{dataset} sheet.
+#' @param include_other Logical. Describe the \code{other_responses} and
+#'   \code{Dropdown_values} sheets and the other-responses review columns.
+#'
+#' @return A two-column dataframe.
+#' @noRd
+ck_readme_df <- function(
+  action_codes,
+  action_descriptions,
+  cleaning_log_name = ck_sheet_name("cleaning_log"),
+  include_dataset = TRUE,
+  include_other = FALSE
+) {
+  sheets <- ck_sheet_names()
+  item <- character(0)
+  desc <- character(0)
+
+  add <- function(i, d = "") {
+    item <<- c(item, i)
+    desc <<- c(desc, d)
+  }
+
+  # ---- what each tab is for ----
+  add("SHEETS IN THIS WORKBOOK")
+  add(
+    cleaning_log_name,
+    paste0(
+      "One row per flagged value. Fill in 'Action taken' and, where the action ",
+      "needs one, 'New value'. Rows that need no change can be left blank."
+    )
+  )
+  if (include_dataset) {
+    add(
+      sheets[["dataset"]],
+      paste0(
+        "The checked dataset. The check-flag columns at the front say which ",
+        "checks fired for each record. In the macro-enabled (.xlsm) workbook, ",
+        "editing a value here appends a row to the ",
+        cleaning_log_name,
+        " sheet by itself."
+      )
+    )
+  }
+  if (include_other) {
+    add(
+      sheets[["other_responses"]],
+      paste0(
+        "Every 'other' text response to review. Fill in at most one of the ",
+        "three review columns per row - see the key below. Edits here are not ",
+        "copied to the ",
+        cleaning_log_name,
+        " sheet; they are read straight off this sheet."
+      )
+    )
+    add(
+      sheets[["dropdown"]],
+      paste0(
+        "Source of the drop-downs on the ",
+        sheets[["other_responses"]],
+        " sheet. Nothing to fill in."
+      )
+    )
+  }
+  add(sheets[["readme"]], "This sheet.")
+
+  # ---- the action vocabulary ----
+  add("")
+  add(paste0("ACTION TAKEN - the codes used on the ", cleaning_log_name, " sheet"))
+  for (k in seq_along(action_codes)) {
+    add(action_codes[k], action_descriptions[k])
+  }
+  add(
+    "(left blank)",
+    paste0(
+      "Treated as 'no_action'. Only fill in the rows that need a change - ",
+      "a flagged row left blank means the data point stays the same."
+    )
+  )
+
+  # ---- the other-responses vocabulary ----
+  if (include_other) {
+    # Short forms of the full headers: the sheet itself carries the long
+    # versions with their parenthetical instructions, and repeating those here
+    # would make the column unreadable.
+    hdr <- sub(" \\(.*$", "", .ck_other_review_headers())
+
+    add("")
+    add(paste0(
+      "OTHER RESPONSES - the review columns on the ",
+      sheets[["other_responses"]],
+      " sheet"
+    ))
+    add(
+      hdr[["true_other"]],
+      paste0(
+        "A genuine new answer, e.g. a translation or a tidied spelling. The ",
+        "'other' text is replaced by what you type here; the parent question ",
+        "is left alone."
+      )
+    )
+    add(
+      hdr[["existing_other"]],
+      paste0(
+        "The response is really one of the existing choices. Pick it from the ",
+        "drop-down: the 'other' text is cleared and the parent question is set ",
+        "to that choice."
+      )
+    )
+    add(
+      hdr[["invalid_other"]],
+      paste0(
+        "Select 'Yes' when the response is not usable. The 'other' text is ",
+        "cleared and the parent question's reference to it is removed."
+      )
+    )
+    add(
+      hdr[["fu_message"]],
+      "Free text for the IM. Not applied to the data."
+    )
+    add(
+      hdr[["explanation"]],
+      "Free text for the field team's reply. Not applied to the data."
+    )
+    add(
+      "(all three left blank)",
+      paste0(
+        "The 'other' text is a valid answer as it stands. Nothing changes and ",
+        "no cleaning-log row is produced."
+      )
+    )
+    add(
+      "Note",
+      paste0(
+        "Fill in at most ONE of the three review columns per row. A row with ",
+        "two of them filled asks for two different things at once, so it is ",
+        "skipped and its uuid reported."
+      )
+    )
+  }
+
+  data.frame(
+    check.names = FALSE,
+    stringsAsFactors = FALSE,
+    "Item" = item,
+    "Description" = desc
+  )
+}
+
 #' Normalise a column name for tolerant matching
 #'
 #' Lower-cases and strips every non-alphanumeric character so that
@@ -10,6 +175,132 @@
 #' @noRd
 normalize_column_key <- function(x) {
   gsub("[^a-z0-9]", "", tolower(as.character(x)))
+}
+
+#' Aliases from raw log names to the reviewer-facing headers
+#'
+#' The cleaning log is built from a combined log whose columns are named
+#' \code{uuid}, \code{question}, \code{issue}, \code{old_value} and
+#' \code{check_binding}, but the sheet a reviewer sees carries the MMC headers
+#' (\strong{Survey UUID}, \strong{Question number}, \strong{Issue},
+#' \strong{Old value}, ...). Arguments that name a column - \code{color_columns}
+#' and \code{group_by} - accept either spelling, and this lookup is what makes
+#' the two meet. Keys are normalised with \code{normalize_column_key()}, so
+#' case, spaces, underscores and punctuation are all ignored.
+#'
+#' @return Named character vector: normalised log name -> reviewer header.
+#' @noRd
+ck_log_column_aliases <- function() {
+  c(
+    "uuid" = "Survey UUID",
+    "surveyuuid" = "Survey UUID",
+    "question" = "Question number",
+    "questionnumber" = "Question number",
+    "questiontext" = "Question text",
+    "issue" = "Issue",
+    "oldvalue" = "Old value",
+    "newvalue" = "New value",
+    "action" = "Action taken",
+    "actiontaken" = "Action taken",
+    "date" = "Date",
+    "enumerator" = "Enumerator",
+    "section" = "Section",
+    "identifiedby" = "Identified by",
+    "comments" = "Comments",
+    "pofeedback" = "PO feedback",
+    "surveyregistrationdate" = "Survey Registration Date",
+    "checkbinding" = "check_binding"
+  )
+}
+
+#' Translate column names given with the raw log spelling
+#'
+#' Anything already written as a reviewer header - or not recognised at all - is
+#' returned untouched, so the caller decides what to do with unmatched names.
+#'
+#' @param x Character vector of column names.
+#'
+#' @return Character vector of the same length, log names replaced by headers.
+#' @noRd
+resolve_log_column_names <- function(x) {
+  aliases <- ck_log_column_aliases()
+  requested <- as.character(x)
+  keys <- normalize_column_key(requested)
+  matched <- keys %in% names(aliases)
+  requested[matched] <- unname(aliases[keys[matched]])
+  requested
+}
+
+#' Resolve the requested row-grouping column
+#'
+#' Accepts a reviewer header (\code{"Issue"}), the raw log name
+#' (\code{"issue"}), a column position, or one of \code{NULL} / \code{FALSE} /
+#' \code{NA} to switch grouping off. \code{TRUE} is read as "group, using the
+#' default column".
+#'
+#' @param group_by The user's \code{group_by} value.
+#' @param log_names Character vector of the final log's column names.
+#' @param default Column used when \code{group_by = TRUE}.
+#'
+#' @return The matched column name, or \code{NA_character_} when grouping is off.
+#' @noRd
+resolve_group_by_column <- function(group_by, log_names, default = "issue") {
+  if (is.null(group_by) || length(group_by) == 0) {
+    return(NA_character_)
+  }
+  if (length(group_by) > 1) {
+    stop(
+      "`group_by` must be a single column name (or NULL / FALSE to keep the ",
+      "incoming check-by-check order).",
+      call. = FALSE
+    )
+  }
+  if (is.logical(group_by)) {
+    if (isTRUE(group_by)) {
+      return(resolve_group_by_column(default, log_names, default))
+    }
+    return(NA_character_)
+  }
+  if (is.na(group_by)) {
+    return(NA_character_)
+  }
+  if (is.numeric(group_by)) {
+    position <- as.integer(group_by)
+    if (position < 1 || position > length(log_names)) {
+      stop(
+        "`group_by = ",
+        group_by,
+        "` is outside the cleaning log's ",
+        length(log_names),
+        " columns.",
+        call. = FALSE
+      )
+    }
+    return(log_names[position])
+  }
+
+  requested <- trimws(as.character(group_by))
+  if (!nzchar(requested)) {
+    return(NA_character_)
+  }
+
+  position <- match(
+    normalize_column_key(resolve_log_column_names(requested)),
+    normalize_column_key(log_names)
+  )
+
+  if (is.na(position)) {
+    stop(
+      "`group_by = \"",
+      requested,
+      "\"` does not match any column of the cleaning log. Available columns: ",
+      paste(log_names, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  log_names[position]
 }
 
 #' Resolve the requested colouring mode
@@ -305,20 +596,27 @@ create_formated_wb <- function(
 #' \strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
 #' be completed during review.
 #'
-#' The \strong{Action taken} drop-down and the \code{readme} sheet share these five codes:
-#' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition}, \code{other}.
+#' The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
+#' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
+#' \code{no_action}, \code{other}. A reviewer only has to fill in the rows that need a
+#' change: the \code{readme} sheet also carries a row explaining that a cell left blank is
+#' read as \code{no_action} by \code{read_cleaning_log()}, \code{evaluate_cleaning_log()}
+#' and \code{apply_cleaning_log()}. The blank entry is documentation only - it is not added
+#' to the drop-down, which still offers the six codes above.
 #'
 #' \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 #' \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 #' headers stay visible while a reviewer scrolls right and down.
 #'
-#' \strong{Row order.} The combined log arrives stacked check by check, so the rows for one
-#' interview are scattered down the sheet. By default the reviewer log is regrouped so that
-#' every row belonging to one \strong{Survey UUID} sits together in a single block, one survey
-#' after another. Blocks appear in the order the uuids are first met in the combined log, and
-#' the original order is kept inside each block, so the rows themselves are untouched - only
-#' their arrangement changes. Set \code{group_by_uuid = FALSE} to keep the old check-by-check
-#' order.
+#' \strong{Row order.} The combined log arrives stacked check by check, so rows that belong
+#' together are scattered down the sheet. By default the reviewer log is regrouped by
+#' \strong{Issue}, so every row raising the same issue sits in one contiguous block and a
+#' reviewer can work through one kind of problem at a time. Blocks appear in the order each
+#' value is first met in the combined log, and the original order is kept inside each block,
+#' so the rows themselves are untouched - only their arrangement changes. \code{group_by}
+#' chooses the column: \code{"uuid"} restores the previous survey-by-survey layout, any other
+#' log column or reviewer header works too, and \code{NULL} or \code{FALSE} keeps the incoming
+#' check-by-check order.
 #'
 #' \strong{Row colouring.} By default every log row that shares a \code{check_binding} is filled
 #' with the same light MMC shade across the whole row. \code{color_mode} changes that:
@@ -327,6 +625,37 @@ create_formated_wb <- function(
 #' formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
 #' \code{color_columns} accepts either the reviewer-facing headers (\code{"Old value"}) or the
 #' underlying log names (\code{"old_value"}, \code{"uuid"}, \code{"question"}, \code{"issue"}).
+#'
+#' \strong{Flag columns on the dataset sheet.} Deciding whether to keep or discard a whole
+#' interview usually means weighing several survey-level checks at once - a short interview that
+#' is also nearly empty, or a back-to-back interview that is also a soft duplicate. To make that
+#' judgement without leaving the raw data, the \code{dataset} sheet is written with a block of
+#' helper columns in front of the ONA columns: \strong{duration}, \strong{completeness},
+#' \strong{refused}, \strong{back to back} and \strong{similarity}. Each one carries, for that
+#' record's uuid, what every cleaning-log row raised by the matching check says, and is left blank
+#' when the check did not flag the survey. A reviewer can therefore filter on one column, or on
+#' several at once, and cross-check the flagged surveys directly against their raw answers.
+#'
+#' \strong{duration}, \strong{completeness} and \strong{refused} show the log's \code{old_value},
+#' which is a figure that speaks for itself: the duration in minutes, the count of non-empty
+#' cells, the count of refused responses. \strong{back to back} and \strong{similarity} show the
+#' \code{issue} instead, because their raw values cannot be judged on their own - a bare interview
+#' start time, or a bare count of similar columns, says nothing without the gap, the threshold,
+#' the enumerator and the other survey involved, all of which the issue names. Any column can be
+#' switched either way with \code{list(prefixes = ..., value = "issue")} or
+#' \code{value = "old_value"}.
+#'
+#' Rows are matched through \code{check_binding}, whose leading segment names the check that
+#' Rows are matched through \code{check_binding}, whose leading segment names the check that
+#' raised them, so a log assembled from any combination of \code{validate_*} functions works
+#' without further configuration. \code{flag_columns} changes which columns are written and which
+#' checks feed them; see \code{\link{ck_flag_column_defaults}}. In the macro-enabled workbook
+#' produced by \code{\link{create_cleaning_log_vba}} these columns are exempt from change capture:
+#' editing one never appends a cleaning-log row.
+#'
+#' The five headers carry an MMC dark-blue fill (\code{flag_header_fill_color}) rather than the
+#' teal used for the ONA headers, so the block is not mistaken for exported data. Everything below
+#' the header row keeps the ordinary body formatting.
 #'
 #' @param write_list A list containing the combined log and the checked dataset.
 #' @param cleaning_log_name Name of the combined-log element in \code{write_list}. Default \code{"cleaning_log"}.
@@ -346,6 +675,18 @@ create_formated_wb <- function(
 #'   underscores; numeric column positions are also accepted. Default \code{NULL}.
 #' @param include_dataset Logical. If \code{TRUE} (the default), the checked dataset is written to
 #'   a sheet named \code{"dataset"} so reviewers can refer back to the raw data.
+#' @param flag_columns Helper columns prepended to the \code{dataset} sheet, one per survey-level
+#'   check, so a reviewer can filter the raw data down to the surveys a check flagged. A named
+#'   list mapping a column header to the \code{check_binding} prefixes that feed it; default
+#'   \code{\link{ck_flag_column_defaults}()} gives \strong{duration}, \strong{completeness},
+#'   \strong{refused}, \strong{back to back} and \strong{similarity}. Use \code{NULL} to add no
+#'   flag columns. Ignored when \code{include_dataset = FALSE}.
+#' @param flag_separator String used to join several flagged values for the same record within one
+#'   flag column. Default \code{" | "}.
+#' @param flag_header_fill_color Hexcode for the header fill of the flag columns. Deliberately
+#'   different from \code{header_fill_color} so the block reads as helper columns rather than part
+#'   of the export. Default MMC dark blue \code{"#003D58"}. The cells below keep the ordinary body
+#'   formatting.
 #' @param header_front_size Header font size (default is 12).
 #' @param header_front_color Hexcode for header font color (default is white).
 #' @param header_fill_color Hexcode for header fill color (default is MMC blue \code{"#00A2A5"}).
@@ -357,11 +698,20 @@ create_formated_wb <- function(
 #'   the actual records are taken from row 2 onward. If \code{FALSE}, every row is treated as a
 #'   record and \strong{Question text} is left blank (no label row to read from).
 #' @param output_path Output path. Default \code{NULL} returns a workbook instead of writing a file.
-#' @param group_by_uuid Logical. If \code{TRUE} (the default), the log rows are regrouped so all
-#'   rows from the same \strong{Survey UUID} form one contiguous block, surveys following one
-#'   another. Blocks keep the order in which their uuid is first met in the combined log, and
-#'   rows keep their original order inside a block. \code{FALSE} keeps the incoming
-#'   check-by-check order.
+#' @param group_by Column used to group the log rows, so that all rows sharing a value form one
+#'   contiguous block. Default \code{"issue"}, which puts every row raising the same issue
+#'   together. Blocks keep the order in which their value is first met in the combined log, and
+#'   rows keep their original order inside a block. Accepts either the raw log names
+#'   (\code{"issue"}, \code{"uuid"}, \code{"question"}, \code{"old_value"},
+#'   \code{"check_binding"}) or the reviewer-facing headers (\code{"Issue"},
+#'   \code{"Survey UUID"}, \code{"Enumerator"}, ...); matching ignores case, spaces and
+#'   underscores, and a numeric column position also works. Use \code{"uuid"} for the previous
+#'   survey-by-survey layout, or \code{NULL} / \code{FALSE} to keep the incoming check-by-check
+#'   order. An unrecognised column name is an error rather than a silent fallback.
+#' @param readme_include_other Logical. If \code{TRUE}, the readme also describes the
+#'   \code{other_responses} and \code{Dropdown_values} sheets and the three other-responses
+#'   review columns. Default \code{FALSE}, because those sheets are not part of this
+#'   workbook. \code{create_review_workbook()}, which adds them, sets this to \code{TRUE}.
 #'
 #' @return A workbook object, or (when \code{output_path} is given) writes a \code{.xlsx} file invisibly.
 #' @export
@@ -382,10 +732,41 @@ create_formated_wb <- function(
 #' # no colouring at all
 #' create_cleaning_log(write_list, color_mode = "off", output_path = "cleaning_log.xlsx")
 #'
-#' # keep the old check-by-check row order instead of grouping by survey
+#' # group the rows survey by survey instead of issue by issue
 #' create_cleaning_log(
 #'   write_list,
-#'   group_by_uuid = FALSE,
+#'   group_by = "uuid",
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # group by enumerator, using the reviewer-facing header
+#' create_cleaning_log(
+#'   write_list,
+#'   group_by = "Enumerator",
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # keep the incoming check-by-check row order, no grouping at all
+#' create_cleaning_log(
+#'   write_list,
+#'   group_by = NULL,
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # add a flag column for a check of your own, and drop one you do not use
+#' my_flags <- ck_flag_column_defaults()
+#' my_flags[["outliers"]] <- "outlier_check"
+#' my_flags[["refused"]] <- NULL
+#' create_cleaning_log(
+#'   write_list,
+#'   flag_columns = my_flags,
+#'   output_path = "cleaning_log.xlsx"
+#' )
+#'
+#' # plain dataset sheet, no flag columns at all
+#' create_cleaning_log(
+#'   write_list,
+#'   flag_columns = NULL,
 #'   output_path = "cleaning_log.xlsx"
 #' )
 #' }
@@ -397,9 +778,12 @@ create_cleaning_log <- function(
   enumerator_column = "username",
   date_column = "today",
   column_for_color = "check_binding",
-  color_mode = "on",
-  color_columns = NULL,
+  color_mode = "partial",
+  color_columns = c("old_value"),
   include_dataset = TRUE,
+  flag_columns = ck_flag_column_defaults(),
+  flag_separator = " | ",
+  flag_header_fill_color = "#003D58",
   header_front_size = 12,
   header_front_color = "#FFFFFF",
   header_fill_color = "#00A2A5",
@@ -408,7 +792,8 @@ create_cleaning_log <- function(
   body_front_size = 11,
   skip_label_row = TRUE,
   output_path = NULL,
-  group_by_uuid = TRUE
+  group_by = "issue",
+  readme_include_other = FALSE
 ) {
   # ---- action codes shared by the drop-down and the readme ----
   action_codes <- c(
@@ -422,8 +807,8 @@ create_cleaning_log <- function(
   action_descriptions <- c(
     "A change to a data point e.g. remove comma, correct typo, change age of participant",
     "Data point is deleted",
-    "Delete an entire survey. Provide participant ID in Comments column of log",
-    "Any addition to raw data e.g. filling in empty cell or adding a column",
+    "Delete an entire survey.",
+    "Any addition to raw data e.g. filling in empty cell",
     "No action taken, data point stays the same",
     "Any change made to the raw data that cannot be classified using labels above"
   )
@@ -440,13 +825,29 @@ create_cleaning_log <- function(
   if (!(dataset_name %in% names(write_list))) {
     stop(paste0("'", dataset_name, "' not found in the given list."))
   }
-  if ("validation_rules" %in% names(write_list)) {
+  if (ck_sheet_name("validation") %in% names(write_list)) {
     stop(
-      "The list already has an element named `validation_rules`. Please rename it."
+      "The list already has an element named `",
+      ck_sheet_name("validation"),
+      "`. Please rename it."
     )
   }
 
+  # Excel is unforgiving about sheet names and openxlsx's own error is opaque,
+  # so a clashing or illegal `cleaning_log_name` is caught here rather than
+  # halfway through building the workbook.
+  ck_assert_sheet_names(
+    c(
+      cleaning_log_name,
+      if (include_dataset) ck_sheet_name("dataset"),
+      ck_sheet_name("readme"),
+      ck_sheet_name("validation")
+    ),
+    caller = "create_cleaning_log"
+  )
+
   color_mode <- resolve_color_mode(color_mode)
+  flag_columns <- resolve_flag_columns(flag_columns)
 
   cl <- as.data.frame(write_list[[cleaning_log_name]], stringsAsFactors = FALSE)
   raw <- as.data.frame(write_list[[dataset_name]], stringsAsFactors = FALSE)
@@ -520,8 +921,13 @@ create_cleaning_log <- function(
   }
 
   cl_uuid <- as.character(cl$uuid)
+  # Every column of the final log has to be exactly as long as cl_uuid. A scalar
+  # recycles fine into a log with rows, but not into an empty one - and an empty
+  # combined log is a normal outcome, a round where nothing was flagged - so the
+  # blanks are built at full length rather than left to recycle.
+  blank_column <- rep(NA_character_, length(cl_uuid))
   lookup <- function(tbl, key) {
-    if (is.null(tbl)) NA_character_ else unname(tbl[key])
+    if (is.null(tbl)) rep(NA_character_, length(key)) else unname(tbl[key])
   }
 
   # ---- assemble the final reviewer log in the required column order ----
@@ -531,33 +937,36 @@ create_cleaning_log <- function(
     # Survey UUID first so it lands in column A, which is the frozen column
     "Survey UUID" = cl_uuid,
     "Date" = lookup(date_lookup, cl_uuid),
-    "Survey Registration Date" = NA_character_,
+    "Survey Registration Date" = blank_column,
     "Enumerator" = lookup(enum_lookup, cl_uuid),
-    "Section" = NA_character_,
+    "Section" = blank_column,
     "Question number" = as.character(cl$question),
     "Question text" = unname(label_lookup[as.character(cl$question)]),
     "Issue" = as.character(cl$issue),
     "Old value" = as.character(cl$old_value),
-    "Action taken" = NA_character_,
-    "New value" = NA_character_,
-    "Identified by" = NA_character_,
-    "Comments" = NA_character_,
-    "PO feedback" = NA_character_,
+    "Action taken" = blank_column,
+    "New value" = blank_column,
+    "Identified by" = blank_column,
+    "Comments" = blank_column,
+    "PO feedback" = blank_column,
     # trailing helper column used only to colour related rows; hidden in the output
     "check_binding" = as.character(cl$check_binding)
   )
 
-  # ---- group the log by survey ----
-  # The combined log arrives stacked check by check, which scatters the rows of one
-  # interview down the sheet. Ordering by the first appearance of each uuid puts every
-  # row of a survey in one block while keeping the original order inside the block, so
-  # the rows are exactly the same rows - only their arrangement changes. Rows sharing a
-  # check_binding stay adjacent, so the colour blocks still read correctly.
-  if (isTRUE(group_by_uuid) && nrow(final_log) > 1) {
-    uuid_values <- final_log[["Survey UUID"]]
-    block_rank <- match(uuid_values, unique(uuid_values))
+  # ---- group the log rows ----
+  # The combined log arrives stacked check by check, which scatters related rows down the
+  # sheet. Ordering by the first appearance of each value in `group_by` (Issue by default)
+  # puts every row sharing that value in one block while keeping the original order inside
+  # the block, so the rows are exactly the same rows - only their arrangement changes.
+  # Resolving is done here rather than up top because it needs the final column names.
+  group_by_column <- resolve_group_by_column(group_by, names(final_log))
+
+  if (!is.na(group_by_column) && nrow(final_log) > 1) {
+    group_values <- as.character(final_log[[group_by_column]])
+    block_rank <- match(group_values, unique(group_values))
     final_log <- final_log[
-      order(block_rank, seq_along(block_rank)), ,
+      order(block_rank, seq_along(block_rank)),
+      ,
       drop = FALSE
     ]
     rownames(final_log) <- NULL
@@ -568,41 +977,22 @@ create_cleaning_log <- function(
   # resolve to the header actually written to the sheet.
   if (color_mode == "partial" && length(color_columns) > 0) {
     if (!is.numeric(color_columns)) {
-      log_aliases <- c(
-        "uuid" = "Survey UUID",
-        "surveyuuid" = "Survey UUID",
-        "question" = "Question number",
-        "questionnumber" = "Question number",
-        "questiontext" = "Question text",
-        "issue" = "Issue",
-        "oldvalue" = "Old value",
-        "newvalue" = "New value",
-        "action" = "Action taken",
-        "actiontaken" = "Action taken",
-        "date" = "Date",
-        "enumerator" = "Enumerator",
-        "section" = "Section",
-        "identifiedby" = "Identified by",
-        "comments" = "Comments",
-        "pofeedback" = "PO feedback",
-        "surveyregistrationdate" = "Survey Registration Date",
-        "checkbinding" = "check_binding"
-      )
-
-      requested <- as.character(color_columns)
-      keys <- normalize_column_key(requested)
-      matched <- keys %in% names(log_aliases)
-      requested[matched] <- unname(log_aliases[keys[matched]])
-      color_columns <- unique(requested)
+      color_columns <- unique(resolve_log_column_names(color_columns))
     }
   }
 
   # ---- readme and (hidden) validation sheets ----
-  readme_df <- data.frame(
-    check.names = FALSE,
-    stringsAsFactors = FALSE,
-    "Action taken" = action_codes,
-    "Description" = action_descriptions
+  # The readme carries one extra row that the drop-down does not: leaving the
+  # cell blank. Reviewers are only asked to fill in the rows that need a
+  # change, and the cleaning-log functions read a blank cell as no_action, so
+  # the sheet says so. validation_df stays on action_codes alone, so the
+  # drop-down is unchanged.
+  readme_df <- ck_readme_df(
+    action_codes = action_codes,
+    action_descriptions = action_descriptions,
+    cleaning_log_name = cleaning_log_name,
+    include_dataset = include_dataset,
+    include_other = readme_include_other
   )
   validation_df <- data.frame(
     check.names = FALSE,
@@ -614,10 +1004,21 @@ create_cleaning_log <- function(
   out_list <- list()
   out_list[[cleaning_log_name]] <- final_log
   if (include_dataset) {
-    out_list[["dataset"]] <- raw
+    # The flag block goes in front of the ONA columns so it stays in view while
+    # a reviewer scrolls right through the raw answers. Attached here rather
+    # than earlier so the label lookup and the uuid keys above are built from
+    # the dataset exactly as the checks saw it.
+    out_list[[ck_sheet_name("dataset")]] <- ck_attach_flag_columns(
+      raw = raw,
+      cl = cl,
+      uuid_column = uuid_column,
+      flag_columns = flag_columns,
+      skip_label_row = skip_label_row,
+      separator = flag_separator
+    )
   }
-  out_list[["readme"]] <- readme_df
-  out_list[["validation_rules"]] <- validation_df
+  out_list[[ck_sheet_name("readme")]] <- readme_df
+  out_list[[ck_sheet_name("validation")]] <- validation_df
 
   workbook <- out_list |>
     create_formated_wb(
@@ -632,8 +1033,24 @@ create_cleaning_log <- function(
       body_front_size = body_front_size
     )
 
+  # ---- mark the flag headers out from the raw-data headers ----
+  # Done after create_formated_wb(), which colours by a grouping column and has
+  # no notion of which columns are flags.
+  if (include_dataset && length(flag_columns) > 0) {
+    ck_style_flag_columns(
+      workbook = workbook,
+      sheet = ck_sheet_name("dataset"),
+      dataset = out_list[[ck_sheet_name("dataset")]],
+      flag_headers = ck_resolved_flag_headers(flag_columns, names(raw)),
+      header_fill = flag_header_fill_color,
+      header_font_size = header_front_size,
+      header_font_color = header_front_color,
+      header_font = header_front
+    )
+  }
+
   # hide the validation source sheet
-  hide_sheet <- which(names(workbook) == "validation_rules")
+  hide_sheet <- which(names(workbook) == ck_sheet_name("validation"))
   if (length(hide_sheet) == 1) {
     openxlsx::sheetVisibility(workbook)[hide_sheet] <- FALSE
   }
@@ -654,7 +1071,12 @@ create_cleaning_log <- function(
   if (nrow(final_log) > 0) {
     col_number <- which(names(final_log) == "Action taken")
     row_numbers <- 2:(nrow(final_log) + 1)
-    val_range <- paste0("'validation_rules'!$A$2:$A$", length(action_codes) + 1)
+    val_range <- paste0(
+      "'",
+      ck_sheet_name("validation"),
+      "'!$A$2:$A$",
+      length(action_codes) + 1
+    )
 
     openxlsx::dataValidation(
       workbook,

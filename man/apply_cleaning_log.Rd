@@ -16,6 +16,7 @@ apply_cleaning_log(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -57,6 +58,11 @@ Default \code{"Survey UUID"}.}
 \item{no_action_values}{Character vector of action values to skip entirely.
 Default \code{"no_action"}.}
 
+\item{default_blank_action}{Action used for rows whose \code{log_action_col}
+cell is blank. Default \code{"no_action"}: an unfilled row means the data
+point stays as it is, so nothing is applied for it. Set to \code{NULL} to
+leave blank cells blank.}
+
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row
 of \code{raw_dataset} is preserved as the ONA label/description row and
 never modified by the cleaning log. Changes are only applied to rows 2+.}
@@ -96,6 +102,13 @@ to \code{NA}. Maps to \code{blank_response}.}
 the dataset. Maps to \code{remove_survey}.}
 \item{\code{no_action}}{Row is skipped; no change is made.}
 }
+
+\strong{Blank actions:} rows whose \strong{Action taken} cell is empty are
+treated as \code{default_blank_action} (\code{"no_action"} by default), so
+a reviewer who only filled in the rows that needed a change does not have to
+type \code{no_action} into every row they left alone. Set
+\code{default_blank_action = NULL} to restore the old behaviour, where a
+blank cell is an unknown action.
 
 \strong{Column-wide changes:} if \code{uuid} is \code{"all_data"} (case-
 insensitive), the change is applied to every row of \code{question} rather
