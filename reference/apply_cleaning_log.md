@@ -19,6 +19,7 @@ apply_cleaning_log(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -80,6 +81,12 @@ apply_cleaning_log(
 
   Character vector of action values to skip entirely. Default
   `"no_action"`.
+
+- default_blank_action:
+
+  Action used for rows whose `log_action_col` cell is blank. Default
+  `"no_action"`: an unfilled row means the data point stays as it is, so
+  nothing is applied for it. Set to `NULL` to leave blank cells blank.
 
 - skip_label_row:
 
@@ -143,6 +150,13 @@ A list with two elements:
 - `no_action`:
 
   Row is skipped; no change is made.
+
+**Blank actions:** rows whose **Action taken** cell is empty are treated
+as `default_blank_action` (`"no_action"` by default), so a reviewer who
+only filled in the rows that needed a change does not have to type
+`no_action` into every row they left alone. Set
+`default_blank_action = NULL` to restore the old behaviour, where a
+blank cell is an unknown action.
 
 **Column-wide changes:** if `uuid` is `"all_data"` (case- insensitive),
 the change is applied to every row of `question` rather than one

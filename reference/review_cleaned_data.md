@@ -24,6 +24,7 @@ review_cleaned_data(
   blank_response_values = "delete_data_point",
   discard_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   columns_to_skip = c("start", "end", "today", "deviceid", "uuid", "_uuid", "id", "_id",
     "submission_time", "_submission_time", "index", "_index", "df_name", "username",
     "simserial", "phonenumber", "_submission_time", "check_binding", "evaluation_issue"),
@@ -93,6 +94,14 @@ review_cleaned_data(
 - no_action_values:
 
   Action values meaning "no change". Default `"no_action"`.
+
+- default_blank_action:
+
+  Action used for rows whose `log_action_col` cell is blank. Default
+  `"no_action"`: a flagged row the reviewer did not fill in means the
+  data point stays as it is, so it is checked like any other `no_action`
+  row. Set to `NULL` to leave blank cells blank, in which case those
+  rows fall outside every check below.
 
 - columns_to_skip:
 

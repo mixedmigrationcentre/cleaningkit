@@ -53,3 +53,22 @@ A list with:
 
   A dataframe recording every change with columns `uuid`, `question`,
   `action_taken`, `value_before`, `value_after`.
+
+## Details
+
+Values are written back in whatever convention the export already uses.
+For select-multiple sub-columns this is detected from the data by
+[`read_other_responses()`](read_other_responses.md) (see
+[`.detect_sm_convention()`](dot-detect_sm_convention.md)): in a label
+export a selected choice holds the choice text and an unselected one
+stays blank, and in a binary export they hold `"1"` and `"0"`. `0`/`1`
+are only ever introduced where the export already contains them.
+
+Choices are matched to the dataset's own column headers first, and only
+then translated through `tool_choices`. The `list_name` recorded in
+`other_db` comes from whichever version of the tool produced the
+original output, so when it is missing from the current `tool_choices`
+the choice text is looked up across the remaining lists (and matched
+ignoring case, spacing and punctuation). A recoded choice is written in
+the form the column itself uses, so a label export is never given choice
+codes.

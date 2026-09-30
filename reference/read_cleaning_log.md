@@ -18,9 +18,10 @@ read_cleaning_log(
   question_col = "Question number",
   old_value_col = "Old value",
   new_value_col = "New value",
-  sheet = 2,
+  sheet = NULL,
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
   extra_questions = NULL,
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 )
@@ -66,8 +67,10 @@ read_cleaning_log(
 
 - sheet:
 
-  Sheet to read from each Excel file. Accepts a name or integer. Default
-  `2`.
+  Sheet to read from each Excel file. Default `NULL` resolves it per
+  file by name (`"cleaning_log"`, then the first sheet). Accepts a name
+  or an integer to override, or a vector/list of the same length as the
+  files.
 
 - file_pattern:
 
@@ -81,6 +84,13 @@ read_cleaning_log(
   Optional character vector of additional question values to allow
   through the question filter (e.g. computed columns that are not in the
   raw dataset but are valid targets). Default `NULL`.
+
+- default_blank_action:
+
+  Action written into rows whose `action_col` cell is blank. Default
+  `"no_action"`: a flagged row the reviewer did not fill in is taken to
+  mean the data point stays as it is. Set to `NULL` to leave blank cells
+  blank.
 
 - skip_label_row:
 
@@ -115,10 +125,20 @@ all are not treated as mismatches - they are warned about and skipped as
 before. Run [`check_log_files()`](check_log_files.md) directly for the
 full report.
 
-**Sheet selection:** `sheet` accepts either a sheet name or an integer
-index. The default `2` matches the output of
-[`create_cleaning_log()`](create_cleaning_log.md) where sheet 1 is the
-dataset and sheet 2 is the cleaning log.
+**Sheet selection:** the default `NULL` finds the sheet by name, per
+file - `"cleaning_log"`, falling back to the first sheet if no sheet
+carries that name. Naming it rather than numbering it is what lets the
+log live in a workbook that also holds the dataset, the readme and the
+other responses without the reader having to know the tab order. Pass a
+name or an integer index to override.
+
+**Blank actions:** a reviewer only fills in the rows that need a change,
+so a flagged row left with an empty **Action taken** means the data
+point stays as it is. Those blanks are filled with
+`default_blank_action` (`"no_action"` by default) as soon as the files
+are stacked, before any filtering or deduplication, so every later step
+sees an explicit action on every row. Pass `default_blank_action = NULL`
+to leave blank cells untouched.
 
 **Filtering:** rows whose `uuid` is not in the raw dataset and rows
 whose `question` is not a column in the raw dataset are silently dropped

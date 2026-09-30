@@ -114,17 +114,20 @@ one spurious "other" response (label text, bogus uuid) per question.</p></dd>
 
 <dt id="arg-label-language-fallback">label_language_fallback<a class="anchor" aria-label="anchor" href="#arg-label-language-fallback"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), when the
-English label lookup for a selected <code>select_multiple</code> code returns
-nothing, the first non-empty label column in <code>tool_choices</code> (e.g. an
-Arabic <code>label::Arabic (ar)</code> column) is used instead, so responses in
+English label lookup for a selected choice code returns nothing, the first
+non-empty label column in <code>tool_choices</code> (e.g. an Arabic
+<code>label::Arabic (ar)</code> column) is used instead, so responses in
 other languages are shown as they appear in the raw data rather than as
-<code>NA</code>.</p></dd>
+<code>NA</code>. Applies to both <code>select_multiple</code> and <code>select_one</code>
+rows.</p></dd>
 
 
 <dt id="arg-fallback-to-code">fallback_to_code<a class="anchor" aria-label="anchor" href="#arg-fallback-to-code"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), a selected code
 with no label in any language is displayed as the raw code itself, so no
-<code>"NA"</code> is ever written into <code>selected_choices</code>.</p></dd>
+<code>"NA"</code> is ever written into <code>selected_choices</code>. For
+<code>select_one</code> rows the final fallback is the literal <code>"Other"</code>, so
+the column is never blank there regardless of this setting.</p></dd>
 
 
 <dt id="arg-preferred-language">preferred_language<a class="anchor" aria-label="anchor" href="#arg-preferred-language"></a></dt>
@@ -141,9 +144,33 @@ with no label in any language is displayed as the raw code itself, so no
     <p>A dataframe formatted for <code><a href="save_other_responses.html">save_other_responses()</a></code>. It carries an
 attribute <code>"ona_label_row_skipped"</code> recording whether the label row was
 dropped, so <code><a href="save_other_responses.html">save_other_responses()</a></code> does not drop a row a second time.
-The reviewer columns are <strong>TRUE other</strong>, a single <strong>EXISTING other</strong>
-(earlier versions wrote three numbered slots), <strong>INVALID other</strong>,
-<strong>FOLLOW-UP message</strong> and <strong>Explanation</strong>.</p>
+The five reviewer columns, in sheet order, are
+<strong>Input translation or improved text</strong>, a single
+<strong>Correct to existing answer option</strong> (earlier versions wrote three
+numbered slots), <strong>Invalid other</strong>, <strong>Comment from IM</strong> and
+<strong>Response from field team</strong>. Earlier versions of the package headed
+these <code>TRUE other</code>, <code>EXISTING other</code>, <code>INVALID other</code>,
+<code>FOLLOW-UP message</code> and <code>Explanation</code>;
+<code><a href="save_other_responses.html">save_other_responses()</a></code> and <code><a href="read_other_responses.html">read_other_responses()</a></code> still
+recognise those, so a file exported before the rename can be styled and
+read back unchanged.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="selected-choices">selected_choices<a class="anchor" aria-label="anchor" href="#selected-choices"></a></h2>
+
+
+<p><code>selected_choices</code> is filled for both question types, so a reviewer never
+sees a blank cell where a selection exists:</p><ul><li><p><code>select_multiple</code> - every choice the respondent selected in the
+parent question, resolved to labels and separated by <code>";\n"</code>.</p></li>
+<li><p><code>select_one</code> - the question's own "other" option
+(<code>other_db$option_other</code>), resolved to its label in
+<code>tool_choices</code> so it reads exactly as in the tool (e.g. <code>"Other"</code>,
+<code>"Other (please specify)"</code>). A select_one "other" response can only
+come from that option being picked, so nothing is read from the parent
+column. When the option code is missing or unresolvable, the literal
+<code>"Other"</code> is written.</p></li>
+</ul><p>Rows whose parent question is neither type (e.g. a plain <code>text</code> question)
+keep <code>NA</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -316,25 +316,25 @@ hour is 5am and latest hour is 10pm.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="validate-duplicate-surveys">Validate duplicate surveys<a class="anchor" aria-label="anchor" href="#validate-duplicate-surveys"></a>
+<h2 id="validate-similar-surveys">Validate similar surveys<a class="anchor" aria-label="anchor" href="#validate-similar-surveys"></a>
 </h2>
 <p>Groups data by enumerator and checks surveys which are similar.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">duplicate_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duplicates.html">validate_duplicates</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">similar_surveys_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_similar_surveys.html">validate_similar_surveys</a></span><span class="op">(</span></span>
 <span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
 <span>    idnk_value <span class="op">=</span> <span class="st">"Don't know"</span>,</span>
 <span>    threshold <span class="op">=</span> <span class="fl">30</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="validate-duplicate-questions">Validate duplicate questions<a class="anchor" aria-label="anchor" href="#validate-duplicate-questions"></a>
+<h2 id="validate-similar-questions">Validate similar questions<a class="anchor" aria-label="anchor" href="#validate-similar-questions"></a>
 </h2>
 <p>Groups data by enumerator and checks questions passed for
 similarity.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">duplicate_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duplicate_questions.html">validate_duplicate_questions</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">similar_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
+<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_similar_questions.html">validate_similar_questions</a></span><span class="op">(</span></span>
 <span>    questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span>, <span class="st">"Q152_1"</span>, <span class="st">"P2P18_1"</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
@@ -552,8 +552,8 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <span>  <span class="va">interview_time_log</span>,</span>
 <span>  <span class="va">interview_location_log</span>,</span>
 <span>  <span class="va">logical_check_log</span>,</span>
-<span>  <span class="va">duplicate_log</span>,</span>
-<span>  <span class="va">duplicate_questions_log</span></span>
+<span>  <span class="va">similar_surveys_log</span>,</span>
+<span>  <span class="va">similar_questions_log</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">combined_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_combined_log.html">create_combined_log</a></span><span class="op">(</span></span>

@@ -61,9 +61,10 @@ returns a single clean dataframe ready for <code><a href="evaluate_cleaning_log.
 <span>  question_col <span class="op">=</span> <span class="st">"Question number"</span>,</span>
 <span>  old_value_col <span class="op">=</span> <span class="st">"Old value"</span>,</span>
 <span>  new_value_col <span class="op">=</span> <span class="st">"New value"</span>,</span>
-<span>  sheet <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  sheet <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span>
 <span>  extra_questions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -112,8 +113,10 @@ uuids and known question columns.</p></dd>
 
 
 <dt id="arg-sheet">sheet<a class="anchor" aria-label="anchor" href="#arg-sheet"></a></dt>
-<dd><p>Sheet to read from each Excel file. Accepts a name or integer.
-Default <code>2</code>.</p></dd>
+<dd><p>Sheet to read from each Excel file. Default <code>NULL</code>
+resolves it per file by name (<code>"cleaning_log"</code>, then the first
+sheet). Accepts a name or an integer to override, or a vector/list of the
+same length as the files.</p></dd>
 
 
 <dt id="arg-file-pattern">file_pattern<a class="anchor" aria-label="anchor" href="#arg-file-pattern"></a></dt>
@@ -127,6 +130,13 @@ argument of <code><a href="create_cleaning_log.html">create_cleaning_log()</a></
 <dd><p>Optional character vector of additional question values
 to allow through the question filter (e.g. computed columns that are not
 in the raw dataset but are valid targets). Default <code>NULL</code>.</p></dd>
+
+
+<dt id="arg-default-blank-action">default_blank_action<a class="anchor" aria-label="anchor" href="#arg-default-blank-action"></a></dt>
+<dd><p>Action written into rows whose <code>action_col</code>
+cell is blank. Default <code>"no_action"</code>: a flagged row the reviewer did
+not fill in is taken to mean the data point stays as it is. Set to
+<code>NULL</code> to leave blank cells blank.</p></dd>
 
 
 <dt id="arg-skip-label-row">skip_label_row<a class="anchor" aria-label="anchor" href="#arg-skip-label-row"></a></dt>
@@ -158,10 +168,19 @@ names no file. Instead the function stops with the offending file name and
 the exact columns that are missing or extra. Files that cannot be opened at
 all are not treated as mismatches - they are warned about and skipped as
 before. Run <code><a href="check_log_files.html">check_log_files()</a></code> directly for the full report.</p>
-<p><strong>Sheet selection:</strong> <code>sheet</code> accepts either a sheet name or an
-integer index. The default <code>2</code> matches the output of
-<code><a href="create_cleaning_log.html">create_cleaning_log()</a></code> where sheet 1 is the dataset and sheet 2 is
-the cleaning log.</p>
+<p><strong>Sheet selection:</strong> the default <code>NULL</code> finds the sheet by name,
+per file - <code>"cleaning_log"</code>, falling back to the first sheet if no
+sheet carries that name. Naming it rather than numbering it is what lets the
+log live in a workbook that also holds the dataset, the readme and the other
+responses without the reader having to know the tab order. Pass a name or an
+integer index to override.</p>
+<p><strong>Blank actions:</strong> a reviewer only fills in the rows that need a
+change, so a flagged row left with an empty <strong>Action taken</strong> means the
+data point stays as it is. Those blanks are filled with
+<code>default_blank_action</code> (<code>"no_action"</code> by default) as soon as the
+files are stacked, before any filtering or deduplication, so every later
+step sees an explicit action on every row. Pass
+<code>default_blank_action = NULL</code> to leave blank cells untouched.</p>
 <p><strong>Filtering:</strong> rows whose <code>uuid</code> is not in the raw dataset and rows
 whose <code>question</code> is not a column in the raw dataset are silently dropped
 (with a summary message). Rows with <code>action == "no_action"</code> have their

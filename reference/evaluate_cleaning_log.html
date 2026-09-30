@@ -66,6 +66,7 @@ dataset.</p>
 <span>  raw_uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  valid_actions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"recoded"</span>, <span class="st">"delete_data_point"</span>, <span class="st">"addition"</span>, <span class="st">"discard"</span>, <span class="st">"other"</span>,</span>
 <span>    <span class="st">"no_action"</span><span class="op">)</span>,</span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  flag_issues_inline <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -117,8 +118,16 @@ Default <code>"_uuid"</code>.</p></dd>
 
 <dt id="arg-valid-actions">valid_actions<a class="anchor" aria-label="anchor" href="#arg-valid-actions"></a></dt>
 <dd><p>Character vector of accepted action-type values.
-Default matches the five types defined in the <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code>
+Default matches the six types defined in the <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code>
 readme sheet.</p></dd>
+
+
+<dt id="arg-default-blank-action">default_blank_action<a class="anchor" aria-label="anchor" href="#arg-default-blank-action"></a></dt>
+<dd><p>Action used for rows whose <code>action_col</code>
+cell is blank. Default <code>"no_action"</code>: a flagged row the reviewer did
+not fill in is taken to mean the data point stays as it is, and the value
+is written back into the returned cleaning log. Set to <code>NULL</code> to flag
+blank cells as <code>missing_action</code> instead.</p></dd>
 
 
 <dt id="arg-skip-label-row">skip_label_row<a class="anchor" aria-label="anchor" href="#arg-skip-label-row"></a></dt>
@@ -174,7 +183,19 @@ in the raw dataset.</p></dd>
 during cleaning.</p></dd>
 
 
-</dl><p>The function returns a list with two elements: <code>cleaning_log</code> (the
+</dl><p><strong>Blank actions:</strong> an empty <strong>Action taken</strong> cell is filled with
+<code>default_blank_action</code> (<code>"no_action"</code> by default) before the
+checks run, so a reviewer who only filled in the rows that needed a change
+does not get an issue on every row they left alone. The filled value is
+written back into the returned <code>cleaning_log</code>, so the action is
+explicit from here on. Set <code>default_blank_action = NULL</code> to restore the
+old behaviour, where a blank cell is reported as <code>missing_action</code>.</p>
+<p>One case is still reported: a row with a blank action but a
+<strong>New value</strong> that differs from the <strong>Old value</strong>
+(<code>blank_action_has_new_value</code>). The reviewer most likely typed the new
+value and forgot the action, and defaulting the row to <code>no_action</code>
+would throw that change away, so it is surfaced rather than applied.</p>
+<p>The function returns a list with two elements: <code>cleaning_log</code> (the
 original log, possibly with an added <code>evaluation_issue</code> column when
 <code>flag_issues_inline = TRUE</code>) and <code>evaluation_log</code> (a dataframe
 summarising every issue found, one row per problem, with the row number and

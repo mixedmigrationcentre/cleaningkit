@@ -17,7 +17,7 @@ validate_back_to_back(
   end_column = "end",
   log_name = "back_to_back_log",
   threshold_hours = 0,
-  threshold_mins = 10,
+  threshold_mins = 3,
   gap_from = c("end", "start"),
   skip_label_row = TRUE
 )

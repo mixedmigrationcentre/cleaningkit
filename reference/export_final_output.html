@@ -63,14 +63,8 @@ cleaning_log — the combined cleaning log from combine_reviewed_logs().
 <span>  <span class="va">clean_dataset</span>,</span>
 <span>  <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="st">"path to output .xlsx"</span>,</span>
-<span>  project_name <span class="op">=</span> <span class="st">"Mixed Migration Centre Data Cleaning"</span>,</span>
-<span>  project_description <span class="op">=</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"This workbook contains the outputs of the data cleaning process. "</span>,</span>
-<span>    <span class="st">"The raw_data sheet holds the original survey export from ONA; "</span>,</span>
-<span>    <span class="st">"clean_data holds the dataset after all validated changes were applied; "</span>,</span>
-<span>    <span class="st">"cleaning_log holds the full record of every change made, including "</span>,</span>
-<span>    <span class="st">"other-response recoding. Update this description to reflect the specific "</span>,</span>
-<span>    <span class="st">"round, location, and scope of this data collection exercise."</span><span class="op">)</span>,</span>
+<span>  project_name <span class="op">=</span> <span class="st">"Project Name"</span>,</span>
+<span>  project_description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Project description"</span><span class="op">)</span>,</span>
 <span>  data_collection_round <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  prepared_by <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sheet_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>readme <span class="op">=</span> <span class="st">"readme"</span>, raw <span class="op">=</span> <span class="st">"raw_data"</span>, clean <span class="op">=</span> <span class="st">"clean_data"</span>, log <span class="op">=</span></span>

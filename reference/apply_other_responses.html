@@ -95,6 +95,23 @@ for each change applied, matching the original loop output.</p></dd>
 <code>value_after</code>.</p></dd>
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Values are written back in whatever convention the export already uses.
+For select-multiple sub-columns this is detected from the data by
+<code><a href="read_other_responses.html">read_other_responses()</a></code> (see <code><a href="dot-detect_sm_convention.html">.detect_sm_convention()</a></code>): in a
+label export a selected choice holds the choice text and an unselected one
+stays blank, and in a binary export they hold <code>"1"</code> and <code>"0"</code>.
+<code>0</code>/<code>1</code> are only ever introduced where the export already
+contains them.</p>
+<p>Choices are matched to the dataset's own column headers first, and only then
+translated through <code>tool_choices</code>. The <code>list_name</code> recorded in
+<code>other_db</code> comes from whichever version of the tool produced the
+original output, so when it is missing from the current <code>tool_choices</code>
+the choice text is looked up across the remaining lists (and matched
+ignoring case, spacing and punctuation). A recoded choice is written in the
+form the column itself uses, so a label export is never given choice codes.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

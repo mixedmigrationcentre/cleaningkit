@@ -20,6 +20,7 @@ evaluate_cleaning_log(
   raw_uuid_column = "_uuid",
   valid_actions = c("recoded", "delete_data_point", "addition", "discard", "other",
     "no_action"),
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   flag_issues_inline = TRUE
 )
@@ -69,8 +70,16 @@ evaluate_cleaning_log(
 - valid_actions:
 
   Character vector of accepted action-type values. Default matches the
-  five types defined in the
+  six types defined in the
   [`create_cleaning_log()`](create_cleaning_log.md) readme sheet.
+
+- default_blank_action:
+
+  Action used for rows whose `action_col` cell is blank. Default
+  `"no_action"`: a flagged row the reviewer did not fill in is taken to
+  mean the data point stays as it is, and the value is written back into
+  the returned cleaning log. Set to `NULL` to flag blank cells as
+  `missing_action` instead.
 
 - skip_label_row:
 
@@ -131,6 +140,20 @@ The five valid action types and how they are interpreted:
 - `no_action`:
 
   No change is applied. Rows are skipped entirely during cleaning.
+
+**Blank actions:** an empty **Action taken** cell is filled with
+`default_blank_action` (`"no_action"` by default) before the checks run,
+so a reviewer who only filled in the rows that needed a change does not
+get an issue on every row they left alone. The filled value is written
+back into the returned `cleaning_log`, so the action is explicit from
+here on. Set `default_blank_action = NULL` to restore the old behaviour,
+where a blank cell is reported as `missing_action`.
+
+One case is still reported: a row with a blank action but a **New
+value** that differs from the **Old value**
+(`blank_action_has_new_value`). The reviewer most likely typed the new
+value and forgot the action, and defaulting the row to `no_action` would
+throw that change away, so it is surfaced rather than applied.
 
 The function returns a list with two elements: `cleaning_log` (the
 original log, possibly with an added `evaluation_issue` column when

@@ -22,14 +22,8 @@ export_final_output(
   clean_dataset,
   combined_log,
   output_path = "path to output .xlsx",
-  project_name = "Mixed Migration Centre Data Cleaning",
-  project_description =
-    paste0("This workbook contains the outputs of the data cleaning process. ",
-    "The raw_data sheet holds the original survey export from ONA; ",
-    "clean_data holds the dataset after all validated changes were applied; ",
-    "cleaning_log holds the full record of every change made, including ",
-    "other-response recoding. Update this description to reflect the specific ",
-    "round, location, and scope of this data collection exercise."),
+  project_name = "Project Name",
+  project_description = paste0("Project description"),
   data_collection_round = NULL,
   prepared_by = NULL,
   sheet_names = c(readme = "readme", raw = "raw_data", clean = "clean_data", log =

@@ -11,6 +11,8 @@ Build log rows for a REMOVE action
   uuid_column,
   sm_separator,
   skip_label_row = TRUE,
-  tool_choices = NULL
+  tool_choices = NULL,
+  conv_cache = NULL,
+  uuid_index = NULL
 )
 ```

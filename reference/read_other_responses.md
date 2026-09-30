@@ -18,7 +18,8 @@ read_other_responses(
   uuid_column = "_uuid",
   log_uuid_col = "uuid",
   sm_separator = "/",
-  file_pattern = "_other_responses_edited\\.xlsx$",
+  sheet = NULL,
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -67,10 +68,24 @@ read_other_responses(
   Separator between a select-multiple parent column name and its binary
   sub-columns in `dataset`. Default `"/"` (ONA export style).
 
+- sheet:
+
+  Sheet holding the other responses. Default `NULL` resolves it per file
+  by name: `"other_responses"` as written by
+  [`create_review_workbook()`](create_review_workbook.md) and
+  [`save_other_responses()`](save_other_responses.md), falling back to
+  `"Sheet1"` for a file produced before the two logs were merged, and to
+  the first sheet if neither name is present. Pass a name or an integer
+  to override. Resolving by name is what lets the same file carry the
+  cleaning log on one sheet and the other responses on another.
+
 - file_pattern:
 
   Regex pattern used when `path` is a directory. Default
-  `"_other_responses_edited\\.xlsx$"`.
+  `"_follow-ups_edited\\.xls[xm]$"` - the merged review workbook, which
+  holds both logs. Pass `"_other_responses_edited\\.xlsx$"` to read
+  files produced by the older standalone
+  [`save_other_responses()`](save_other_responses.md) route.
 
 - skip_questions:
 
@@ -99,23 +114,39 @@ A dataframe with columns `uuid`, `question`, `action_taken`,
 - `true_other`:
 
   A genuine new answer (e.g. a translation). Overwrites the `_other`
-  text column with the value in `TRUE other ...`. The parent question is
-  not touched.
+  text column with the value in
+  `Input translation or improved text ...`. The parent question is not
+  touched.
 
 - `recode`:
 
   The response actually matches an existing choice. The
-  `EXISTING other ...` column is filled (older logs with several
-  numbered `EXISTING other` columns are still read and merged). For
-  `select_one`: blanks the `_other` text column, sets the parent to the
-  matched choice code. For `select_multiple`: blanks the `_other` text
-  column, removes the `other` option from the parent concatenation, and
-  adds the matched choice(s).
+  `Correct to existing answer option ...` column is filled (older logs
+  with several numbered `EXISTING other` columns are still read and
+  merged). For `select_one`: blanks the `_other` text column, sets the
+  parent to the matched choice code. For `select_multiple`: blanks the
+  `_other` text column, removes the `other` option from the parent
+  concatenation, and adds the matched choice(s).
 
 - `remove`:
 
-  The response is invalid (`INVALID other == "Yes"`). Blanks the
+  The response is invalid (`Invalid other ... == "Yes"`). Blanks the
   `_other` text column and removes/blanks the parent question reference.
+
+**Which sheet is read:** the sheet is found by name, not by position -
+`"other_responses"` first, then `"Sheet1"` as written before the
+cleaning log and the other responses were merged into one workbook, then
+the first sheet. A merged review workbook and an older standalone
+other-responses file therefore both read with no extra argument, even
+when they sit side by side in the same folder.
+
+**Header names:** the reviewer columns are matched by prefix, case
+insensitively, against both the headers written by the current
+[`prepare_other_responses()`](prepare_other_responses.md) and the
+earlier `TRUE other` / `EXISTING other` / `INVALID other` /
+`FOLLOW-UP message` headers, so a file reviewed before the rename is
+read exactly as before. The patterns are defined once in
+`.ck_other_review_patterns()`.
 
 **Column check:** before the files are stacked, their headers are
 compared with [`check_log_files()`](check_log_files.md). Because the
@@ -134,9 +165,19 @@ independently so they can have different names (e.g. `"_uuid"` in the
 dataset and `"uuid"` in the log file). The ONA label/description row is
 excluded from the dataset uuid list when `skip_label_row = TRUE`.
 
-**Mutual exclusivity:** each row must have exactly one of `true_other`,
-`existing_other`, or `invalid_other` filled. Rows with zero or more than
-one filled are flagged with a warning and excluded.
+**Mutual exclusivity:** a row may have at most one of `true_other`,
+`existing_other`, or `invalid_other` filled. Rows with more than one
+filled are contradictory - the reviewer has asked for two different
+things on one response - so they are excluded and their uuids named in a
+warning.
+
+**Rows left blank:** a row with all three action columns blank is not an
+error. It is the normal way a reviewer records that the "other" text is
+a valid answer as it stands and the record should not change. Such rows
+produce no cleaning-log entry (there is no data point to change, so
+logging one would only pad the log) and no warning; they are counted in
+the `verbose` summary as *no change (kept as-is)*. A file in which every
+row is blank therefore returns an empty log quietly rather than warning.
 
 **Output shape:** the returned dataframe has columns `uuid`, `question`,
 `action_taken`, `old_value`, `new_value` ready for

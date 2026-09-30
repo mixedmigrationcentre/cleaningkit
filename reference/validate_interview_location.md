@@ -13,6 +13,7 @@ validate_interview_location(
   uuid_column = "_uuid",
   lat_column = "_location_latitude",
   lon_column = "_location_longitude",
+  location_column = "location",
   country_question = "Q13",
   city_question = "Q14",
   log_name = "interview_location_log",
@@ -22,6 +23,7 @@ validate_interview_location(
   check_city = TRUE,
   flag_missing_gps = TRUE,
   treat_blank_gps_as_phone = TRUE,
+  use_location_fallback = TRUE,
   nominatim_delay_s = 1,
   skip_label_row = TRUE
 )
@@ -44,6 +46,16 @@ validate_interview_location(
 - lon_column:
 
   Name of the GPS longitude column. Default `"_location_longitude"`.
+
+- location_column:
+
+  Name of the raw ONA geopoint column used as a fallback when
+  `lat_column` / `lon_column` are unusable. The column holds all four
+  geopoint components separated by spaces, in the order
+  `"latitude longitude altitude precision"`, e.g.
+  `"33.9820598 71.5482743 317.4000244140625 18.033"`. Default
+  `"location"`. The column is optional: if it is absent from the dataset
+  the fallback is simply not available.
 
 - country_question:
 
@@ -87,17 +99,28 @@ validate_interview_location(
 - flag_missing_gps:
 
   Logical. If `TRUE` (the default), surveys whose GPS coordinates are
-  present but unusable are flagged in the log. Phone interviews (both
-  coordinate columns empty) are governed by `treat_blank_gps_as_phone`,
-  not by this argument.
+  unusable are counted and reported as a console warning. They are
+  *never* written to the cleaning log — the log carries only surveys
+  that a check actually ran on and failed. Set to `FALSE` to suppress
+  the warning as well. Phone interviews are governed by
+  `treat_blank_gps_as_phone`, not by this argument.
 
 - treat_blank_gps_as_phone:
 
-  Logical. If `TRUE` (the default), a survey with *both* coordinate
-  columns empty is taken to be a phone interview and is excluded from
-  every check, including the missing-GPS flag. Set to `FALSE` for a
-  round known to be entirely in person, so that a completely absent
-  geopoint is flagged instead.
+  Logical. If `TRUE` (the default), a survey with *all* coordinate
+  columns empty — `lat_column`, `lon_column` and `location_column` — is
+  taken to be a phone interview and excluded from every check and from
+  the unusable-GPS warning count. Set to `FALSE` for a round known to be
+  entirely in person, so that a completely absent geopoint is counted as
+  unusable instead.
+
+- use_location_fallback:
+
+  Logical. If `TRUE` (the default) and `location_column` is present in
+  the dataset, any survey whose `lat_column` / `lon_column` pair is
+  missing or invalid falls back to the first two space-separated values
+  of `location_column`. Surveys whose split coordinates are already
+  valid are left untouched.
 
 - nominatim_delay_s:
 
@@ -122,8 +145,9 @@ A list containing:
   A dataframe with columns `uuid`, `old_value` (the GPS coordinates or
   "NA"), `question` (the relevant column), `issue` (description of the
   problem), `check_binding` (shared within each check type per survey).
-  Three possible `check_binding` prefixes: `"location_missing_gps"`,
-  `"location_country"`, `"location_city"`.
+  Two possible `check_binding` prefixes: `"location_country"` and
+  `"location_city"`. Surveys with unusable GPS never appear — they are
+  reported as a console warning instead (see `flag_missing_gps`).
 
 ## Details
 
@@ -136,15 +160,38 @@ A list containing:
     whether the GPS point is within `city_radius_km` kilometres of the
     city centre. Requires an internet connection.
 
+**Unusable GPS is reported, not logged.** A survey whose coordinates are
+missing, non-numeric, out of range or the `(0, 0)` device default cannot
+be checked against anything, so it produces no cleaning-log row. An
+unusable geopoint is not itself an answer the enumerator can correct,
+and logging one row per survey buried the genuine location problems
+under hundreds of lines. Those surveys are counted and reported as a
+console warning instead, and the log contains only surveys whose
+coordinates were good enough for the country or city check to actually
+run and fail. Set `flag_missing_gps = FALSE` to silence the warning too.
+
 **Phone interviews are skipped.** A survey conducted by phone records no
-geopoint, so both coordinate columns come back empty. Those surveys are
-identified up front and excluded from all three checks — there is
-nothing to validate and flagging them would bury the real problems.
-Surveys whose GPS is present but unusable are a different matter and are
-still flagged: one coordinate filled and the other empty, non-numeric
-text, out-of-range values, or the `(0, 0)` device default. Set
-`treat_blank_gps_as_phone = FALSE` to flag fully-empty coordinates too,
-which is appropriate for a round that was entirely face-to-face.
+geopoint, so the coordinate columns come back empty. Those surveys are
+identified up front and excluded from every check and from the warning
+count — there is nothing to validate. Set
+`treat_blank_gps_as_phone = FALSE` to count fully-empty coordinates as
+unusable instead, which is appropriate for a round that was entirely
+face-to-face.
+
+**Rounded or corrupted coordinate columns.** Opening an ONA export in
+Excel frequently damages the split coordinate columns — the decimals are
+rounded away, the value is re-read as a date or as scientific notation,
+or the cell is emptied altogether. The raw geopoint column (`location`
+by default) is normally left intact because Excel treats it as text.
+When a survey's `lat_column` / `lon_column` pair fails validation, the
+function therefore falls back to that column, taking its first two
+space-separated values as latitude and longitude. The column holds the
+four ONA geopoint components in the order
+`"latitude longitude altitude precision"`, e.g.
+`"33.9820598 71.5482743 317.4000244140625 18.033"`; altitude and
+precision are ignored. Surveys whose split coordinates are already valid
+are never overwritten, and the number of surveys rescued this way is
+reported in a message. Set `use_location_fallback = FALSE` to disable.
 
 **Nominatim usage policy:** this function respects the [Nominatim
 Acceptable Use

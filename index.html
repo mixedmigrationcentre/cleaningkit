@@ -167,9 +167,9 @@
 <li>
 <strong><code><a href="reference/validate_interview_time.html">validate_interview_time()</a></code></strong>: Flags interviews conducted at implausible times of the day (e.g., middle of the night).</li>
 <li>
-<strong><code><a href="reference/validate_duplicates.html">validate_duplicates()</a></code></strong>: Detects suspiciously similar surveys (soft duplicates) based on differing column counts.</li>
+<strong><code><a href="reference/validate_similar_surveys.html">validate_similar_surveys()</a></code></strong>: Detects suspiciously similar surveys (soft duplicates) based on the number of columns that match between surveys.</li>
 <li>
-<strong><code><a href="reference/validate_duplicate_questions.html">validate_duplicate_questions()</a></code></strong>: Flags specific questions where an enumerator has repeatedly recorded the exact same answer across multiple surveys.</li>
+<strong><code><a href="reference/validate_similar_questions.html">validate_similar_questions()</a></code></strong>: Flags specific questions where an enumerator has repeatedly recorded the exact same answer across multiple surveys.</li>
 <li>
 <strong><code><a href="reference/validate_country_of_interview.html">validate_country_of_interview()</a></code></strong>: Flags cases where the interview country matches the respondent’s nationality or journey start.</li>
 <li>
@@ -203,9 +203,9 @@
 <span>  <span class="co"># 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)</span></span>
 <span>  <span class="fu"><a href="reference/validate_interview_time.html">validate_interview_time</a></span><span class="op">(</span>earliest_hour <span class="op">=</span> <span class="fl">5</span>, latest_hour <span class="op">=</span> <span class="fl">22</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="co"># 5. Suspiciously similar responses (soft duplicates differing in &lt;= 7 columns)</span></span>
-<span>  <span class="fu"><a href="reference/validate_duplicates.html">validate_duplicates</a></span><span class="op">(</span>tool_survey <span class="op">=</span> <span class="va">survey_sheet</span>, threshold <span class="op">=</span> <span class="fl">7</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co"># 6. Duplicated answers for specific questions by the same enumerator</span></span>
-<span>  <span class="fu"><a href="reference/validate_duplicate_questions.html">validate_duplicate_questions</a></span><span class="op">(</span>questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/validate_similar_surveys.html">validate_similar_surveys</a></span><span class="op">(</span>tool_survey <span class="op">=</span> <span class="va">survey_sheet</span>, threshold <span class="op">=</span> <span class="fl">7</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co"># 6. Repeated answers for specific questions by the same enumerator</span></span>
+<span>  <span class="fu"><a href="reference/validate_similar_questions.html">validate_similar_questions</a></span><span class="op">(</span>questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="co"># 7. Outliers in all integer columns in the dataset or particular columns</span></span>
 <span>  <span class="fu"><a href="reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
 <span>    columns_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q141_3"</span><span class="op">)</span>,</span>
@@ -356,17 +356,65 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#----------------------------------</span></span>
-<span><span class="co"># create cleaning log</span></span>
+<span><span class="co"># create the review workbook</span></span>
 <span><span class="co">#----------------------------------</span></span>
 <span></span>
-<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
+<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/create_review_workbook.html">create_review_workbook</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  other_responses <span class="op">=</span> <span class="va">other_responses_df</span>,</span>
+<span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
 <span>    <span class="st">"path/to/output/"</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    <span class="st">"_follow-ups.xlsx"</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<div class="section level4">
+<h4 id="one-workbook-both-logs">One workbook, both logs<a class="anchor" aria-label="anchor" href="#one-workbook-both-logs"></a>
+</h4>
+<p><code><a href="reference/create_review_workbook.html">create_review_workbook()</a></code> writes the cleaning log and the “other” text responses into a <strong>single</strong> file, so a reviewer opens one workbook and the second stage reads one file:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Sheet</th>
+<th>What it is</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>cleaning_log</code></td>
+<td>One row per flagged value. The reviewer fills in <strong>Action taken</strong> and <strong>New value</strong>.</td>
+</tr>
+<tr>
+<td><code>dataset</code></td>
+<td>The checked dataset, with the check-flag columns in front.</td>
+</tr>
+<tr>
+<td><code>readme</code></td>
+<td>What each sheet is for, the <strong>Action taken</strong> codes, and the other-responses review key.</td>
+</tr>
+<tr>
+<td><code>validation_rules</code></td>
+<td>Hidden. Backs the <strong>Action taken</strong> drop-down.</td>
+</tr>
+<tr>
+<td><code>other_responses</code></td>
+<td>Every “other” text response to review.</td>
+</tr>
+<tr>
+<td><code>Dropdown_values</code></td>
+<td>Backs the other-responses drop-downs.</td>
+</tr>
+<tr>
+<td><code>_ck_config</code></td>
+<td>Very hidden, <code>.xlsm</code> only. The macro’s configuration.</td>
+</tr>
+</tbody>
+</table>
+<p>Leave out <code>other_responses</code> and <code>other_db</code> and you get exactly what <code><a href="reference/create_cleaning_log.html">create_cleaning_log()</a></code> produces, so it is a drop-in for either of the older writers. <code><a href="reference/create_cleaning_log.html">create_cleaning_log()</a></code> and <code><a href="reference/save_other_responses.html">save_other_responses()</a></code> are unchanged and still available when the two logs should go to different people.</p>
+</div>
 <div class="section level4">
 <h4 id="controlling-the-colours-in-the-cleaning-log">Controlling the colours in the cleaning log<a class="anchor" aria-label="anchor" href="#controlling-the-colours-in-the-cleaning-log"></a>
 </h4>
@@ -434,14 +482,24 @@
 <div class="section level4">
 <h4 id="logging-reviewer-edits-straight-into-the-log-macro-enabled">Logging reviewer edits straight into the log (macro-enabled)<a class="anchor" aria-label="anchor" href="#logging-reviewer-edits-straight-into-the-log-macro-enabled"></a>
 </h4>
-<p><code><a href="reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> writes the same workbook as a macro-enabled <code>.xlsm</code> with a small VBA project attached. A reviewer can then change a value directly on the <code>dataset</code> sheet and the edit is appended to the bottom of the cleaning log automatically - old value, new value, question, uuid, enumerator and a mapped <strong>Action taken</strong> - so a correction never has to be copied across by hand.</p>
-<p><code><a href="reference/create_cleaning_log.html">create_cleaning_log()</a></code> is untouched by this and carries none of the macro machinery, so the plain <code>.xlsx</code> route stays available if macros turn out to be blocked.</p>
+<p>Pass <code>vba = TRUE</code> - or simply an <code>.xlsm</code> path - and the workbook is written macro-enabled, with a small VBA project attached. A reviewer can then change a value directly on the <code>dataset</code> sheet and the edit is appended to the bottom of the <code>cleaning_log</code> sheet automatically - old value, new value, question, uuid, enumerator and a mapped <strong>Action taken</strong> - so a correction never has to be copied across by hand.</p>
+<p>The plain <code>.xlsx</code> route carries none of the macro machinery and stays available if macros turn out to be blocked.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/create_review_workbook.html">create_review_workbook</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  other_responses <span class="op">=</span> <span class="va">other_responses_df</span>,</span>
+<span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
+<span>  vba <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"path/to/output/"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"_follow-ups.xlsm"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># or, cleaning log only</span></span>
+<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"path/to/output/"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"_follow-ups.xlsm"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Every argument of <code><a href="reference/create_cleaning_log.html">create_cleaning_log()</a></code> works here too, except <code>include_dataset</code>, which is forced to <code>TRUE</code> - without the <code>dataset</code> sheet there is nothing for the macro to watch. An <code>.xlsx</code> extension is corrected to <code>.xlsm</code> with a message.</p>
+<p><strong>The macro watches the <code>dataset</code> sheet and nothing else.</strong> Edits on <code>other_responses</code> append nothing to the cleaning log: that sheet is read back column by column by <code><a href="reference/read_other_responses.html">read_other_responses()</a></code> instead. The extra sheets in the merged workbook change nothing for the macro, which addresses sheets by name.</p>
+<p><code>include_dataset</code> is forced to <code>TRUE</code> - without the <code>dataset</code> sheet there is nothing for the macro to watch. An <code>.xlsx</code> extension is corrected to <code>.xlsm</code> with a message.</p>
 <p><strong>Repeat edits are appended, not overwritten.</strong> Editing the same cell again adds another row rather than revising the first, so the log keeps the full history. Each row’s <strong>Old value</strong> is the value immediately before that edit, so successive rows chain raw -&gt; A -&gt; B, and the <strong>Issue</strong> column carries a per-cell sequence number (<code>manual_edit_001</code>, <code>manual_edit_002</code>, …). That keeps <code>uuid + question + issue</code> unique, so <code><a href="reference/read_cleaning_log.html">read_cleaning_log()</a></code> keeps every row instead of collapsing them to the first, and <code><a href="reference/apply_cleaning_log.html">apply_cleaning_log()</a></code> writes the most recent value.</p>
 <p>Rows the macro appends have their formatting cleared before they are written, so none of the <code>check_binding</code> row colours carry down onto them, and they are given the same <strong>Action taken</strong> drop-down as the rest of the log. The header and label rows and the uuid column are restored if a reviewer edits them, since the log refers to them.</p>
 <p><strong>One-time setup.</strong> The compiled VBA project is not generated by R - it is built once from the sources in <code>inst/vba/</code> and shipped as <code>inst/extdata/cleaningkit_vba.bin</code>:</p>
@@ -460,9 +518,8 @@
 <p>You can extract and prepare “other” responses from your dataset using two functions:</p>
 <ul>
 <li>
-<strong><code><a href="reference/prepare_other_responses.html">prepare_other_responses()</a></code></strong>: Combines other responses from all sheets into a single dataframe ready for use with <code><a href="reference/save_other_responses.html">save_other_responses()</a></code>. You can optionally pass a character vector of specific question names to the <code>questions</code> parameter if you only want to process a subset of questions.</li>
-<li>
-<strong><code><a href="reference/save_other_responses.html">save_other_responses()</a></code></strong>: This function saves the prepared other responses into an Excel workbook with specific formatting and data validation.</li>
+<strong><code><a href="reference/prepare_other_responses.html">prepare_other_responses()</a></code></strong>: Combines other responses from all sheets into a single dataframe. You can optionally pass a character vector of specific question names to the <code>questions</code> parameter if you only want to process a subset of questions.</li>
+<li>Hand that dataframe to <strong><code><a href="reference/create_review_workbook.html">create_review_workbook()</a></code></strong> to put it in the same workbook as the cleaning log (the usual route), or to <strong><code><a href="reference/save_other_responses.html">save_other_responses()</a></code></strong> for a file of its own.</li>
 </ul>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare the other responses dataframe</span></span>
@@ -472,11 +529,15 @@
 <span>  tool_choices <span class="op">=</span> <span class="va">choices_sheet</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Save to an Excel workbook for review</span></span>
+<span><span class="co"># Usual route: same workbook as the cleaning log - see above</span></span>
+<span></span>
+<span><span class="co"># Or a standalone file for review</span></span>
 <span><span class="fu"><a href="reference/save_other_responses.html">save_other_responses</a></span><span class="op">(</span></span>
 <span>  df <span class="op">=</span> <span class="va">other_responses_df</span>,</span>
+<span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
 <span>  save_location <span class="op">=</span> <span class="st">"output"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>The review sheet is called <code>other_responses</code>. It was called <code>Sheet1</code> before the two logs were merged, and <code><a href="reference/read_other_responses.html">read_other_responses()</a></code> accepts either name, so files already out with reviewers still read back.</p>
 </div>
 <div class="section level3">
 <h3 id="apply-cleaning">Apply Cleaning<a class="anchor" aria-label="anchor" href="#apply-cleaning"></a>
@@ -504,11 +565,12 @@
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># apply cleaning</span></span>
 <span><span class="co">#----------------------------------</span></span>
-<span><span class="va">cleaning_log</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_cleaning_log.html">read_cleaning_log</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/log.xlsx"</span>, raw_dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
+<span><span class="va">cleaning_log</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_cleaning_log.html">read_cleaning_log</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/output/"</span>, raw_dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
 <span><span class="va">evaluated_log</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/evaluate_cleaning_log.html">evaluate_cleaning_log</a></span><span class="op">(</span>cleaning_log <span class="op">=</span> <span class="va">cleaning_log</span>, raw_dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
 <span><span class="va">cleaned_data_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/apply_cleaning_log.html">apply_cleaning_log</a></span><span class="op">(</span>raw_dataset <span class="op">=</span> <span class="va">raw_data</span>, cleaning_log <span class="op">=</span> <span class="va">evaluated_log</span><span class="op">$</span><span class="va">cleaning_log</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">other_log</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_other_responses.html">read_other_responses</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/other.xlsx"</span>, dataset <span class="op">=</span> <span class="va">raw_data</span>, other_db <span class="op">=</span> <span class="va">other_db</span>, tool_choices <span class="op">=</span> <span class="va">choices_sheet</span><span class="op">)</span></span>
+<span><span class="co"># the same reviewed workbook - each reader finds its own sheet by name</span></span>
+<span><span class="va">other_log</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_other_responses.html">read_other_responses</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/output/"</span>, dataset <span class="op">=</span> <span class="va">raw_data</span>, other_db <span class="op">=</span> <span class="va">other_db</span>, tool_choices <span class="op">=</span> <span class="va">choices_sheet</span><span class="op">)</span></span>
 <span><span class="va">cleaned_data_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/apply_other_responses.html">apply_other_responses</a></span><span class="op">(</span>dataset <span class="op">=</span> <span class="va">cleaned_data_list</span><span class="op">$</span><span class="va">clean_dataset</span>, other_log <span class="op">=</span> <span class="va">other_log</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#----------------------------------</span></span>

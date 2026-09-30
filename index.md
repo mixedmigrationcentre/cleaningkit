@@ -118,10 +118,10 @@ dataset and a log of flagged issues.
 - **[`validate_interview_time()`](reference/validate_interview_time.md)**:
   Flags interviews conducted at implausible times of the day (e.g.,
   middle of the night).
-- **[`validate_duplicates()`](reference/validate_duplicates.md)**:
-  Detects suspiciously similar surveys (soft duplicates) based on
-  differing column counts.
-- **[`validate_duplicate_questions()`](reference/validate_duplicate_questions.md)**:
+- **[`validate_similar_surveys()`](reference/validate_similar_surveys.md)**:
+  Detects suspiciously similar surveys (soft duplicates) based on the
+  number of columns that match between surveys.
+- **[`validate_similar_questions()`](reference/validate_similar_questions.md)**:
   Flags specific questions where an enumerator has repeatedly recorded
   the exact same answer across multiple surveys.
 - **[`validate_country_of_interview()`](reference/validate_country_of_interview.md)**:
@@ -166,9 +166,9 @@ checked_data <- raw_data |>
   # 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)
   validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
   # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
-  validate_duplicates(tool_survey = survey_sheet, threshold = 7) |>
-  # 6. Duplicated answers for specific questions by the same enumerator
-  validate_duplicate_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
+  validate_similar_surveys(tool_survey = survey_sheet, threshold = 7) |>
+  # 6. Repeated answers for specific questions by the same enumerator
+  validate_similar_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
   # 7. Outliers in all integer columns in the dataset or particular columns
   validate_outliers(
     columns_to_check = c("Q141_3"),
@@ -319,11 +319,13 @@ combined_log <- cleaningkit::create_combined_log(
 )
 
 #----------------------------------
-# create cleaning log
+# create the review workbook
 #----------------------------------
 
-cleaningkit::create_cleaning_log(
+cleaningkit::create_review_workbook(
   write_list = combined_log,
+  other_responses = other_responses_df,
+  other_db = other_db,
   output_path = paste0(
     "path/to/output/",
     Sys.Date(),
@@ -331,6 +333,30 @@ cleaningkit::create_cleaning_log(
   )
 )
 ```
+
+#### One workbook, both logs
+
+[`create_review_workbook()`](reference/create_review_workbook.md) writes
+the cleaning log and the “other” text responses into a **single** file,
+so a reviewer opens one workbook and the second stage reads one file:
+
+| Sheet | What it is |
+|----|----|
+| `cleaning_log` | One row per flagged value. The reviewer fills in **Action taken** and **New value**. |
+| `dataset` | The checked dataset, with the check-flag columns in front. |
+| `readme` | What each sheet is for, the **Action taken** codes, and the other-responses review key. |
+| `validation_rules` | Hidden. Backs the **Action taken** drop-down. |
+| `other_responses` | Every “other” text response to review. |
+| `Dropdown_values` | Backs the other-responses drop-downs. |
+| `_ck_config` | Very hidden, `.xlsm` only. The macro’s configuration. |
+
+Leave out `other_responses` and `other_db` and you get exactly what
+[`create_cleaning_log()`](reference/create_cleaning_log.md) produces, so
+it is a drop-in for either of the older writers.
+[`create_cleaning_log()`](reference/create_cleaning_log.md) and
+[`save_other_responses()`](reference/save_other_responses.md) are
+unchanged and still available when the two logs should go to different
+people.
 
 #### Controlling the colours in the cleaning log
 
@@ -398,31 +424,43 @@ and `column_for_color = NULL` still switches colouring off entirely.
 
 #### Logging reviewer edits straight into the log (macro-enabled)
 
-[`create_cleaning_log_vba()`](reference/create_cleaning_log_vba.md)
-writes the same workbook as a macro-enabled `.xlsm` with a small VBA
-project attached. A reviewer can then change a value directly on the
-`dataset` sheet and the edit is appended to the bottom of the cleaning
-log automatically - old value, new value, question, uuid, enumerator and
-a mapped **Action taken** - so a correction never has to be copied
-across by hand.
+Pass `vba = TRUE` - or simply an `.xlsm` path - and the workbook is
+written macro-enabled, with a small VBA project attached. A reviewer can
+then change a value directly on the `dataset` sheet and the edit is
+appended to the bottom of the `cleaning_log` sheet automatically - old
+value, new value, question, uuid, enumerator and a mapped **Action
+taken** - so a correction never has to be copied across by hand.
 
-[`create_cleaning_log()`](reference/create_cleaning_log.md) is untouched
-by this and carries none of the macro machinery, so the plain `.xlsx`
-route stays available if macros turn out to be blocked.
+The plain `.xlsx` route carries none of the macro machinery and stays
+available if macros turn out to be blocked.
 
 ``` r
 
+cleaningkit::create_review_workbook(
+  write_list = combined_log,
+  other_responses = other_responses_df,
+  other_db = other_db,
+  vba = TRUE,
+  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsm")
+)
+
+# or, cleaning log only
 cleaningkit::create_cleaning_log_vba(
   write_list = combined_log,
   output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsm")
 )
 ```
 
-Every argument of
-[`create_cleaning_log()`](reference/create_cleaning_log.md) works here
-too, except `include_dataset`, which is forced to `TRUE` - without the
-`dataset` sheet there is nothing for the macro to watch. An `.xlsx`
-extension is corrected to `.xlsm` with a message.
+**The macro watches the `dataset` sheet and nothing else.** Edits on
+`other_responses` append nothing to the cleaning log: that sheet is read
+back column by column by
+[`read_other_responses()`](reference/read_other_responses.md) instead.
+The extra sheets in the merged workbook change nothing for the macro,
+which addresses sheets by name.
+
+`include_dataset` is forced to `TRUE` - without the `dataset` sheet
+there is nothing for the macro to watch. An `.xlsx` extension is
+corrected to `.xlsm` with a message.
 
 **Repeat edits are appended, not overwritten.** Editing the same cell
 again adds another row rather than revising the first, so the log keeps
@@ -475,15 +513,16 @@ You can extract and prepare “other” responses from your dataset using
 two functions:
 
 - **[`prepare_other_responses()`](reference/prepare_other_responses.md)**:
-  Combines other responses from all sheets into a single dataframe ready
-  for use with
-  [`save_other_responses()`](reference/save_other_responses.md). You can
-  optionally pass a character vector of specific question names to the
-  `questions` parameter if you only want to process a subset of
+  Combines other responses from all sheets into a single dataframe. You
+  can optionally pass a character vector of specific question names to
+  the `questions` parameter if you only want to process a subset of
   questions.
-- **[`save_other_responses()`](reference/save_other_responses.md)**:
-  This function saves the prepared other responses into an Excel
-  workbook with specific formatting and data validation.
+- Hand that dataframe to
+  **[`create_review_workbook()`](reference/create_review_workbook.md)**
+  to put it in the same workbook as the cleaning log (the usual route),
+  or to
+  **[`save_other_responses()`](reference/save_other_responses.md)** for
+  a file of its own.
 
 ``` r
 
@@ -494,12 +533,20 @@ other_responses_df <- prepare_other_responses(
   tool_choices = choices_sheet
 )
 
-# Save to an Excel workbook for review
+# Usual route: same workbook as the cleaning log - see above
+
+# Or a standalone file for review
 save_other_responses(
   df = other_responses_df,
+  other_db = other_db,
   save_location = "output"
 )
 ```
+
+The review sheet is called `other_responses`. It was called `Sheet1`
+before the two logs were merged, and
+[`read_other_responses()`](reference/read_other_responses.md) accepts
+either name, so files already out with reviewers still read back.
 
 ### Apply Cleaning
 
@@ -533,11 +580,12 @@ edited, you can apply these changes to produce the final clean dataset.
 #----------------------------------
 # apply cleaning
 #----------------------------------
-cleaning_log <- read_cleaning_log(path = "path/to/log.xlsx", raw_dataset = raw_data)
+cleaning_log <- read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
 evaluated_log <- evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
 cleaned_data_list <- apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
 
-other_log <- read_other_responses(path = "path/to/other.xlsx", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
+# the same reviewed workbook - each reader finds its own sheet by name
+other_log <- read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
 cleaned_data_list <- apply_other_responses(dataset = cleaned_data_list$clean_dataset, other_log = other_log)
 
 #----------------------------------

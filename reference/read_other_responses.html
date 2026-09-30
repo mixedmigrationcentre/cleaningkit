@@ -63,7 +63,8 @@ cleaning-log dataframe ready for <code><a href="apply_other_responses.html">appl
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  log_uuid_col <span class="op">=</span> <span class="st">"uuid"</span>,</span>
 <span>  sm_separator <span class="op">=</span> <span class="st">"/"</span>,</span>
-<span>  file_pattern <span class="op">=</span> <span class="st">"_other_responses_edited\\.xlsx$"</span>,</span>
+<span>  sheet <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span>
 <span>  skip_questions <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -115,9 +116,22 @@ and its binary sub-columns in <code>dataset</code>. Default <code>"/"</code> (ON
 export style).</p></dd>
 
 
+<dt id="arg-sheet">sheet<a class="anchor" aria-label="anchor" href="#arg-sheet"></a></dt>
+<dd><p>Sheet holding the other responses. Default <code>NULL</code> resolves
+it per file by name: <code>"other_responses"</code> as written by
+<code><a href="create_review_workbook.html">create_review_workbook()</a></code> and <code><a href="save_other_responses.html">save_other_responses()</a></code>,
+falling back to <code>"Sheet1"</code> for a file produced before the two logs
+were merged, and to the first sheet if neither name is present. Pass a name
+or an integer to override. Resolving by name is what lets the same file
+carry the cleaning log on one sheet and the other responses on another.</p></dd>
+
+
 <dt id="arg-file-pattern">file_pattern<a class="anchor" aria-label="anchor" href="#arg-file-pattern"></a></dt>
 <dd><p>Regex pattern used when <code>path</code> is a directory.
-Default <code>"_other_responses_edited\\.xlsx$"</code>.</p></dd>
+Default <code>"_follow-ups_edited\\.xls[xm]$"</code> - the merged review
+workbook, which holds both logs. Pass
+<code>"_other_responses_edited\\.xlsx$"</code> to read files produced by the
+older standalone <code><a href="save_other_responses.html">save_other_responses()</a></code> route.</p></dd>
 
 
 <dt id="arg-skip-questions">skip_questions<a class="anchor" aria-label="anchor" href="#arg-skip-questions"></a></dt>
@@ -146,24 +160,39 @@ printed.</p></dd>
     <p><strong>The three action types and what they produce:</strong></p><dl><dt><code>true_other</code></dt>
 <dd><p>A genuine new answer (e.g. a translation).
 Overwrites the <code>_other</code> text column with the value in
-<code>TRUE other ...</code>. The parent question is not touched.</p></dd>
+<code>Input translation or improved text ...</code>. The parent question is not
+touched.</p></dd>
 
 <dt><code>recode</code></dt>
 <dd><p>The response actually matches an existing choice.
-The <code>EXISTING other ...</code> column is filled (older logs with several
-numbered <code>EXISTING other</code> columns are still read and merged). For
+The <code>Correct to existing answer option ...</code> column is filled (older
+logs with several numbered <code>EXISTING other</code> columns are still read
+and merged). For
 <code>select_one</code>: blanks the <code>_other</code> text column, sets the parent
 to the matched choice code. For <code>select_multiple</code>: blanks the
 <code>_other</code> text column, removes the <code>other</code> option from the
 parent concatenation, and adds the matched choice(s).</p></dd>
 
 <dt><code>remove</code></dt>
-<dd><p>The response is invalid (<code>INVALID other == "Yes"</code>).
+<dd><p>The response is invalid
+(<code>Invalid other ... == "Yes"</code>).
 Blanks the <code>_other</code> text column and removes/blanks the parent
 question reference.</p></dd>
 
 
-</dl><p><strong>Column check:</strong> before the files are stacked, their headers are
+</dl><p><strong>Which sheet is read:</strong> the sheet is found by name, not by position -
+<code>"other_responses"</code> first, then <code>"Sheet1"</code> as written before the
+cleaning log and the other responses were merged into one workbook, then the
+first sheet. A merged review workbook and an older standalone
+other-responses file therefore both read with no extra argument, even when
+they sit side by side in the same folder.</p>
+<p><strong>Header names:</strong> the reviewer columns are matched by prefix, case
+insensitively, against both the headers written by the current
+<code><a href="prepare_other_responses.html">prepare_other_responses()</a></code> and the earlier <code>TRUE other</code> /
+<code>EXISTING other</code> / <code>INVALID other</code> / <code>FOLLOW-UP message</code>
+headers, so a file reviewed before the rename is read exactly as before. The
+patterns are defined once in <code>.ck_other_review_patterns()</code>.</p>
+<p><strong>Column check:</strong> before the files are stacked, their headers are
 compared with <code><a href="check_log_files.html">check_log_files()</a></code>. Because the files are combined with
 <code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code>, a single file with an extra, missing or renamed column would
 otherwise fail with "numbers of columns of arguments do not match", which
@@ -177,10 +206,18 @@ the other-responses file uuid column (<code>log_uuid_col</code>) are resolved
 independently so they can have different names (e.g. <code>"_uuid"</code> in the
 dataset and <code>"uuid"</code> in the log file). The ONA label/description row
 is excluded from the dataset uuid list when <code>skip_label_row = TRUE</code>.</p>
-<p><strong>Mutual exclusivity:</strong> each row must have exactly one of
+<p><strong>Mutual exclusivity:</strong> a row may have at most one of
 <code>true_other</code>, <code>existing_other</code>, or <code>invalid_other</code> filled.
-Rows with zero or more than one filled are flagged with a warning and
-excluded.</p>
+Rows with more than one filled are contradictory - the reviewer has asked for
+two different things on one response - so they are excluded and their uuids
+named in a warning.</p>
+<p><strong>Rows left blank:</strong> a row with all three action columns blank is not an
+error. It is the normal way a reviewer records that the "other" text is a
+valid answer as it stands and the record should not change. Such rows produce
+no cleaning-log entry (there is no data point to change, so logging one would
+only pad the log) and no warning; they are counted in the <code>verbose</code>
+summary as <em>no change (kept as-is)</em>. A file in which every row is blank
+therefore returns an empty log quietly rather than warning.</p>
 <p><strong>Output shape:</strong> the returned dataframe has columns
 <code>uuid</code>, <code>question</code>, <code>action_taken</code>, <code>old_value</code>,
 <code>new_value</code> ready for <code><a href="apply_other_responses.html">apply_other_responses()</a></code>.</p>

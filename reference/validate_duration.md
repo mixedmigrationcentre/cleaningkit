@@ -2,8 +2,8 @@
 
 Checks whether the survey duration (typically stored in a column like
 `_duration` in seconds) falls within specified lower and upper bounds
-(in minutes). It generates a validation log of surveys that are either
-too short or too long.
+(in minutes). It generates a validation log of surveys that breach those
+thresholds.
 
 ## Usage
 
@@ -15,6 +15,7 @@ validate_duration(
   log_name = "duration_log",
   lower_bound = 15,
   upper_bound = 60,
+  flag_above_upper = FALSE,
   skip_label_row = TRUE
 )
 ```
@@ -48,6 +49,12 @@ validate_duration(
 
   The upper threshold for duration in minutes. Default is `60`.
 
+- flag_above_upper:
+
+  Logical. If `FALSE` (the default), surveys longer than `upper_bound`
+  are **not** reported, because long surveys are normally valid and
+  would only inflate the cleaning log. Set to `TRUE` to also log them.
+
 - skip_label_row:
 
   Logical. If `TRUE` (the default), the first row of the dataset is
@@ -61,4 +68,11 @@ A list containing the original dataset and the new log dataframe. The
 `issue` column states the direction of the breach:
 `"Duration is lower than the thresholds"` when the duration falls below
 `lower_bound`, and `"Duration is higher than the thresholds"` when it
-exceeds `upper_bound`.
+exceeds `upper_bound` (the latter only when `flag_above_upper = TRUE`).
+
+## Details
+
+By default only surveys **below** `lower_bound` are logged. Surveys
+running longer than `upper_bound` are usually legitimate (interruptions,
+long interviews) and simply add noise to the cleaning log, so they are
+excluded unless `flag_above_upper = TRUE`.

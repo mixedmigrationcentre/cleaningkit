@@ -80,8 +80,10 @@ check exactly the set of files those functions will read, e.g.
 
 
 <dt id="arg-sheet">sheet<a class="anchor" aria-label="anchor" href="#arg-sheet"></a></dt>
-<dd><p>Sheet to read from each Excel file. Accepts a name or integer.
-Default <code>1</code>. Use <code>2</code> for <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code> output.</p></dd>
+<dd><p>Sheet to read from each Excel file. Accepts a name or an
+integer, or a vector/list of the same length as the files to use a
+different sheet per file. Default <code>1</code>. Prefer a name, e.g.
+<code>"cleaning_log"</code> or <code>"other_responses"</code>.</p></dd>
 
 
 <dt id="arg-recursive">recursive<a class="anchor" aria-label="anchor" href="#arg-recursive"></a></dt>
@@ -152,9 +154,11 @@ readable files is taken as the reference. Each file is then compared against
 it, and the <code>missing</code> and <code>extra</code> columns are listed per file. When
 every file shares the same set the reference is simply that set.</p>
 <p><strong>Sheet selection:</strong> <code>sheet</code> is passed to
-<code><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">readxl::read_excel()</a></code> and accepts a name or an integer. Use
-<code>sheet = 2</code> for cleaning logs produced by <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code>,
-where sheet 1 is the dataset and sheet 2 is the log. Ignored for csv files.</p>
+<code><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">readxl::read_excel()</a></code> and accepts a name or an integer. Name the sheet
+rather than numbering it - <code>sheet = "cleaning_log"</code> or
+<code>sheet = "other_responses"</code> - so the check is unaffected by where the
+tab happens to sit in the workbook. Pass a vector or list the same length as
+the files to use a different sheet per file. Ignored for csv files.</p>
 <p><strong>Unreadable files:</strong> a file that cannot be opened (corrupt, locked by
 Excel, missing the requested sheet) is reported with <code>n_columns = NA</code>
 and the reason in <code>status</code>, rather than stopping the scan.</p>
@@ -167,13 +171,14 @@ and the reason in <code>status</code>, rather than stopping the scan.</p>
 <span class="r-in"><span><span class="fu">check_log_files</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="st">"output/follow_ups"</span>,</span></span>
 <span class="r-in"><span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span></span>
-<span class="r-in"><span>  sheet <span class="op">=</span> <span class="fl">2</span></span></span>
+<span class="r-in"><span>  sheet <span class="op">=</span> <span class="st">"cleaning_log"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># other-responses logs - same pattern as read_other_responses()</span></span></span>
+<span class="r-in"><span><span class="co"># other responses - the same files, the other sheet</span></span></span>
 <span class="r-in"><span><span class="fu">check_log_files</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="st">"output/other_responses"</span>,</span></span>
-<span class="r-in"><span>  file_pattern <span class="op">=</span> <span class="st">"_other_responses_edited\\.xlsx$"</span></span></span>
+<span class="r-in"><span>  <span class="st">"output/follow_ups"</span>,</span></span>
+<span class="r-in"><span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span></span>
+<span class="r-in"><span>  sheet <span class="op">=</span> <span class="st">"other_responses"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># everything in a folder, whatever the format</span></span></span>

@@ -73,16 +73,19 @@ prepare_other_responses(
 - label_language_fallback:
 
   Logical. If `TRUE` (the default), when the English label lookup for a
-  selected `select_multiple` code returns nothing, the first non-empty
-  label column in `tool_choices` (e.g. an Arabic `label::Arabic (ar)`
-  column) is used instead, so responses in other languages are shown as
-  they appear in the raw data rather than as `NA`.
+  selected choice code returns nothing, the first non-empty label column
+  in `tool_choices` (e.g. an Arabic `label::Arabic (ar)` column) is used
+  instead, so responses in other languages are shown as they appear in
+  the raw data rather than as `NA`. Applies to both `select_multiple`
+  and `select_one` rows.
 
 - fallback_to_code:
 
   Logical. If `TRUE` (the default), a selected code with no label in any
   language is displayed as the raw code itself, so no `"NA"` is ever
-  written into `selected_choices`.
+  written into `selected_choices`. For `select_one` rows the final
+  fallback is the literal `"Other"`, so the column is never blank there
+  regardless of this setting.
 
 - preferred_language:
 
@@ -100,6 +103,32 @@ A dataframe formatted for
 [`save_other_responses()`](save_other_responses.md). It carries an
 attribute `"ona_label_row_skipped"` recording whether the label row was
 dropped, so [`save_other_responses()`](save_other_responses.md) does not
-drop a row a second time. The reviewer columns are **TRUE other**, a
-single **EXISTING other** (earlier versions wrote three numbered slots),
-**INVALID other**, **FOLLOW-UP message** and **Explanation**.
+drop a row a second time. The five reviewer columns, in sheet order, are
+**Input translation or improved text**, a single **Correct to existing
+answer option** (earlier versions wrote three numbered slots), **Invalid
+other**, **Comment from IM** and **Response from field team**. Earlier
+versions of the package headed these `TRUE other`, `EXISTING other`,
+`INVALID other`, `FOLLOW-UP message` and `Explanation`;
+[`save_other_responses()`](save_other_responses.md) and
+[`read_other_responses()`](read_other_responses.md) still recognise
+those, so a file exported before the rename can be styled and read back
+unchanged.
+
+## selected_choices
+
+`selected_choices` is filled for both question types, so a reviewer
+never sees a blank cell where a selection exists:
+
+- `select_multiple` - every choice the respondent selected in the parent
+  question, resolved to labels and separated by `";\n"`.
+
+- `select_one` - the question's own "other" option
+  (`other_db$option_other`), resolved to its label in `tool_choices` so
+  it reads exactly as in the tool (e.g. `"Other"`,
+  `"Other (please specify)"`). A select_one "other" response can only
+  come from that option being picked, so nothing is read from the parent
+  column. When the option code is missing or unresolvable, the literal
+  `"Other"` is written.
+
+Rows whose parent question is neither type (e.g. a plain `text`
+question) keep `NA`.

@@ -57,9 +57,12 @@ sheet explaining the action codes, and a drop-down on the <strong>Action taken</
 <span>  enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
 <span>  date_column <span class="op">=</span> <span class="st">"today"</span>,</span>
 <span>  column_for_color <span class="op">=</span> <span class="st">"check_binding"</span>,</span>
-<span>  color_mode <span class="op">=</span> <span class="st">"on"</span>,</span>
-<span>  color_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"partial"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"old_value"</span><span class="op">)</span>,</span>
 <span>  include_dataset <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  flag_columns <span class="op">=</span> <span class="fu"><a href="ck_flag_column_defaults.html">ck_flag_column_defaults</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  flag_separator <span class="op">=</span> <span class="st">" | "</span>,</span>
+<span>  flag_header_fill_color <span class="op">=</span> <span class="st">"#003D58"</span>,</span>
 <span>  header_front_size <span class="op">=</span> <span class="fl">12</span>,</span>
 <span>  header_front_color <span class="op">=</span> <span class="st">"#FFFFFF"</span>,</span>
 <span>  header_fill_color <span class="op">=</span> <span class="st">"#00A2A5"</span>,</span>
@@ -68,7 +71,8 @@ sheet explaining the action codes, and a drop-down on the <strong>Action taken</
 <span>  body_front_size <span class="op">=</span> <span class="fl">11</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  group_by_uuid <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  group_by <span class="op">=</span> <span class="st">"issue"</span>,</span>
+<span>  readme_include_other <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -124,6 +128,27 @@ underscores; numeric column positions are also accepted. Default <code>NULL</cod
 a sheet named <code>"dataset"</code> so reviewers can refer back to the raw data.</p></dd>
 
 
+<dt id="arg-flag-columns">flag_columns<a class="anchor" aria-label="anchor" href="#arg-flag-columns"></a></dt>
+<dd><p>Helper columns prepended to the <code>dataset</code> sheet, one per survey-level
+check, so a reviewer can filter the raw data down to the surveys a check flagged. A named
+list mapping a column header to the <code>check_binding</code> prefixes that feed it; default
+<code><a href="ck_flag_column_defaults.html">ck_flag_column_defaults()</a></code> gives <strong>duration</strong>, <strong>completeness</strong>,
+<strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong>. Use <code>NULL</code> to add no
+flag columns. Ignored when <code>include_dataset = FALSE</code>.</p></dd>
+
+
+<dt id="arg-flag-separator">flag_separator<a class="anchor" aria-label="anchor" href="#arg-flag-separator"></a></dt>
+<dd><p>String used to join several flagged values for the same record within one
+flag column. Default <code>" | "</code>.</p></dd>
+
+
+<dt id="arg-flag-header-fill-color">flag_header_fill_color<a class="anchor" aria-label="anchor" href="#arg-flag-header-fill-color"></a></dt>
+<dd><p>Hexcode for the header fill of the flag columns. Deliberately
+different from <code>header_fill_color</code> so the block reads as helper columns rather than part
+of the export. Default MMC dark blue <code>"#003D58"</code>. The cells below keep the ordinary body
+formatting.</p></dd>
+
+
 <dt id="arg-header-front-size">header_front_size<a class="anchor" aria-label="anchor" href="#arg-header-front-size"></a></dt>
 <dd><p>Header font size (default is 12).</p></dd>
 
@@ -159,12 +184,24 @@ record and <strong>Question text</strong> is left blank (no label row to read fr
 <dd><p>Output path. Default <code>NULL</code> returns a workbook instead of writing a file.</p></dd>
 
 
-<dt id="arg-group-by-uuid">group_by_uuid<a class="anchor" aria-label="anchor" href="#arg-group-by-uuid"></a></dt>
-<dd><p>Logical. If <code>TRUE</code> (the default), the log rows are regrouped so all
-rows from the same <strong>Survey UUID</strong> form one contiguous block, surveys following one
-another. Blocks keep the order in which their uuid is first met in the combined log, and
-rows keep their original order inside a block. <code>FALSE</code> keeps the incoming
-check-by-check order.</p></dd>
+<dt id="arg-group-by">group_by<a class="anchor" aria-label="anchor" href="#arg-group-by"></a></dt>
+<dd><p>Column used to group the log rows, so that all rows sharing a value form one
+contiguous block. Default <code>"issue"</code>, which puts every row raising the same issue
+together. Blocks keep the order in which their value is first met in the combined log, and
+rows keep their original order inside a block. Accepts either the raw log names
+(<code>"issue"</code>, <code>"uuid"</code>, <code>"question"</code>, <code>"old_value"</code>,
+<code>"check_binding"</code>) or the reviewer-facing headers (<code>"Issue"</code>,
+<code>"Survey UUID"</code>, <code>"Enumerator"</code>, ...); matching ignores case, spaces and
+underscores, and a numeric column position also works. Use <code>"uuid"</code> for the previous
+survey-by-survey layout, or <code>NULL</code> / <code>FALSE</code> to keep the incoming check-by-check
+order. An unrecognised column name is an error rather than a silent fallback.</p></dd>
+
+
+<dt id="arg-readme-include-other">readme_include_other<a class="anchor" aria-label="anchor" href="#arg-readme-include-other"></a></dt>
+<dd><p>Logical. If <code>TRUE</code>, the readme also describes the
+<code>other_responses</code> and <code>Dropdown_values</code> sheets and the three other-responses
+review columns. Default <code>FALSE</code>, because those sheets are not part of this
+workbook. <code><a href="create_review_workbook.html">create_review_workbook()</a></code>, which adds them, sets this to <code>TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -180,18 +217,25 @@ from <code>date_column</code> and <code>enumerator_column</code>. The remaining 
 (<strong>New value</strong>, <strong>Identified by</strong>, <strong>Action taken</strong>, <strong>Comments</strong>,
 <strong>PO feedback</strong>, <strong>Survey Registration Date</strong>, <strong>Section</strong>) are left blank to
 be completed during review.</p>
-<p>The <strong>Action taken</strong> drop-down and the <code>readme</code> sheet share these five codes:
-<code>recoded</code>, <code>delete_data_point</code>, <code>discard</code>, <code>addition</code>, <code>other</code>.</p>
+<p>The <strong>Action taken</strong> drop-down and the <code>readme</code> sheet share these six codes:
+<code>recoded</code>, <code>delete_data_point</code>, <code>discard</code>, <code>addition</code>,
+<code>no_action</code>, <code>other</code>. A reviewer only has to fill in the rows that need a
+change: the <code>readme</code> sheet also carries a row explaining that a cell left blank is
+read as <code>no_action</code> by <code><a href="read_cleaning_log.html">read_cleaning_log()</a></code>, <code><a href="evaluate_cleaning_log.html">evaluate_cleaning_log()</a></code>
+and <code><a href="apply_cleaning_log.html">apply_cleaning_log()</a></code>. The blank entry is documentation only - it is not added
+to the drop-down, which still offers the six codes above.</p>
 <p><strong>Column layout.</strong> <strong>Survey UUID</strong> is the first column (column A) and
 <strong>Date</strong> the second. Column A and the header row are both frozen, so the uuid and the
 headers stay visible while a reviewer scrolls right and down.</p>
-<p><strong>Row order.</strong> The combined log arrives stacked check by check, so the rows for one
-interview are scattered down the sheet. By default the reviewer log is regrouped so that
-every row belonging to one <strong>Survey UUID</strong> sits together in a single block, one survey
-after another. Blocks appear in the order the uuids are first met in the combined log, and
-the original order is kept inside each block, so the rows themselves are untouched - only
-their arrangement changes. Set <code>group_by_uuid = FALSE</code> to keep the old check-by-check
-order.</p>
+<p><strong>Row order.</strong> The combined log arrives stacked check by check, so rows that belong
+together are scattered down the sheet. By default the reviewer log is regrouped by
+<strong>Issue</strong>, so every row raising the same issue sits in one contiguous block and a
+reviewer can work through one kind of problem at a time. Blocks appear in the order each
+value is first met in the combined log, and the original order is kept inside each block,
+so the rows themselves are untouched - only their arrangement changes. <code>group_by</code>
+chooses the column: <code>"uuid"</code> restores the previous survey-by-survey layout, any other
+log column or reviewer header works too, and <code>NULL</code> or <code>FALSE</code> keeps the incoming
+check-by-check order.</p>
 <p><strong>Row colouring.</strong> By default every log row that shares a <code>check_binding</code> is filled
 with the same light MMC shade across the whole row. <code>color_mode</code> changes that:
 <code>"on"</code> keeps the default, <code>"partial"</code> fills only the columns listed in
@@ -199,6 +243,33 @@ with the same light MMC shade across the whole row. <code>color_mode</code> chan
 formatting (MMC blue fill, white bold Arial Narrow) is identical in all three modes.
 <code>color_columns</code> accepts either the reviewer-facing headers (<code>"Old value"</code>) or the
 underlying log names (<code>"old_value"</code>, <code>"uuid"</code>, <code>"question"</code>, <code>"issue"</code>).</p>
+<p><strong>Flag columns on the dataset sheet.</strong> Deciding whether to keep or discard a whole
+interview usually means weighing several survey-level checks at once - a short interview that
+is also nearly empty, or a back-to-back interview that is also a soft duplicate. To make that
+judgement without leaving the raw data, the <code>dataset</code> sheet is written with a block of
+helper columns in front of the ONA columns: <strong>duration</strong>, <strong>completeness</strong>,
+<strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong>. Each one carries, for that
+record's uuid, what every cleaning-log row raised by the matching check says, and is left blank
+when the check did not flag the survey. A reviewer can therefore filter on one column, or on
+several at once, and cross-check the flagged surveys directly against their raw answers.</p>
+<p><strong>duration</strong>, <strong>completeness</strong> and <strong>refused</strong> show the log's <code>old_value</code>,
+which is a figure that speaks for itself: the duration in minutes, the count of non-empty
+cells, the count of refused responses. <strong>back to back</strong> and <strong>similarity</strong> show the
+<code>issue</code> instead, because their raw values cannot be judged on their own - a bare interview
+start time, or a bare count of similar columns, says nothing without the gap, the threshold,
+the enumerator and the other survey involved, all of which the issue names. Any column can be
+switched either way with <code>list(prefixes = ..., value = "issue")</code> or
+<code>value = "old_value"</code>.</p>
+<p>Rows are matched through <code>check_binding</code>, whose leading segment names the check that
+Rows are matched through <code>check_binding</code>, whose leading segment names the check that
+raised them, so a log assembled from any combination of <code>validate_*</code> functions works
+without further configuration. <code>flag_columns</code> changes which columns are written and which
+checks feed them; see <code><a href="ck_flag_column_defaults.html">ck_flag_column_defaults</a></code>. In the macro-enabled workbook
+produced by <code><a href="create_cleaning_log_vba.html">create_cleaning_log_vba</a></code> these columns are exempt from change capture:
+editing one never appends a cleaning-log row.</p>
+<p>The five headers carry an MMC dark-blue fill (<code>flag_header_fill_color</code>) rather than the
+teal used for the ONA headers, so the block is not mistaken for exported data. Everything below
+the header row keeps the ordinary body formatting.</p>
     </div>
 
     <div class="section level2">
@@ -218,10 +289,41 @@ underlying log names (<code>"old_value"</code>, <code>"uuid"</code>, <code>"ques
 <span class="r-in"><span><span class="co"># no colouring at all</span></span></span>
 <span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span><span class="va">write_list</span>, color_mode <span class="op">=</span> <span class="st">"off"</span>, output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># keep the old check-by-check row order instead of grouping by survey</span></span></span>
+<span class="r-in"><span><span class="co"># group the rows survey by survey instead of issue by issue</span></span></span>
 <span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
-<span class="r-in"><span>  group_by_uuid <span class="op">=</span> <span class="cn">FALSE</span>,</span></span>
+<span class="r-in"><span>  group_by <span class="op">=</span> <span class="st">"uuid"</span>,</span></span>
+<span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># group by enumerator, using the reviewer-facing header</span></span></span>
+<span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
+<span class="r-in"><span>  group_by <span class="op">=</span> <span class="st">"Enumerator"</span>,</span></span>
+<span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># keep the incoming check-by-check row order, no grouping at all</span></span></span>
+<span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
+<span class="r-in"><span>  group_by <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
+<span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># add a flag column for a check of your own, and drop one you do not use</span></span></span>
+<span class="r-in"><span><span class="va">my_flags</span> <span class="op">&lt;-</span> <span class="fu"><a href="ck_flag_column_defaults.html">ck_flag_column_defaults</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">my_flags</span><span class="op">[[</span><span class="st">"outliers"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"outlier_check"</span></span></span>
+<span class="r-in"><span><span class="va">my_flags</span><span class="op">[[</span><span class="st">"refused"</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span></span>
+<span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
+<span class="r-in"><span>  flag_columns <span class="op">=</span> <span class="va">my_flags</span>,</span></span>
+<span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># plain dataset sheet, no flag columns at all</span></span></span>
+<span class="r-in"><span><span class="fu">create_cleaning_log</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">write_list</span>,</span></span>
+<span class="r-in"><span>  flag_columns <span class="op">=</span> <span class="cn">NULL</span>,</span></span>
 <span class="r-in"><span>  output_path <span class="op">=</span> <span class="st">"cleaning_log.xlsx"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

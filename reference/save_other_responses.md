@@ -18,7 +18,9 @@ save_other_responses(
   skip_label_row = TRUE,
   freeze_header = TRUE,
   add_filter = TRUE,
-  file_name = NULL
+  file_name = NULL,
+  sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown")
 )
 ```
 
@@ -80,6 +82,26 @@ save_other_responses(
   the `.xlsx` extension gets it appended. The name is written inside
   `save_location`.
 
+- sheet_name:
+
+  Name of the review sheet. Default `"other_responses"`.
+
+- dropdown_sheet:
+
+  Name of the drop-down source sheet. Default `"Dropdown_values"`.
+
 ## Value
 
 NULL. Saves an Excel file.
+
+## Details
+
+The workbook carries two sheets: `other_responses`, which the reviewer
+fills in, and `Dropdown_values`, which backs its drop-downs. The review
+sheet was called `Sheet1` before version 2026.09.0;
+[`read_other_responses()`](read_other_responses.md) accepts either name,
+so files already out with reviewers still read back.
+
+To put these sheets in the same workbook as the cleaning log rather than
+in a file of their own, use
+[`create_review_workbook()`](create_review_workbook.md).

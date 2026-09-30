@@ -37,9 +37,10 @@ check_log_files(
 
 - sheet:
 
-  Sheet to read from each Excel file. Accepts a name or integer. Default
-  `1`. Use `2` for [`create_cleaning_log()`](create_cleaning_log.md)
-  output.
+  Sheet to read from each Excel file. Accepts a name or an integer, or a
+  vector/list of the same length as the files to use a different sheet
+  per file. Default `1`. Prefer a name, e.g. `"cleaning_log"` or
+  `"other_responses"`.
 
 - recursive:
 
@@ -122,9 +123,11 @@ When every file shares the same set the reference is simply that set.
 
 **Sheet selection:** `sheet` is passed to
 [`readxl::read_excel()`](https://readxl.tidyverse.org/reference/read_excel.html)
-and accepts a name or an integer. Use `sheet = 2` for cleaning logs
-produced by [`create_cleaning_log()`](create_cleaning_log.md), where
-sheet 1 is the dataset and sheet 2 is the log. Ignored for csv files.
+and accepts a name or an integer. Name the sheet rather than numbering
+it - `sheet = "cleaning_log"` or `sheet = "other_responses"` - so the
+check is unaffected by where the tab happens to sit in the workbook.
+Pass a vector or list the same length as the files to use a different
+sheet per file. Ignored for csv files.
 
 **Unreadable files:** a file that cannot be opened (corrupt, locked by
 Excel, missing the requested sheet) is reported with `n_columns = NA`
@@ -138,13 +141,14 @@ if (FALSE) { # \dontrun{
 check_log_files(
   "output/follow_ups",
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
-  sheet = 2
+  sheet = "cleaning_log"
 )
 
-# other-responses logs - same pattern as read_other_responses()
+# other responses - the same files, the other sheet
 check_log_files(
-  "output/other_responses",
-  file_pattern = "_other_responses_edited\\.xlsx$"
+  "output/follow_ups",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
+  sheet = "other_responses"
 )
 
 # everything in a folder, whatever the format

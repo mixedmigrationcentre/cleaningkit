@@ -54,6 +54,7 @@ the interview was conducted in. Two independent checks are performed:</p>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
 <span>  lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
+<span>  location_column <span class="op">=</span> <span class="st">"location"</span>,</span>
 <span>  country_question <span class="op">=</span> <span class="st">"Q13"</span>,</span>
 <span>  city_question <span class="op">=</span> <span class="st">"Q14"</span>,</span>
 <span>  log_name <span class="op">=</span> <span class="st">"interview_location_log"</span>,</span>
@@ -63,6 +64,7 @@ the interview was conducted in. Two independent checks are performed:</p>
 <span>  check_city <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  flag_missing_gps <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  treat_blank_gps_as_phone <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  use_location_fallback <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  nominatim_delay_s <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -89,6 +91,16 @@ the interview was conducted in. Two independent checks are performed:</p>
 <dt id="arg-lon-column">lon_column<a class="anchor" aria-label="anchor" href="#arg-lon-column"></a></dt>
 <dd><p>Name of the GPS longitude column. Default
 <code>"_location_longitude"</code>.</p></dd>
+
+
+<dt id="arg-location-column">location_column<a class="anchor" aria-label="anchor" href="#arg-location-column"></a></dt>
+<dd><p>Name of the raw ONA geopoint column used as a
+fallback when <code>lat_column</code> / <code>lon_column</code> are unusable. The
+column holds all four geopoint components separated by spaces, in the
+order <code>"latitude longitude altitude precision"</code>, e.g.
+<code>"33.9820598 71.5482743 317.4000244140625 18.033"</code>. Default
+<code>"location"</code>. The column is optional: if it is absent from the
+dataset the fallback is simply not available.</p></dd>
 
 
 <dt id="arg-country-question">country_question<a class="anchor" aria-label="anchor" href="#arg-country-question"></a></dt>
@@ -134,18 +146,29 @@ connection and the <code>httr</code> and <code>jsonlite</code> packages.</p></dd
 
 
 <dt id="arg-flag-missing-gps">flag_missing_gps<a class="anchor" aria-label="anchor" href="#arg-flag-missing-gps"></a></dt>
-<dd><p>Logical. If <code>TRUE</code> (the default), surveys
-whose GPS coordinates are present but unusable are flagged in the log.
-Phone interviews (both coordinate columns empty) are governed by
-<code>treat_blank_gps_as_phone</code>, not by this argument.</p></dd>
+<dd><p>Logical. If <code>TRUE</code> (the default), surveys whose
+GPS coordinates are unusable are counted and reported as a console
+warning. They are <em>never</em> written to the cleaning log — the log
+carries only surveys that a check actually ran on and failed. Set to
+<code>FALSE</code> to suppress the warning as well. Phone interviews are
+governed by <code>treat_blank_gps_as_phone</code>, not by this argument.</p></dd>
 
 
 <dt id="arg-treat-blank-gps-as-phone">treat_blank_gps_as_phone<a class="anchor" aria-label="anchor" href="#arg-treat-blank-gps-as-phone"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), a
-survey with <em>both</em> coordinate columns empty is taken to be a phone
-interview and is excluded from every check, including the missing-GPS
-flag. Set to <code>FALSE</code> for a round known to be entirely in person, so
-that a completely absent geopoint is flagged instead.</p></dd>
+survey with <em>all</em> coordinate columns empty — <code>lat_column</code>,
+<code>lon_column</code> and <code>location_column</code> — is taken to be a phone
+interview and excluded from every check and from the unusable-GPS warning
+count. Set to <code>FALSE</code> for a round known to be entirely in person, so
+that a completely absent geopoint is counted as unusable instead.</p></dd>
+
+
+<dt id="arg-use-location-fallback">use_location_fallback<a class="anchor" aria-label="anchor" href="#arg-use-location-fallback"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default) and
+<code>location_column</code> is present in the dataset, any survey whose
+<code>lat_column</code> / <code>lon_column</code> pair is missing or invalid falls
+back to the first two space-separated values of <code>location_column</code>.
+Surveys whose split coordinates are already valid are left untouched.</p></dd>
 
 
 <dt id="arg-nominatim-delay-s">nominatim_delay_s<a class="anchor" aria-label="anchor" href="#arg-nominatim-delay-s"></a></dt>
@@ -172,9 +195,10 @@ from all checks.</p></dd>
 <code>question</code> (the relevant column),
 <code>issue</code> (description of the problem),
 <code>check_binding</code> (shared within each check type per survey).
-Three possible <code>check_binding</code> prefixes:
-<code>"location_missing_gps"</code>, <code>"location_country"</code>,
-<code>"location_city"</code>.</p></dd>
+Two possible <code>check_binding</code> prefixes:
+<code>"location_country"</code> and <code>"location_city"</code>. Surveys with
+unusable GPS never appear — they are reported as a console warning
+instead (see <code>flag_missing_gps</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -187,15 +211,36 @@ allowing a small tolerance for points just outside the border.</p></li>
 in the dataset once via the Nominatim/OpenStreetMap API, then checks
 whether the GPS point is within <code>city_radius_km</code> kilometres of the
 city centre. Requires an internet connection.</p></li>
-</ol><p><strong>Phone interviews are skipped.</strong> A survey conducted by phone records
-no geopoint, so both coordinate columns come back empty. Those surveys are
-identified up front and excluded from all three checks — there is nothing
-to validate and flagging them would bury the real problems. Surveys whose
-GPS is present but unusable are a different matter and are still flagged:
-one coordinate filled and the other empty, non-numeric text, out-of-range
-values, or the <code>(0, 0)</code> device default. Set
-<code>treat_blank_gps_as_phone = FALSE</code> to flag fully-empty coordinates
-too, which is appropriate for a round that was entirely face-to-face.</p>
+</ol><p><strong>Unusable GPS is reported, not logged.</strong> A survey whose coordinates
+are missing, non-numeric, out of range or the <code>(0, 0)</code> device default
+cannot be checked against anything, so it produces no cleaning-log row. An
+unusable geopoint is not itself an answer the enumerator can correct, and
+logging one row per survey buried the genuine location problems under
+hundreds of lines. Those surveys are counted and reported as a console
+warning instead, and the log contains only surveys whose coordinates were
+good enough for the country or city check to actually run and fail. Set
+<code>flag_missing_gps = FALSE</code> to silence the warning too.</p>
+<p><strong>Phone interviews are skipped.</strong> A survey conducted by phone records
+no geopoint, so the coordinate columns come back empty. Those surveys are
+identified up front and excluded from every check and from the warning
+count — there is nothing to validate. Set
+<code>treat_blank_gps_as_phone = FALSE</code> to count fully-empty coordinates
+as unusable instead, which is appropriate for a round that was entirely
+face-to-face.</p>
+<p><strong>Rounded or corrupted coordinate columns.</strong> Opening an ONA export in
+Excel frequently damages the split coordinate columns — the decimals are
+rounded away, the value is re-read as a date or as scientific notation, or
+the cell is emptied altogether. The raw geopoint column (<code>location</code> by
+default) is normally left intact because Excel treats it as text. When a
+survey's <code>lat_column</code> / <code>lon_column</code> pair fails validation, the
+function therefore falls back to that column, taking its first two
+space-separated values as latitude and longitude. The column holds the four
+ONA geopoint components in the order
+<code>"latitude longitude altitude precision"</code>, e.g.
+<code>"33.9820598 71.5482743 317.4000244140625 18.033"</code>; altitude and
+precision are ignored. Surveys whose split coordinates are already valid are
+never overwritten, and the number of surveys rescued this way is reported in
+a message. Set <code>use_location_fallback = FALSE</code> to disable.</p>
 <p><strong>Nominatim usage policy:</strong> this function respects the
 <a href="https://operations.osmfoundation.org/policies/nominatim/" class="external-link">Nominatim
 Acceptable Use Policy</a> by geocoding only unique city+country pairs (not

@@ -61,6 +61,7 @@ modification made.</p>
 <span>  blank_response_values <span class="op">=</span> <span class="st">"delete_data_point"</span>,</span>
 <span>  remove_survey_values <span class="op">=</span> <span class="st">"discard"</span>,</span>
 <span>  no_action_values <span class="op">=</span> <span class="st">"no_action"</span>,</span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  restore_types <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -128,6 +129,13 @@ Default <code>"Survey UUID"</code>.</p></dd>
 Default <code>"no_action"</code>.</p></dd>
 
 
+<dt id="arg-default-blank-action">default_blank_action<a class="anchor" aria-label="anchor" href="#arg-default-blank-action"></a></dt>
+<dd><p>Action used for rows whose <code>log_action_col</code>
+cell is blank. Default <code>"no_action"</code>: an unfilled row means the data
+point stays as it is, so nothing is applied for it. Set to <code>NULL</code> to
+leave blank cells blank.</p></dd>
+
+
 <dt id="arg-skip-label-row">skip_label_row<a class="anchor" aria-label="anchor" href="#arg-skip-label-row"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), the first row
 of <code>raw_dataset</code> is preserved as the ONA label/description row and
@@ -184,7 +192,13 @@ the dataset. Maps to <code>remove_survey</code>.</p></dd>
 <dd><p>Row is skipped; no change is made.</p></dd>
 
 
-</dl><p><strong>Column-wide changes:</strong> if <code>uuid</code> is <code>"all_data"</code> (case-
+</dl><p><strong>Blank actions:</strong> rows whose <strong>Action taken</strong> cell is empty are
+treated as <code>default_blank_action</code> (<code>"no_action"</code> by default), so
+a reviewer who only filled in the rows that needed a change does not have to
+type <code>no_action</code> into every row they left alone. Set
+<code>default_blank_action = NULL</code> to restore the old behaviour, where a
+blank cell is an unknown action.</p>
+<p><strong>Column-wide changes:</strong> if <code>uuid</code> is <code>"all_data"</code> (case-
 insensitive), the change is applied to every row of <code>question</code> rather
 than one specific survey. This mirrors the original behaviour for bulk
 corrections.</p>
