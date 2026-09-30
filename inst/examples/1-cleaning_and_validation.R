@@ -84,6 +84,16 @@ raw_data <- cleaningkit::read_raw_data(
 # prepare other responses
 # add the other responses questions you to be included in the output
 # in the question argument.
+# for example
+# questions = c(
+#     "Q34_1",
+#     "Q35_1",
+#     "Q37_1",
+#     "Q38_1",
+#     "Q39_1",
+#     "Q41_1",
+#     "Q33_1"
+#   )
 # the result is written into the same workbook as the cleaning log further
 # down, by create_review_workbook() - there is no separate file any more
 #----------------------------------
@@ -93,16 +103,7 @@ df <- cleaningkit::prepare_other_responses(
   raw_data = raw_data,
   other_db = other_db,
   tool_choices = tool_choices,
-  extra_columns = c("username"),
-  questions = c(
-    "Q34_1",
-    "Q35_1",
-    "Q37_1",
-    "Q38_1",
-    "Q39_1",
-    "Q41_1",
-    "Q33_1"
-  )
+  extra_columns = c("username")
 )
 
 #----------------------------------
