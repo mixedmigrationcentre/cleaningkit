@@ -43,11 +43,12 @@ setup_project_folders <- function(
   # ---- standard folders ----
   standard_folders <- c(
     "data",
+    "raw_data_cleaning",
     "resources",
     "output",
     "output/follow_ups",
     # legacy: only the standalone save_other_responses() route writes here
-    "output/other_responses",
+    # "output/other_responses",
     "output/final"
   )
 
