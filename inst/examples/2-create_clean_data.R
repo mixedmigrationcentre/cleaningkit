@@ -58,8 +58,13 @@ cl <- cleaningkit::read_cleaning_log(
   # matches both the plain workbook and a macro-enabled one; readxl reads
   # .xlsm exactly like .xlsx
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
-  # sheet = "cleaning_log" is the default; pass a name or a number to override
+  # sheet = NULL is the default; it resolves to the "cleaning_log" sheet by
+  # name and falls back to the first sheet. pass a name or a number to override
+  sheet = NULL,
   extra_questions = NULL,
+  # what an empty "Action taken" cell is read as. "no_action" leaves the value
+  # untouched; set to NA to have evaluate_cleaning_log() flag the blank instead
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 )
@@ -85,23 +90,12 @@ review_cleaning_log <- cleaningkit::evaluate_cleaning_log(
     "other",
     "no_action"
   ),
+  # must match the value used in read_cleaning_log() above
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
+  # TRUE adds an `evaluation_issue` column to the log instead of only printing
   flag_issues_inline = TRUE
 )
-
-#----------------------------------
-# Filter surveys in raw data that exist in cleaning log
-#
-#----------------------------------
-# Keep label row
-label_row <- raw_data[1, ]
-
-# Apply filter
-raw_data <- raw_data[-1, ] %>%
-  filter(`_uuid` %in% cl$`Survey UUID`)
-
-# Bind back the label row
-raw_data <- bind_rows(label_row, raw_data)
 
 #----------------------------------
 # apply cleaning log
@@ -119,7 +113,9 @@ clean_data <- cleaningkit::apply_cleaning_log(
   blank_response_values = "delete_data_point",
   remove_survey_values = "discard",
   no_action_values = "no_action",
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
+  # restores the original column types after the edits are written back
   restore_types = TRUE,
   verbose = TRUE
 )
@@ -225,6 +221,7 @@ review_cleaning <- cleaningkit::review_cleaned_data(
     "evaluation_issue",
     "_location_altitude"
   ),
+  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 )
@@ -238,10 +235,10 @@ cleaningkit::export_final_output(
   clean_dataset = clean_data,
   combined_log = final_log,
   output_path = paste0("./output/final/", Sys.Date(), "_4Mi_final_output.xlsx"),
-  project_name = "4Mi East Africa — Round 12",
-  data_collection_round = "Round 12 — Q1 2025",
-  prepared_by = "MMC Data Team",
+  project_name = "Project name",
+  data_collection_round = "Data collection round",
+  prepared_by = "Prepared by",
   project_description = paste0(
-    "Add project description here.",
+    "Project description."
   ),
 )
