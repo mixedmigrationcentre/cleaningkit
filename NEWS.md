@@ -1,4 +1,4 @@
-# cleaningkit (development version)
+# cleaningkit 2026.08.0
 
 ## One review workbook instead of two
 * **New `create_review_workbook()`** writes the cleaning log and the "other"

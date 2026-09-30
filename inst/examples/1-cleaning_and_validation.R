@@ -41,6 +41,10 @@ other_db <- cleaningkit::get_other_db(
 )
 
 #----------------------------------
+# filter read raw data
+# perform a filter on the raw dataset for multiple cleaning logs outputs
+#----------------------------------
+#----------------------------------
 # keep only the newly collected records
 # run this when validation happens several times during one data collection
 # round. drop the new ONA download into ./data next to the file left by the
@@ -76,11 +80,6 @@ raw_data <- cleaningkit::read_raw_data(
 )
 
 #----------------------------------
-# filter read raw data
-# perform a filter on the raw dataset for multiple cleaning logs outputs
-#----------------------------------
-
-#----------------------------------
 # prepare other responses
 # add the other responses questions you to be included in the output
 # in the question argument.
@@ -108,7 +107,10 @@ df <- cleaningkit::prepare_other_responses(
 
 #----------------------------------
 # validate duration
-# flags anything below 15 mins and above 60 mins
+# flags surveys shorter than lower_bound (15 mins).
+# surveys longer than upper_bound are NOT flagged by default - long interviews
+# are usually legitimate and only inflate the log - set flag_above_upper = TRUE
+# to log those as well
 #----------------------------------
 
 duration_log <- cleaningkit::validate_duration(
@@ -118,13 +120,17 @@ duration_log <- cleaningkit::validate_duration(
   log_name = "duration_log",
   lower_bound = 15,
   upper_bound = 60,
+  flag_above_upper = FALSE,
   skip_label_row = TRUE
 )
 
 #----------------------------------
 # validate completeness
-# metadata_cols = c("start","end","today","deviceid","username","phonenumber","_uuid")
-# has a list of all metadata columns that will be ingored during this check
+# metadata_cols holds the metadata columns ignored when counting answers
+# c("start","end","today","deviceid","username","simserial","phonenumber",
+#   "uuid","_uuid","id","_id","submission_time","_submission_time",
+#   "index","_index","df_name")
+# pass your own metadata_cols to change that list
 #----------------------------------
 
 completeness_log <- cleaningkit::validate_completeness(
@@ -206,8 +212,13 @@ interview_time_log <- cleaningkit::validate_interview_time(
 similar_surveys_log <- raw_data %>%
   cleaningkit::validate_similar_surveys(
     tool_survey = tool_survey,
+    enumerator_column = "username",
     idnk_value = "Don't know",
-    threshold = 30
+    sm_separator = "/",
+    # flags a survey whose closest neighbour differs in at most this many columns
+    threshold = 7,
+    # TRUE returns a row for every survey, not only the flagged ones
+    return_all_results = FALSE
   )
 
 #----------------------------------
@@ -223,12 +234,19 @@ similar_questions_log <- raw_data %>%
 # validate outliers
 # looks through all integer questions and checks for any outliers
 # or checks on specific columns
+# add columns_to_check = c("Q141_3") with you integer question to check for only that question
 #----------------------------------
 outliers_log <- raw_data %>%
   cleaningkit::validate_outliers(
-    columns_to_check = c("Q141_3"),
+    # leave columns_to_check = NULL to check every numeric column
+    columns_to_check = NULL,
+    # tool_survey lets the function pick the numeric questions from the tool
+    tool_survey = tool_survey,
     strongness_factor = 3,
-    min_unique_values = 5
+    min_unique_values = 5,
+    remove_sm_binary = TRUE, # skip the 0/1 select_multiple columns
+    sm_separator = "/",
+    columns_to_skip = NULL
   )
 
 #----------------------------------
@@ -245,6 +263,9 @@ interview_location_log <- cleaningkit::validate_interview_location(
   uuid_column = "_uuid",
   lat_column = "_location_latitude",
   lon_column = "_location_longitude",
+  # raw ONA geopoint column ("lat lon altitude precision"), used when the
+  # split lat/lon columns are empty or unusable
+  location_column = "location",
   country_question = "Q13",
   city_question = "Q14",
   log_name = "interview_location_log",
@@ -288,9 +309,10 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
-  logical_check_log,
   similar_surveys_log,
-  similar_questions_log
+  similar_questions_log,
+  outliers_log,
+  logical_check_log
 )
 
 combined_log <- cleaningkit::create_combined_log(
@@ -316,6 +338,14 @@ combined_log <- cleaningkit::create_combined_log(
 #   "partial" -> default, only the columns listed in `color_columns`
 #   "off"     -> no colouring at all
 # the header keeps the same MMC formatting in all three cases
+#
+# vba = FALSE -> plain .xlsx
+# vba = TRUE  -> macro-enabled .xlsm, so give the path an .xlsm extension
+#                (an .xlsx path is corrected to .xlsm with a message)
+#
+# flag_columns puts the check flags at the front of the `dataset` sheet, so a
+# reviewer can filter on them; group_by = "issue" sets the column the log is
+# sorted and coloured by
 #----------------------------------
 
 cleaningkit::create_review_workbook(
@@ -326,98 +356,10 @@ cleaningkit::create_review_workbook(
   other_enumerator_id = "username",
   color_mode = "partial",
   color_columns = c("old_value"),
+  group_by = "issue",
   output_path = paste0(
     "output/follow_ups/",
     Sys.Date(),
     "_follow-ups.xlsx"
   )
 )
-
-#----------------------------------
-# the same workbook, macro-enabled (VBA)
-#
-# written as .xlsm with the change-capture macro attached. the reviewer edits a
-# value on the `dataset` sheet and the change is appended to the bottom of the
-# cleaning_log sheet automatically - old value, new value, question, uuid,
-# enumerator and a mapped "Action taken" - so nothing has to be copied across
-# by hand.
-#
-# the macro watches the `dataset` sheet and nothing else: edits on
-# `other_responses` append nothing to the cleaning log, because that sheet is
-# read back column by column instead.
-#
-# repeat edits are APPENDED, not overwritten: editing the same cell again adds
-# another row, its "Old value" being the value immediately before that edit, and
-# the Issue column carries a per-cell sequence number (manual_edit_001,
-# manual_edit_002, ...). that keeps uuid + question + issue unique, so
-# read_cleaning_log() keeps every row rather than collapsing them to the first,
-# and apply_cleaning_log() writes the most recent value.
-#
-# an .xlsx extension is corrected to .xlsm with a message; `include_dataset` is
-# forced TRUE, since without the dataset sheet there is nothing to watch.
-#----------------------------------
-
-# cleaningkit::create_review_workbook(
-#   write_list = combined_log,
-#   other_responses = df,
-#   other_db = other_db,
-#   other_enumerator_id = "username",
-#   vba = TRUE,
-#   macro_issue_prefix = "reviewer_edit",
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsm"
-#   )
-# )
-
-#----------------------------------
-# the two logs in separate files (the pre-merge route)
-#
-# both functions are still there and unchanged. use them when you want the
-# cleaning log and the other responses reviewed by different people, or at
-# different times.
-#
-# note that read_other_responses() then needs its old file pattern:
-#   file_pattern = "_other_responses_edited\\.xlsx$"
-#----------------------------------
-
-# cleaningkit::create_cleaning_log(
-#   write_list = combined_log,
-#   color_mode = "partial",
-#   color_columns = c("old_value"),
-#   output_path = paste0(
-#     "output/follow_ups/",
-#     Sys.Date(),
-#     "_follow-ups.xlsx"
-#   )
-# )
-#
-# cleaningkit::save_other_responses(
-#   df = df,
-#   other_db = other_db,
-#   save_location = "./output/other_responses",
-#   enumerator_id = "username"
-# )
-
-#----------------------------------
-# one-time setup: the compiled VBA project
-# R cannot generate vbaProject.bin - it is built once in Excel from the sources
-# in inst/vba/ and shipped as inst/extdata/cleaningkit_vba.bin.
-# run this on Windows with Excel installed, and only again when the VBA changes.
-#----------------------------------
-
-# cleaningkit::load_packages(vba = TRUE)   # installs iAthmanMMC/RDCOMClient
-# source("dev/build_vba_bin.R")
-# build_vba_bin()
-
-#----------------------------------
-# if the binary cannot be found, the macro route stops and lists every location
-# it searched. point at it directly, or set the option once in a setup script -
-# handy when these functions are sourced into a project instead of being used
-# from the installed package.
-#----------------------------------
-
-# options(
-#   cleaningkit.vba_project = "resources/cleaningkit_vba.bin"
-# )
