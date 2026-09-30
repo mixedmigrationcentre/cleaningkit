@@ -222,15 +222,6 @@ similar_surveys_log <- raw_data %>%
   )
 
 #----------------------------------
-# validate similar questions
-# groups data by enumerator and checks questions passed for similarity
-#----------------------------------
-similar_questions_log <- raw_data %>%
-  cleaningkit::validate_similar_questions(
-    questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
-  )
-
-#----------------------------------
 # validate outliers
 # looks through all integer questions and checks for any outliers
 # or checks on specific columns
@@ -310,7 +301,6 @@ list_of_log_all <- c(
   interview_time_log,
   interview_location_log,
   similar_surveys_log,
-  similar_questions_log,
   outliers_log,
   logical_check_log
 )

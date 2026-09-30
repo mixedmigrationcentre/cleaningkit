@@ -35,7 +35,7 @@ other_db <- cleaningkit::get_other_db(
 #----------------------------------
 
 raw_data <- cleaningkit::read_raw_data(
-  filename = "./data/data.xlsx",
+  filename = "./raw_data_cleaning/data.xlsx",
   tool_survey = tool_survey
 )
 #----------------------------------
