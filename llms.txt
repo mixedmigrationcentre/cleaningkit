@@ -5,8 +5,6 @@ data (especially Ona surveys).
 
 ## Installation
 
-You can grab the v2026.07.0 version from GitHub using `pak`:
-
 ``` r
 
 # install.packages("pak")
@@ -15,15 +13,32 @@ pak::pak("mixedmigrationcentre/cleaningkit")
 
 ## User Guides
 
-For a comprehensive overview of the package workflow, please refer to
-the following guides:
+### 1. Create a project
 
-- [1.
-  Introduction](https://mixedmigrationcentre.github.io/cleaningkit/articles/1-introduction.html)
-- [2. Data Cleaning and
-  Validation](https://mixedmigrationcentre.github.io/cleaningkit/articles/2-cleaning_and_validation.html)
-- [3. Create Clean
-  Data](https://mixedmigrationcentre.github.io/cleaningkit/articles/3-create_clean_data.html)
+Open RStudio and go to **File \> New Project…** to open the New Project
+Wizard.
+
+Choose **New Directory**:
+
+![](reference/figures/new-project-step-2.png)
+
+Choose **New Project**:
+
+![](reference/figures/new-project-step-1.png)
+
+Type a project name (1), **Browse…** to the folder where the project
+should sit (2), then click **Create Project** (3):
+
+![](reference/figures/new-project-step-3.png)
+
+### 2. Add the example scripts
+
+The two files below contain the actual working code for the whole
+workflow. Download them from GitHub (open the file, then use the
+download raw file button) and copy them into your new project directory:
+
+- [1-cleaning_and_validation.R](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/examples/1-cleaning_and_validation.R)
+- [2-create_clean_data.R](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/examples/2-create_clean_data.R)
 
 ## How to use it
 
@@ -46,58 +61,22 @@ setup_project_folders(
 
 ### Preparing the Data for a New Validation Round
 
-When data collection runs over several weeks and validation is run more
-than once, every ONA download contains the whole dataset collected so
-far. Running the `validate_*` functions on the full download re-flags
-surveys that were already reviewed, so each follow-up workbook repeats
-the previous round’s issues.
-
-- **[`filter_new_records()`](reference/filter_new_records.md)**: Reduces
-  a cumulative ONA export to the records collected since the last
-  validation round.
-
-Drop the new download into `data/` next to the file the previous round
-left behind. The larger of the two files is treated as the new export,
-every `_uuid` found in the smaller one is removed, the inputs are
-archived to `data/archive/`, and the remaining records are written to
-`data/data.xlsx`. The ONA label row is kept as row one, so
-[`read_raw_data()`](reference/read_raw_data.md) and the `validate_*`
-functions can keep their default `skip_label_row = TRUE`.
-
 ``` r
 
+# reduces a cumulative ONA export to the records collected since the last
+# validation round, and writes them to data/data.xlsx
 filter_new_records(
   data_folder = "./data",
   uuid_column = "_uuid",
   skip_label_row = TRUE,
-  archive = TRUE
+  output_name = "data.xlsx",
+  use_ledger = TRUE, # filter against data/processed_uuids.csv
+  archive = TRUE     # move the inputs to data/archive/
 )
 ```
 
-Because `data.xlsx` is itself already filtered, comparing two files
-alone would only ever exclude the most recent round — from the third
-round onwards, records from the first round would quietly come back. To
-prevent this the function keeps a running `data/processed_uuids.csv`
-ledger of every uuid that has already been validated, and filters
-against the ledger as well as against the previous file. The ledger is
-ignored when the function looks for input files, so it can sit in
-`data/` without interfering. If it is lost, the function falls back to
-the plain two-file comparison and says so; if only the new export is in
-the folder, the ledger alone is used.
-
-| Argument | What it does |
-|----|----|
-| `data_folder` | Folder holding the raw exports. Default `"./data"`. |
-| `uuid_column` | Unique survey identifier. Default `"_uuid"`. |
-| `skip_label_row` | Treats row one as the ONA label row and writes it back to the output. Default `TRUE`. |
-| `output_name` | Name of the filtered file. Default `"data.xlsx"`. |
-| `use_ledger` | Filter against, and update, `processed_uuids.csv`. Default `TRUE`. |
-| `archive` | Move the inputs to `data/archive/` instead of deleting them. Default `TRUE`. |
-
-Nothing is removed until the filtered file has been built, and nothing
-is removed at all if the filtering leaves zero new records — which
-usually means the same export was downloaded twice. Skip this step for
-the first round, or when the whole dataset is being validated in one go.
+Skip this step for the first round, or when the whole dataset is being
+validated in one go.
 
 ### Data Cleaning and Validation
 
@@ -105,52 +84,9 @@ The package provides a suite of `validate_*` functions to run various
 data quality checks. Each function returns a list containing the checked
 dataset and a log of flagged issues.
 
-- **[`validate_duration()`](reference/validate_duration.md)**: Checks if
-  the survey duration falls within an acceptable time range.
-- **[`validate_completeness()`](reference/validate_completeness.md)**:
-  Flags surveys that have fewer than a specified number of answered
-  questions.
-- **[`validate_refused()`](reference/validate_refused.md)**: Identifies
-  surveys with an excessive number of “Refused” answers.
-- **[`validate_logical_with_list()`](reference/validate_logical_with_list.md)**:
-  Runs a batch of logical checks defined in an external checklist
-  against the dataset.
-- **[`validate_interview_time()`](reference/validate_interview_time.md)**:
-  Flags interviews conducted at implausible times of the day (e.g.,
-  middle of the night).
-- **[`validate_similar_surveys()`](reference/validate_similar_surveys.md)**:
-  Detects suspiciously similar surveys (soft duplicates) based on the
-  number of columns that match between surveys.
-- **[`validate_similar_questions()`](reference/validate_similar_questions.md)**:
-  Flags specific questions where an enumerator has repeatedly recorded
-  the exact same answer across multiple surveys.
-- **[`validate_country_of_interview()`](reference/validate_country_of_interview.md)**:
-  Flags cases where the interview country matches the respondent’s
-  nationality or journey start.
-- **[`validate_back_to_back()`](reference/validate_back_to_back.md)**:
-  Flags interviews conducted by the same enumerator with suspiciously
-  short or negative gaps between them.
-- **[`validate_outliers()`](reference/validate_outliers.md)**: Flags
-  interviews whose integer values are of much larger or smaller that the
-  set for that column
-- **[`validate_spatial_proximity()`](reference/validate_spatial_proximity.md)**:
-  Flags interviews whose distances from another is less than the
-  threshhold distance provided
-- **[`validate_interview_location()`](reference/validate_interview_location.md)**:
-  Flags interviews whose GPS point is missing, falls outside the claimed
-  country of interview, or sits too far from the claimed city of
-  interview
-
-Here is a quick look at how you can load your data and run a few
-validation checks:
-
 ``` r
 
 library(cleaningkit)
-
-# Optional: reduce a cumulative ONA export to the records collected
-# since the last validation round (see the section above)
-filter_new_records(data_folder = "./data", uuid_column = "_uuid")
 
 # Load your raw data and tool survey schema
 raw_data <- read_raw_data("path/to/data.xlsx", tool_survey = survey_sheet)
@@ -297,9 +233,6 @@ check needs to be inspected on its own. If a check is written badly the
 function stops and prints both the `check_id` and the offending
 expression, so you know exactly which row of the Excel sheet to fix.
 
-For a fuller walkthrough see the [Data Cleaning and Validation
-guide](https://mixedmigrationcentre.github.io/cleaningkit/articles/2-cleaning_and_validation.html#validate-logical).
-
 ### Combining and Exporting Logs
 
 After running the validation checks, you can combine all the individual
@@ -310,9 +243,6 @@ logs and save them into an Excel file for review and follow-up:
 #----------------------------------
 # combine logs
 #----------------------------------
-
-# Since all logs are stored in the `checked_data` list, 
-# you can pass it directly to create a single combined log:
 combined_log <- cleaningkit::create_combined_log(
   list_of_log = checked_data,
   dataset_name = "checked_dataset"
@@ -322,10 +252,14 @@ combined_log <- cleaningkit::create_combined_log(
 # create the review workbook
 #----------------------------------
 
+# vba = FALSE (default) -> plain .xlsx workbook
+# vba = TRUE            -> macro-enabled .xlsm; edits made on the `dataset`
+#                          sheet are appended to the `cleaning_log` sheet
 cleaningkit::create_review_workbook(
   write_list = combined_log,
   other_responses = other_responses_df,
   other_db = other_db,
+  vba = FALSE,
   output_path = paste0(
     "path/to/output/",
     Sys.Date(),
@@ -334,195 +268,7 @@ cleaningkit::create_review_workbook(
 )
 ```
 
-#### One workbook, both logs
-
-[`create_review_workbook()`](reference/create_review_workbook.md) writes
-the cleaning log and the “other” text responses into a **single** file,
-so a reviewer opens one workbook and the second stage reads one file:
-
-| Sheet | What it is |
-|----|----|
-| `cleaning_log` | One row per flagged value. The reviewer fills in **Action taken** and **New value**. |
-| `dataset` | The checked dataset, with the check-flag columns in front. |
-| `readme` | What each sheet is for, the **Action taken** codes, and the other-responses review key. |
-| `validation_rules` | Hidden. Backs the **Action taken** drop-down. |
-| `other_responses` | Every “other” text response to review. |
-| `Dropdown_values` | Backs the other-responses drop-downs. |
-| `_ck_config` | Very hidden, `.xlsm` only. The macro’s configuration. |
-
-Leave out `other_responses` and `other_db` and you get exactly what
-[`create_cleaning_log()`](reference/create_cleaning_log.md) produces, so
-it is a drop-in for either of the older writers.
-[`create_cleaning_log()`](reference/create_cleaning_log.md) and
-[`save_other_responses()`](reference/save_other_responses.md) are
-unchanged and still available when the two logs should go to different
-people.
-
-#### Controlling the colours in the cleaning log
-
-By default the log is colour-coded by `check_binding`: every row
-belonging to the same check-and-record gets the same light MMC shade, so
-a reviewer can see at a glance which flagged questions belong together.
-`color_mode` gives you three options:
-
-| `color_mode` | What it does |
-|----|----|
-| `"on"` | **Default.** The whole row is filled, one shade per `check_binding`. |
-| `"partial"` | Only the columns listed in `color_columns` are filled; every other cell stays plain. |
-| `"off"` | No fills at all. |
-
-The header row is unaffected in all three modes — it keeps the same MMC
-blue fill, white bold Arial Narrow text, borders, filter and frozen
-pane. `color_mode` only changes the body of the log.
-
-``` r
-
-#----------------------------------
-# 1. colours on (default)
-#----------------------------------
-cleaningkit::create_cleaning_log(
-  write_list = combined_log,
-  color_mode = "on",
-  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
-)
-
-#----------------------------------
-# 2. colours partial - only the columns you name
-#----------------------------------
-cleaningkit::create_cleaning_log(
-  write_list = combined_log,
-  color_mode = "partial",
-  color_columns = "old_value",
-  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
-)
-
-#----------------------------------
-# 3. colours off
-#----------------------------------
-cleaningkit::create_cleaning_log(
-  write_list = combined_log,
-  color_mode = "off",
-  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsx")
-)
-```
-
-`color_columns` is only read when `color_mode = "partial"`. It takes one
-or more columns, written either the way they appear in the log header or
-the way they appear in the raw log — matching ignores case, spaces and
-underscores, so both of these do the same thing:
-
-``` r
-
-color_columns = c("old_value", "issue", "question")          # raw log names
-color_columns = c("Old value", "Issue", "Question number")   # log headers
-```
-
-If you ask for `"partial"` without any valid `color_columns`, the log is
-written with no colouring and a warning tells you which columns were not
-found. `TRUE` and `FALSE` also work as shorthand for `"on"` and `"off"`,
-and `column_for_color = NULL` still switches colouring off entirely.
-
-#### Logging reviewer edits straight into the log (macro-enabled)
-
-Pass `vba = TRUE` - or simply an `.xlsm` path - and the workbook is
-written macro-enabled, with a small VBA project attached. A reviewer can
-then change a value directly on the `dataset` sheet and the edit is
-appended to the bottom of the `cleaning_log` sheet automatically - old
-value, new value, question, uuid, enumerator and a mapped **Action
-taken** - so a correction never has to be copied across by hand.
-
-The plain `.xlsx` route carries none of the macro machinery and stays
-available if macros turn out to be blocked.
-
-``` r
-
-cleaningkit::create_review_workbook(
-  write_list = combined_log,
-  other_responses = other_responses_df,
-  other_db = other_db,
-  vba = TRUE,
-  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsm")
-)
-
-# or, cleaning log only
-cleaningkit::create_cleaning_log_vba(
-  write_list = combined_log,
-  output_path = paste0("path/to/output/", Sys.Date(), "_follow-ups.xlsm")
-)
-```
-
-**The macro watches the `dataset` sheet and nothing else.** Edits on
-`other_responses` append nothing to the cleaning log: that sheet is read
-back column by column by
-[`read_other_responses()`](reference/read_other_responses.md) instead.
-The extra sheets in the merged workbook change nothing for the macro,
-which addresses sheets by name.
-
-`include_dataset` is forced to `TRUE` - without the `dataset` sheet
-there is nothing for the macro to watch. An `.xlsx` extension is
-corrected to `.xlsm` with a message.
-
-**Repeat edits are appended, not overwritten.** Editing the same cell
-again adds another row rather than revising the first, so the log keeps
-the full history. Each row’s **Old value** is the value immediately
-before that edit, so successive rows chain raw -\> A -\> B, and the
-**Issue** column carries a per-cell sequence number (`manual_edit_001`,
-`manual_edit_002`, …). That keeps `uuid + question + issue` unique, so
-[`read_cleaning_log()`](reference/read_cleaning_log.md) keeps every row
-instead of collapsing them to the first, and
-[`apply_cleaning_log()`](reference/apply_cleaning_log.md) writes the
-most recent value.
-
-Rows the macro appends have their formatting cleared before they are
-written, so none of the `check_binding` row colours carry down onto
-them, and they are given the same **Action taken** drop-down as the rest
-of the log. The header and label rows and the uuid column are restored
-if a reviewer edits them, since the log refers to them.
-
-**One-time setup.** The compiled VBA project is not generated by R - it
-is built once from the sources in `inst/vba/` and shipped as
-`inst/extdata/cleaningkit_vba.bin`:
-
-``` r
-
-# once, on Windows with Excel
-cleaningkit::load_packages(vba = TRUE)   # installs iAthmanMMC/RDCOMClient
-source("dev/build_vba_bin.R")
-build_vba_bin()
-```
-
-If the binary cannot be found,
-[`create_cleaning_log_vba()`](reference/create_cleaning_log_vba.md)
-stops with a message listing every location it searched. You can point
-at it directly with `vba_project = "path/to/cleaningkit_vba.bin"`, or
-set `options(cleaningkit.vba_project = ...)` once in a setup script -
-useful when the functions are sourced into a project rather than used
-from the installed package.
-
-**Check this before rolling it out.** Office blocks macros by default in
-files carrying the Mark of the Web, and the current banner has no
-*Enable content* button. Files opened from SharePoint through *Open in
-Desktop App*, or reached through the OneDrive sync client, are fine;
-files downloaded through a browser or received by email are blocked.
-Test it with a real reviewer on a real file - `inst/vba/README.md` has
-the full note and the central fixes.
-
 ### Creating Other Responses
-
-You can extract and prepare “other” responses from your dataset using
-two functions:
-
-- **[`prepare_other_responses()`](reference/prepare_other_responses.md)**:
-  Combines other responses from all sheets into a single dataframe. You
-  can optionally pass a character vector of specific question names to
-  the `questions` parameter if you only want to process a subset of
-  questions.
-- Hand that dataframe to
-  **[`create_review_workbook()`](reference/create_review_workbook.md)**
-  to put it in the same workbook as the cleaning log (the usual route),
-  or to
-  **[`save_other_responses()`](reference/save_other_responses.md)** for
-  a file of its own.
 
 ``` r
 
@@ -533,7 +279,7 @@ other_responses_df <- prepare_other_responses(
   tool_choices = choices_sheet
 )
 
-# Usual route: same workbook as the cleaning log - see above
+# Usual route: pass it to create_review_workbook() - see above
 
 # Or a standalone file for review
 save_other_responses(
@@ -543,37 +289,10 @@ save_other_responses(
 )
 ```
 
-The review sheet is called `other_responses`. It was called `Sheet1`
-before the two logs were merged, and
-[`read_other_responses()`](reference/read_other_responses.md) accepts
-either name, so files already out with reviewers still read back.
-
 ### Apply Cleaning
 
 Once the cleaning logs and other responses have been reviewed and
 edited, you can apply these changes to produce the final clean dataset.
-
-- **[`read_cleaning_log()`](reference/read_cleaning_log.md)**: Reads the
-  edited cleaning log from an Excel file and removes duplicates.
-- **[`evaluate_cleaning_log()`](reference/evaluate_cleaning_log.md)**:
-  Evaluates the cleaning log for correctness, ensuring UUIDs and actions
-  match the raw data.
-- **[`apply_cleaning_log()`](reference/apply_cleaning_log.md)**: Applies
-  the actions from the cleaning log directly to the raw dataset to
-  produce a clean dataset.
-- **[`read_other_responses()`](reference/read_other_responses.md)**:
-  Reads and processes edited “other” responses from an Excel file.
-- **[`apply_other_responses()`](reference/apply_other_responses.md)**:
-  Integrates the cleaned “other” responses into the dataset.
-- **[`combine_reviewed_logs()`](reference/combine_reviewed_logs.md)**:
-  Merges the main cleaning log and the other-responses log into a single
-  comprehensive log.
-- **[`review_cleaned_data()`](reference/review_cleaned_data.md)**:
-  Compares the cleaned dataset against the log to verify all changes
-  were successfully applied.
-- **[`export_final_output()`](reference/export_final_output.md)**:
-  Creates a final Excel workbook containing the raw data, clean data,
-  and the comprehensive cleaning log.
 
 ``` r
 
@@ -602,9 +321,9 @@ review_log <- review_cleaned_data(raw_dataset = raw_data, clean_dataset = cleane
 # create final workbook
 #----------------------------------
 export_final_output(
-  raw_dataset = raw_data, 
-  clean_dataset = cleaned_data_list$dataset, 
-  combined_log = final_log, 
+  raw_dataset = raw_data,
+  clean_dataset = cleaned_data_list$dataset,
+  combined_log = final_log,
   output_path = "output/final/final_output.xlsx"
 )
 ```
