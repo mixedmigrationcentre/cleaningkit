@@ -20,8 +20,7 @@ tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
 #----------------------------------
 
 other_labels <- cleaningkit::get_other_labels(
-  tool_survey = tool_survey,
-  other_text_types = c("Q31_2")
+  tool_survey = tool_survey
 )
 
 other_db <- cleaningkit::get_other_db(
