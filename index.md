@@ -88,56 +88,210 @@ dataset and a log of flagged issues.
 
 library(cleaningkit)
 
-# Load your raw data and tool survey schema
-raw_data <- read_raw_data("path/to/data.xlsx", tool_survey = survey_sheet)
+# read the tool, then the raw data
+tool_survey  <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
+tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
 
-# Run validations (each step passes the result to the next)
-checked_data <- raw_data |>
-  # 1. Survey duration makes sense (e.g. between 15 and 60 minutes)
-  validate_duration(column_to_check = "_duration", lower_bound = 15, upper_bound = 60) |>
-  # 2. Minimum of 100 answered questions
-  validate_completeness(min_content_cells = 100) |>
-  # 3. Maximum of 6 "Refused" answers
-  validate_refused(max_refused = 6) |>
-  # 4. Interviews conducted at a plausible time (e.g. between 5am and 10pm)
-  validate_interview_time(earliest_hour = 5, latest_hour = 22) |>
-  # 5. Suspiciously similar responses (soft duplicates differing in <= 7 columns)
-  validate_similar_surveys(tool_survey = survey_sheet, threshold = 7) |>
-  # 6. Repeated answers for specific questions by the same enumerator
-  validate_similar_questions(questions_to_check = c("Q161_1", "Q162_1")) |>
-  # 7. Outliers in all integer columns in the dataset or particular columns
-  validate_outliers(
+raw_data <- cleaningkit::read_raw_data(
+  filename = "./data/data.xlsx",
+  tool_survey = tool_survey
+)
+```
+
+**[`validate_duration()`](reference/validate_duration.md)** - flags
+surveys shorter or longer than the expected interview length.
+
+``` r
+
+duration_log <- cleaningkit::validate_duration(
+  dataset = raw_data,
+  column_to_check = "_duration",
+  uuid_column = "_uuid",
+  log_name = "duration_log",
+  lower_bound = 15,
+  upper_bound = 60,
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_completeness()`](reference/validate_completeness.md)** -
+flags surveys with fewer than the given number of answered questions
+(metadata columns are ignored).
+
+``` r
+
+completeness_log <- cleaningkit::validate_completeness(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  log_name = "completeness_log",
+  min_content_cells = 100,
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_refused()`](reference/validate_refused.md)** - flags
+surveys with too many “Refused” answers.
+
+``` r
+
+refused_log <- cleaningkit::validate_refused(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  log_name = "refused_log",
+  max_refused = 6,
+  refused_value = "Refused",
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_back_to_back()`](reference/validate_back_to_back.md)** -
+flags interviews by the same enumerator with a gap shorter than the
+threshold.
+
+``` r
+
+back_to_back_log <- cleaningkit::validate_back_to_back(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  enumerator_column = "username",
+  start_column = "start",
+  end_column = "end",
+  log_name = "back_to_back_log",
+  threshold_hours = 0,
+  threshold_mins = 10,
+  gap_from = c("end", "start"),
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_country_of_interview()`](reference/validate_country_of_interview.md)** -
+flags respondents interviewed in their own country of nationality or
+journey start.
+
+``` r
+
+country_of_interview_log <- cleaningkit::validate_country_of_interview(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  country_interview_col = "Q13",
+  nationality_col = "Q31",
+  journey_start_col = "Q41",
+  log_name = "country_of_interview_log",
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_interview_time()`](reference/validate_interview_time.md)** -
+flags interviews conducted outside plausible hours of the day.
+
+``` r
+
+interview_time_log <- cleaningkit::validate_interview_time(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  time_column = "start",
+  log_name = "interview_time_log",
+  earliest_hour = 5,
+  latest_hour = 22,
+  flag_missing = FALSE,
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_similar_surveys()`](reference/validate_similar_surveys.md)** -
+groups the data by enumerator and flags surveys that are suspiciously
+similar to each other.
+
+``` r
+
+similar_surveys_log <- raw_data |>
+  cleaningkit::validate_similar_surveys(
+    tool_survey = tool_survey,
+    idnk_value = "Don't know",
+    threshold = 30
+  )
+```
+
+**[`validate_similar_questions()`](reference/validate_similar_questions.md)** -
+flags questions where an enumerator keeps recording the same answer.
+
+``` r
+
+similar_questions_log <- raw_data |>
+  cleaningkit::validate_similar_questions(
+    questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
+  )
+```
+
+**[`validate_outliers()`](reference/validate_outliers.md)** - flags
+unusually large or small values, in the columns given or in every
+integer column.
+
+``` r
+
+outliers_log <- raw_data |>
+  cleaningkit::validate_outliers(
     columns_to_check = c("Q141_3"),
     strongness_factor = 3,
-    min_unique_values = 5) |>
-  # 8. Country of interview shouldn't match nationality or journey start
-  validate_country_of_interview() |>
-  # 9. Implausible back-to-back interviews (gap < 10 minutes)
-  validate_back_to_back(threshold_mins = 10) |>
-  # 10. Spatial distance between two interviews per enumerator or for the entire dataset
-  validate_spatial_proximity(
-    lat_column = "_location_latitude",
-    lon_column = "_location_longitude",
-    uuid_column = "_uuid",
-    enumerator_column = "username",
-    log_name = "spatial_proximity_log",
-    distance_threshold_m = 50) |>
-  # 11. GPS point matches the claimed country and city of interview
-  validate_interview_location(
-    country_question = "Q13",
-    city_question = "Q14",
-    city_radius_km = 75) |>
-  # 12. External logical checks (requires a checklist dataframe)
-  validate_logical_with_list(
+    min_unique_values = 5
+  )
+```
+
+**[`validate_spatial_proximity()`](reference/validate_spatial_proximity.md)** -
+flags interviews taken too close to one another.
+
+``` r
+
+spatial_proximity_log <- cleaningkit::validate_spatial_proximity(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  lat_column = "_location_latitude",
+  lon_column = "_location_longitude",
+  enumerator_column = "username",
+  log_name = "spatial_proximity_log",
+  distance_threshold_m = 50
+)
+```
+
+**[`validate_interview_location()`](reference/validate_interview_location.md)** -
+flags a missing GPS point, or one that falls outside the claimed country
+or too far from the claimed city. Needs {rnaturalearthdata} and an
+internet connection (cities are geocoded once via OpenStreetMap).
+
+``` r
+
+interview_location_log <- cleaningkit::validate_interview_location(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  lat_column = "_location_latitude",
+  lon_column = "_location_longitude",
+  country_question = "Q13",
+  city_question = "Q14",
+  log_name = "interview_location_log",
+  city_radius_km = 75,
+  check_country = TRUE,
+  check_city = TRUE,
+  flag_missing_gps = TRUE,
+  nominatim_delay_s = 1,
+  skip_label_row = TRUE
+)
+```
+
+**[`validate_logical_with_list()`](reference/validate_logical_with_list.md)** -
+runs the checks written in the Excel checklist (see the next section).
+
+``` r
+
+logical_list <- openxlsx::read.xlsx("./resources/logical_checklist_example.xlsx", sheet = 1)
+
+logical_check_log <- raw_data |>
+  cleaningkit::validate_logical_with_list(
     list_of_check = logical_list,
     check_id_column = "check_id",
     check_to_perform_column = "check_to_perform",
     columns_to_clean_column = "columns_to_clean",
-    description_column = "description")
-
-# Look at the issues logged for any of the checks
-print(checked_data$duration_log)
-print(checked_data$back_to_back_log)
+    description_column = "description"
+  )
 ```
 
 ### Logical Checks
@@ -243,8 +397,23 @@ logs and save them into an Excel file for review and follow-up:
 #----------------------------------
 # combine logs
 #----------------------------------
+list_of_log_all <- c(
+  duration_log,
+  completeness_log,
+  refused_log,
+  back_to_back_log,
+  country_of_interview_log,
+  interview_time_log,
+  similar_surveys_log,
+  similar_questions_log,
+  outliers_log,
+  spatial_proximity_log,
+  interview_location_log,
+  logical_check_log
+)
+
 combined_log <- cleaningkit::create_combined_log(
-  list_of_log = checked_data,
+  list_of_log = list_of_log_all,
   dataset_name = "checked_dataset"
 )
 
