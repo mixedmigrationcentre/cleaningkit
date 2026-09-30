@@ -1,6 +1,6 @@
 # Changelog
 
-## cleaningkit (development version)
+## cleaningkit 2026.08.0
 
 ### One review workbook instead of two
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.07.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.08.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,9 +37,9 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="2026.08.0" id="cleaningkit-2026080">cleaningkit 2026.08.0<a class="anchor" aria-label="anchor" href="#cleaningkit-2026080"></a></h2>
 <div class="section level3">
-<h3 id="one-review-workbook-instead-of-two-development-version">One review workbook instead of two<a class="anchor" aria-label="anchor" href="#one-review-workbook-instead-of-two-development-version"></a></h3>
+<h3 id="one-review-workbook-instead-of-two-2026-08-0">One review workbook instead of two<a class="anchor" aria-label="anchor" href="#one-review-workbook-instead-of-two-2026-08-0"></a></h3>
 <ul><li>
 <strong>New <code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code></strong> writes the cleaning log and the “other” text responses into a single Excel file, so a reviewer opens one workbook and the second stage reads one file. The sheets, in order: <code>cleaning_log</code>, <code>dataset</code>, <code>readme</code>, <code>validation_rules</code> (hidden), <code>other_responses</code>, <code>Dropdown_values</code>, and <code>_ck_config</code> (very hidden) when the macro is attached. Pass <code>vba = TRUE</code>, or simply an <code>.xlsm</code> path, for the macro-enabled version.</li>
 <li>Called without <code>other_responses</code>, it produces exactly what <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> / <code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> produce, so it can replace either.</li>
@@ -50,7 +50,7 @@
 <li>Both sheet names are now taken from one internal helper, <code>ck_sheet_names()</code>, so a writer and a reader can no longer drift apart.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="reading-the-logs-back-development-version">Reading the logs back<a class="anchor" aria-label="anchor" href="#reading-the-logs-back-development-version"></a></h3>
+<h3 id="reading-the-logs-back-2026-08-0">Reading the logs back<a class="anchor" aria-label="anchor" href="#reading-the-logs-back-2026-08-0"></a></h3>
 <ul><li>
 <strong><code><a href="../reference/read_cleaning_log.html">read_cleaning_log()</a></code> and <code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> find their sheet by name, per file</strong>, instead of by position. <code>read_cleaning_log(sheet = )</code> defaults to <code>NULL</code>, which resolves to <code>"cleaning_log"</code> and falls back to the first sheet; the old default of <code>2</code> pointed at the wrong sheet and only worked because the examples passed <code>sheet = 1</code> explicitly. <code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> gains a <code>sheet</code> argument with the same behaviour, resolving <code>"other_responses"</code>, then <code>"Sheet1"</code>, then the first sheet. It read the first sheet unconditionally before, which in a merged workbook is the cleaning log.</li>
 <li>
@@ -61,24 +61,24 @@
 <code>check_log_files(sheet = )</code> accepts a vector or list of the same length as the files, so a mixed folder can be checked in one call. Its documentation no longer suggests <code>sheet = 2</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="the-readme-sheet-development-version">The readme sheet<a class="anchor" aria-label="anchor" href="#the-readme-sheet-development-version"></a></h3>
+<h3 id="the-readme-sheet-2026-08-0">The readme sheet<a class="anchor" aria-label="anchor" href="#the-readme-sheet-2026-08-0"></a></h3>
 <ul><li>The <code>readme</code> now opens with what each sheet in the workbook is for, then the <code>Action taken</code> codes, and — when the other responses share the workbook — the three review columns on that sheet and what each one does to the data. Its columns are <code>Item</code> / <code>Description</code> rather than <code>Action taken</code> / <code>Description</code>, since it describes more than the codes.</li>
 <li>
 <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> gains <code>readme_include_other</code> (default <code>FALSE</code>) to control that last block. <code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> sets it.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="guards-development-version">Guards<a class="anchor" aria-label="anchor" href="#guards-development-version"></a></h3>
+<h3 id="guards-2026-08-0">Guards<a class="anchor" aria-label="anchor" href="#guards-2026-08-0"></a></h3>
 <ul><li>Sheet names are checked before a workbook is built: blank, longer than Excel’s 31 characters, containing <code>[ ] : * ? / \</code>, or colliding with another sheet (Excel ignores case) now fails with a message naming the offender instead of an opaque openxlsx error.</li>
 <li>
 <code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> warns when given <code>other_db</code> without <code>other_responses</code>, and forces <code>include_dataset = TRUE</code> when the macro is asked for.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="project-folders-development-version">Project folders<a class="anchor" aria-label="anchor" href="#project-folders-development-version"></a></h3>
+<h3 id="project-folders-2026-08-0">Project folders<a class="anchor" aria-label="anchor" href="#project-folders-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/setup_project_folders.html">setup_project_folders()</a></code> still creates <code>output/other_responses/</code>, now documented as legacy: the merged workbook is written to and read from <code>output/follow_ups/</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-responses-reviewer-column-headers-renamed-development-version">Other responses: reviewer column headers renamed<a class="anchor" aria-label="anchor" href="#other-responses-reviewer-column-headers-renamed-development-version"></a></h3>
+<h3 id="other-responses-reviewer-column-headers-renamed-2026-08-0">Other responses: reviewer column headers renamed<a class="anchor" aria-label="anchor" href="#other-responses-reviewer-column-headers-renamed-2026-08-0"></a></h3>
 <ul><li>The five reviewer columns on the other-responses sheet are now headed, in order:
 <ul><li>
 <code>Input translation or improved text (the text in "other" will be replaced by this)</code> (was <code>TRUE other ...</code>)</li>
@@ -96,7 +96,7 @@
 <strong>Files reviewed before the rename still work.</strong> Matching is case insensitive and accepts both the new and the old header for every column, including older templates with three numbered <code>EXISTING other</code> slots. Note that <code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> still requires all files read in one call to share the same layout, so a folder mixing old- and new-header exports is rejected by the column check — read them in separate calls.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-responses-development-version">Other responses<a class="anchor" aria-label="anchor" href="#other-responses-development-version"></a></h3>
+<h3 id="other-responses-2026-08-0">Other responses<a class="anchor" aria-label="anchor" href="#other-responses-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/prepare_other_responses.html">prepare_other_responses()</a></code> now fills <strong><code>selected_choices</code> for <code>select_one</code> questions</strong> as well. The column was populated only for <code>select_multiple</code>, so a reviewer scanning the sheet saw it blank on every <code>select_one</code> row and could not tell a missing lookup from a question type that simply never wrote one. A <code>select_one</code> “other” response can only exist because the respondent picked the question’s own “other” option, so that option (<code>other_db$option_other</code>) is written, resolved to its label in <code>tool_choices</code> — it reads exactly as in the tool (<code>Other</code>, <code>Other (please specify)</code>, the Arabic label) and goes through the same resolver and the same <code>preferred_language</code> / <code>label_language_fallback</code> settings as <code>select_multiple</code>. When the option code is missing or cannot be resolved, the literal <code>Other</code> is written, so the cell is never blank on a <code>select_one</code> row.</li>
 <li>
@@ -105,12 +105,12 @@
 <code><a href="../reference/save_other_responses.html">save_other_responses()</a></code> needed no change — it writes and styles <code>selected_choices</code> as an ordinary column, so the newly filled cells appear with no change to the dropdowns or the reviewer columns.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="cleaning-log-fixes-development-version">Cleaning log fixes<a class="anchor" aria-label="anchor" href="#cleaning-log-fixes-development-version"></a></h3>
+<h3 id="cleaning-log-fixes-2026-08-0">Cleaning log fixes<a class="anchor" aria-label="anchor" href="#cleaning-log-fixes-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> no longer errors on an <strong>empty combined log</strong> — a round where no check flagged anything. The reviewer columns left blank for review were built as scalars, which recycle into a log with rows but not into one with none, so the call failed with “arguments imply differing number of rows”. They are now built at the log’s own length.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="check-flags-on-the-dataset-sheet-development-version">Check flags on the dataset sheet<a class="anchor" aria-label="anchor" href="#check-flags-on-the-dataset-sheet-development-version"></a></h3>
+<h3 id="check-flags-on-the-dataset-sheet-2026-08-0">Check flags on the dataset sheet<a class="anchor" aria-label="anchor" href="#check-flags-on-the-dataset-sheet-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> and <code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> now prepend a block of helper columns to the <code>dataset</code> sheet — <strong>duration</strong>, <strong>completeness</strong>, <strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong> — one per survey-level check. Each carries, for that record’s uuid, the <code>old_value</code> of every cleaning-log row the matching check raised (the duration in minutes, the count of non-empty cells, the count of refused responses, the interview start time, the number of similar columns) and is blank when the check did not flag the survey. A reviewer weighing whether to keep or discard an interview can filter on one column or several at once and cross-check the flagged surveys against their raw answers without leaving the sheet.</li>
 <li>Rows are matched through <code>check_binding</code>, whose leading segment names the check that raised them, so any combination of <code>validate_*</code> functions works with no further configuration. Several hits for one record are joined with <code>flag_separator</code> (default <code>" | "</code>).</li>
@@ -122,17 +122,17 @@
 <li>In the macro-enabled workbook these columns are exempt from change capture: editing one appends nothing to the cleaning log. Their headers are written to <code>_ck_config</code> as the new <code>ignore_columns</code> key. <strong>This needs a rebuilt <code>inst/extdata/cleaningkit_vba.bin</code></strong> — see <code>inst/vba/README.md</code>; until then the flag columns behave like any other dataset column.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="duration-check-development-version">Duration check<a class="anchor" aria-label="anchor" href="#duration-check-development-version"></a></h3>
+<h3 id="duration-check-2026-08-0">Duration check<a class="anchor" aria-label="anchor" href="#duration-check-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/validate_duration.html">validate_duration()</a></code> no longer logs surveys that run <strong>longer</strong> than <code>upper_bound</code>. Long surveys are normally valid and only added rows to the cleaning log. The new <code>flag_above_upper</code> argument (default <code>FALSE</code>) restores the old behaviour when set to <code>TRUE</code>; surveys below <code>lower_bound</code> are still flagged as before.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="similar-answer-check-development-version">Similar-answer check<a class="anchor" aria-label="anchor" href="#similar-answer-check-development-version"></a></h3>
+<h3 id="similar-answer-check-2026-08-0">Similar-answer check<a class="anchor" aria-label="anchor" href="#similar-answer-check-2026-08-0"></a></h3>
 <ul><li>
 <strong>Breaking:</strong> <code>validate_duplicate_questions()</code> has been renamed to <code><a href="../reference/validate_similar_questions.html">validate_similar_questions()</a></code>, and its default <code>log_name</code> is now <code>"similar_questions_log"</code> (was <code>"duplicate_questions_log"</code>). The arguments, issue text and <code>check_binding</code> format are unchanged.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="similar-survey-check-development-version">Similar-survey check<a class="anchor" aria-label="anchor" href="#similar-survey-check-development-version"></a></h3>
+<h3 id="similar-survey-check-2026-08-0">Similar-survey check<a class="anchor" aria-label="anchor" href="#similar-survey-check-2026-08-0"></a></h3>
 <ul><li>
 <strong>Breaking:</strong> <code>validate_duplicates()</code> has been renamed to <code><a href="../reference/validate_similar_surveys.html">validate_similar_surveys()</a></code>. The arguments, defaults and log shape are unchanged — update the call name only.</li>
 <li>The issue text is now phrased in terms of how many columns <em>match</em> rather than how many differ, e.g. “Similarity with surveys from enumerator ‘x’: 226 of 227 columns are similar from survey <uuid> — threshold is 30”.</uuid></li>
@@ -140,7 +140,7 @@
 <strong>Breaking:</strong> the log now reports the similar-column count instead of the differing-column count: <code>question</code> is <code>"number_similar_columns"</code> (was <code>"number_different_columns"</code>) and <code>old_value</code> holds that count. <code>threshold</code> still applies to <em>differing</em> columns, so existing calls need no change.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="cleaning-log-layout-development-version">Cleaning log layout<a class="anchor" aria-label="anchor" href="#cleaning-log-layout-development-version"></a></h3>
+<h3 id="cleaning-log-layout-2026-08-0">Cleaning log layout<a class="anchor" aria-label="anchor" href="#cleaning-log-layout-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> and <code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code> now group the reviewer log by <strong>Issue</strong> by default, so every row raising the same issue sits in one contiguous block and a reviewer can work through one kind of problem at a time. Blocks still appear in the order each value is first met in the combined log, and rows keep their original order inside a block.</li>
 <li>The grouping column is now chosen with the new <code>group_by</code> argument, which accepts either the raw log names (<code>"issue"</code>, <code>"uuid"</code>, <code>"question"</code>, <code>"old_value"</code>, <code>"check_binding"</code>) or the reviewer-facing headers (<code>"Issue"</code>, <code>"Survey UUID"</code>, <code>"Enumerator"</code>, …), matching case- and punctuation-insensitively. <code>NULL</code> or <code>FALSE</code> keeps the incoming check-by-check order.</li>
@@ -148,14 +148,14 @@
 <strong>Breaking:</strong> <code>group_by_uuid</code> has been removed in favour of <code>group_by</code>. Calls passing <code>group_by_uuid = TRUE</code> should now pass <code>group_by = "uuid"</code>, and <code>group_by_uuid = FALSE</code> becomes <code>group_by = NULL</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-response-cleaning-development-version">Other-response cleaning<a class="anchor" aria-label="anchor" href="#other-response-cleaning-development-version"></a></h3>
+<h3 id="other-response-cleaning-2026-08-0">Other-response cleaning<a class="anchor" aria-label="anchor" href="#other-response-cleaning-2026-08-0"></a></h3>
 <ul><li>
 <code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> now detects the select-multiple convention from the data itself instead of defaulting to a binary (<code>0</code>/<code>1</code>) export. In an ONA label export — where sub-columns are named <code>Q83/&lt;choice label&gt;</code>, a selected choice holds the choice text and an unselected one is blank — the log now writes the choice text and leaves unselected children blank, so <code><a href="../reference/apply_other_responses.html">apply_other_responses()</a></code> no longer introduces <code>0</code>/<code>1</code> into label data. Detection scans every sub-column of the question (previously only the first five), then the parent concat column, then the rest of the dataset, and falls back to the choice-text convention when nothing indicates a binary export.</li>
 <li>Sub-columns are now matched to choices case- and whitespace-insensitively and by either the choice label or the choice code, so questions whose labels are single words (e.g. <code>Q10/Kenya</code>) are no longer mistaken for coded headers. A choice with no matching sub-column now warns instead of silently doing nothing.</li>
 <li>The value written to unselect a choice now also follows the export: <code>"0"</code> only where the data already contains zeros, blank otherwise.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="round-to-round-data-preparation-development-version">Round-to-round data preparation<a class="anchor" aria-label="anchor" href="#round-to-round-data-preparation-development-version"></a></h3>
+<h3 id="round-to-round-data-preparation-2026-08-0">Round-to-round data preparation<a class="anchor" aria-label="anchor" href="#round-to-round-data-preparation-2026-08-0"></a></h3>
 <ul><li>Added <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> to reduce a cumulative ONA export to the records collected since the last validation round, so repeated rounds over a long data collection period do not regenerate cleaning log entries that were already reviewed. It compares the two files in <code>data/</code>, keeps a running <code>processed_uuids.csv</code> ledger so records from earlier rounds cannot reappear, preserves the ONA label row, archives the inputs and writes <code>data.xlsx</code>.</li>
 </ul></div>
 </div>

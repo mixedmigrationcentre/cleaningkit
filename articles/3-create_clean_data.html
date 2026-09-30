@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.07.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.08.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -113,20 +113,32 @@
 <div class="section level2">
 <h2 id="read-cleaning-log">Read cleaning log<a class="anchor" aria-label="anchor" href="#read-cleaning-log"></a>
 </h2>
-<p>Read the cleaning log file.</p>
+<p>One reviewed workbook now carries both logs, so this and
+<code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> below are pointed at the same folder
+and the same file. Each finds its own sheet by name —
+<code>cleaning_log</code> here, <code>other_responses</code> there — so
+neither depends on the tab order.</p>
+<p><code>sheet</code> defaults to <code>NULL</code>, which resolves to
+the <code>cleaning_log</code> sheet by name and falls back to the first
+sheet; pass a name or a number to override it. The default
+<code>file_pattern</code> matches both the plain workbook and a
+macro-enabled one, since <code>readxl</code> reads <code>.xlsm</code>
+exactly like <code>.xlsx</code>.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_cleaning_log.html">read_cleaning_log</a></span><span class="op">(</span></span>
 <span>  raw_dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"./output/follow_ups/"</span>,</span>
-<span>  sheet <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  sheet <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  raw_uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  uuid_col <span class="op">=</span> <span class="st">"Survey UUID"</span>,</span>
 <span>  action_col <span class="op">=</span> <span class="st">"Action taken"</span>,</span>
 <span>  question_col <span class="op">=</span> <span class="st">"Question number"</span>,</span>
 <span>  old_value_col <span class="op">=</span> <span class="st">"Old value"</span>,</span>
 <span>  new_value_col <span class="op">=</span> <span class="st">"New value"</span>,</span>
-<span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xlsx$"</span>,</span>
+<span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span>
 <span>  extra_questions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="co"># what an empty "Action taken" cell is read as</span></span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -154,7 +166,10 @@ blank.</p>
 <span>    <span class="st">"other"</span>,</span>
 <span>    <span class="st">"no_action"</span></span>
 <span>  <span class="op">)</span>,</span>
+<span>  <span class="co"># must match the value used in read_cleaning_log() above</span></span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  <span class="co"># adds an `evaluation_issue` column to the log instead of only printing</span></span>
 <span>  flag_issues_inline <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -175,7 +190,9 @@ blank.</p>
 <span>  blank_response_values <span class="op">=</span> <span class="st">"delete_data_point"</span>,</span>
 <span>  remove_survey_values <span class="op">=</span> <span class="st">"discard"</span>,</span>
 <span>  no_action_values <span class="op">=</span> <span class="st">"no_action"</span>,</span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  <span class="co"># restores the original column types after the edits are written back</span></span>
 <span>  restore_types <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -183,17 +200,24 @@ blank.</p>
 <div class="section level2">
 <h2 id="read-other-responses-log">Read other responses log<a class="anchor" aria-label="anchor" href="#read-other-responses-log"></a>
 </h2>
-<p>Read and classify other responses.</p>
+<p>Read and classify other responses, from the
+<code>other_responses</code> sheet of the same reviewed workbook. For a
+file produced by the older standalone
+<code><a href="../reference/save_other_responses.html">save_other_responses()</a></code> route, point <code>path</code> at
+<code>./output/other_responses/</code> and set
+<code>file_pattern = "_other_responses_edited\\.xlsx$"</code> — the
+sheet is found either way, whether it is called
+<code>other_responses</code> or the older <code>Sheet1</code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">other_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_other_responses.html">read_other_responses</a></span><span class="op">(</span></span>
-<span>  path <span class="op">=</span> <span class="st">"./output/other_responses/"</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"./output/follow_ups/"</span>,</span>
 <span>  dataset <span class="op">=</span> <span class="va">clean_data</span><span class="op">$</span><span class="va">clean_dataset</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  log_uuid_col <span class="op">=</span> <span class="st">"uuid"</span>,</span>
 <span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
 <span>  tool_choices <span class="op">=</span> <span class="va">tool_choices</span>,</span>
 <span>  sm_separator <span class="op">=</span> <span class="st">"/"</span>,</span>
-<span>  file_pattern <span class="op">=</span> <span class="st">"_other_responses_edited\\.xlsx$"</span>,</span>
+<span>  file_pattern <span class="op">=</span> <span class="st">"_follow-ups_edited\\.xls[xm]$"</span>,</span>
 <span>  skip_questions <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -280,6 +304,7 @@ responses output.</p>
 <span>    <span class="st">"evaluation_issue"</span>,</span>
 <span>    <span class="st">"_location_altitude"</span></span>
 <span>  <span class="op">)</span>,</span>
+<span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -292,10 +317,13 @@ responses output.</p>
 <span>  raw_dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  clean_dataset <span class="op">=</span> <span class="va">clean_data</span>,</span>
 <span>  combined_log <span class="op">=</span> <span class="va">final_log</span>,</span>
-<span>  output_path <span class="op">=</span> <span class="st">"./output/P2P_cleaning_output.xlsx"</span>,</span>
-<span>  project_name <span class="op">=</span> <span class="st">"4Mi East Africa — Round 12"</span>,</span>
-<span>  data_collection_round <span class="op">=</span> <span class="st">"Round 12 — Q1 2025"</span>,</span>
-<span>  prepared_by <span class="op">=</span> <span class="st">"MMC Data Team"</span></span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"./output/final/"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"_4Mi_final_output.xlsx"</span><span class="op">)</span>,</span>
+<span>  project_name <span class="op">=</span> <span class="st">"Project name"</span>,</span>
+<span>  data_collection_round <span class="op">=</span> <span class="st">"Data collection round"</span>,</span>
+<span>  prepared_by <span class="op">=</span> <span class="st">"Prepared by"</span>,</span>
+<span>  project_description <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Project description."</span></span>
+<span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

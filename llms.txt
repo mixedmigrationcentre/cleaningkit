@@ -207,8 +207,10 @@ similar to each other.
 similar_surveys_log <- raw_data |>
   cleaningkit::validate_similar_surveys(
     tool_survey = tool_survey,
+    enumerator_column = "username",
     idnk_value = "Don't know",
-    threshold = 30
+    # flags a survey whose closest neighbour differs in at most this many columns
+    threshold = 7
   )
 ```
 
@@ -223,34 +225,21 @@ similar_questions_log <- raw_data |>
   )
 ```
 
-**[`validate_outliers()`](reference/validate_outliers.md)** - flags
-unusually large or small values, in the columns given or in every
-integer column.
+**[`validate_outliers()`](reference/validate_outliers.md)** - looks
+through every integer question for outliers. Set
+`columns_to_check = c("Q141_3")` to check one question only.
 
 ``` r
 
 outliers_log <- raw_data |>
   cleaningkit::validate_outliers(
-    columns_to_check = c("Q141_3"),
+    columns_to_check = NULL,
+    tool_survey = tool_survey,
     strongness_factor = 3,
-    min_unique_values = 5
+    min_unique_values = 5,
+    remove_sm_binary = TRUE, # skip the 0/1 select_multiple columns
+    sm_separator = "/"
   )
-```
-
-**[`validate_spatial_proximity()`](reference/validate_spatial_proximity.md)** -
-flags interviews taken too close to one another.
-
-``` r
-
-spatial_proximity_log <- cleaningkit::validate_spatial_proximity(
-  dataset = raw_data,
-  uuid_column = "_uuid",
-  lat_column = "_location_latitude",
-  lon_column = "_location_longitude",
-  enumerator_column = "username",
-  log_name = "spatial_proximity_log",
-  distance_threshold_m = 50
-)
 ```
 
 **[`validate_interview_location()`](reference/validate_interview_location.md)** -
@@ -265,6 +254,8 @@ interview_location_log <- cleaningkit::validate_interview_location(
   uuid_column = "_uuid",
   lat_column = "_location_latitude",
   lon_column = "_location_longitude",
+  # raw ONA geopoint column, used when the split lat/lon columns are unusable
+  location_column = "location",
   country_question = "Q13",
   city_question = "Q14",
   log_name = "interview_location_log",
@@ -404,11 +395,10 @@ list_of_log_all <- c(
   back_to_back_log,
   country_of_interview_log,
   interview_time_log,
+  interview_location_log,
   similar_surveys_log,
   similar_questions_log,
   outliers_log,
-  spatial_proximity_log,
-  interview_location_log,
   logical_check_log
 )
 
@@ -428,9 +418,13 @@ cleaningkit::create_review_workbook(
   write_list = combined_log,
   other_responses = other_responses_df,
   other_db = other_db,
-  vba = FALSE,
+  other_enumerator_id = "username",
+  vba = TRUE,
+  color_mode = "partial",
+  color_columns = c("old_value"),
+  group_by = "issue",
   output_path = paste0(
-    "path/to/output/",
+    "output/follow_ups/",
     Sys.Date(),
     "_follow-ups.xlsx"
   )

@@ -46,6 +46,9 @@ other_db <- cleaningkit::get_other_db(
 
 ## Keep only the newly collected records
 
+A filter can also be run on the raw dataset itself when several cleaning
+log outputs are wanted from one export.
+
 Data collection for a round usually runs over several weeks while
 validation is run twice a week, and every ONA download contains the
 whole dataset collected so far. Running the `validate_*` functions on
@@ -122,14 +125,16 @@ raw_data <- cleaningkit::read_raw_data(
 )
 ```
 
-## Filter read raw data
-
-Perform a filter on the raw dataset for multiple cleaning logs outputs.
-
-## Prepare and save other responses
+## Prepare other responses
 
 Add the other responses questions you want to be included in the output
-in the question argument.
+in the question argument, e.g questions = c(“Q34_1”, “Q35_1”,“Q37_1”).
+The usual route now hands the resulting dataframe to
+[`create_review_workbook()`](../reference/create_review_workbook.md)
+further down, so the “other” responses and the cleaning log land in one
+workbook.
+[`save_other_responses()`](../reference/save_other_responses.md) is
+still there for when the two logs go to different reviewers.
 
 ``` r
 
@@ -138,29 +143,16 @@ df <- cleaningkit::prepare_other_responses(
   raw_data = raw_data,
   other_db = other_db,
   tool_choices = tool_choices,
-  extra_columns = c("username"),
-  questions = c(
-    "Q34_1",
-    "Q35_1",
-    "Q37_1",
-    "Q38_1",
-    "Q39_1",
-    "Q41_1",
-    "Q33_1"
-  )
-)
-
-cleaningkit::save_other_responses(
-  df = df,
-  other_db = other_db,
-  save_location = "./output/other_responses/",
-  enumerator_id = "username"
+  extra_columns = c("username")
 )
 ```
 
 ## Validate duration
 
-Flags anything below 15 mins and above 60 mins.
+Flags surveys shorter than `lower_bound`. Surveys longer than
+`upper_bound` are **not** flagged by default — a long interview is
+normally legitimate and only inflates the cleaning log — so set
+`flag_above_upper = TRUE` to log those too.
 
 ``` r
 
@@ -171,6 +163,7 @@ duration_log <- cleaningkit::validate_duration(
   log_name = "duration_log",
   lower_bound = 15,
   upper_bound = 60,
+  flag_above_upper = FALSE,
   skip_label_row = TRUE
 )
 ```
@@ -275,8 +268,14 @@ Groups data by enumerator and checks surveys which are similar.
 similar_surveys_log <- raw_data %>%
   cleaningkit::validate_similar_surveys(
     tool_survey = tool_survey,
+    enumerator_column = "username",
     idnk_value = "Don't know",
-    threshold = 30
+    sm_separator = "/",
+    # flags a survey whose closest neighbour differs in at most this many columns
+    threshold = 7,
+    # TRUE returns a row for every survey, which is useful for per-enumerator
+    # analysis rather than for the cleaning log
+    return_all_results = FALSE
   )
 ```
 
@@ -294,33 +293,23 @@ similar_questions_log <- raw_data %>%
 
 ## Validate outliers
 
-Outliers in all integer columns in the dataset or particular columns
+Looks through all integer questions and checks for any outliers. Set
+`columns_to_check = c("Q141_3")` with your own integer question to check
+that question only.
 
 ``` r
 
 outliers_log <- raw_data %>%
   cleaningkit::validate_outliers(
-    columns_to_check = c("Q141_3"),
+    # leave columns_to_check = NULL to check every numeric column
+    columns_to_check = NULL,
+    # tool_survey lets the function pick the numeric questions from the tool
+    tool_survey = tool_survey,
     strongness_factor = 3,
-    min_unique_values = 5
-  )
-```
-
-## Validate spatial distance
-
-Spatial distance between two interviews per enumerator or for the entire
-dataset
-
-``` r
-
-spatial_proximity_log <- raw_data %>%
-  cleaningkit::validate_spatial_proximity(
-    lat_column = "_location_latitude",
-    lon_column = "_location_longitude",
-    uuid_column = "_uuid",
-    enumerator_column = "username",
-    log_name = "spatial_proximity_log",
-    distance_threshold_m = 50
+    min_unique_values = 5,
+    remove_sm_binary = TRUE, # skip the 0/1 select_multiple columns
+    sm_separator = "/",
+    columns_to_skip = NULL
   )
 ```
 
@@ -347,6 +336,9 @@ interview_location_log <- cleaningkit::validate_interview_location(
   uuid_column = "_uuid",
   lat_column = "_location_latitude",
   lon_column = "_location_longitude",
+  # raw ONA geopoint column ("lat lon altitude precision"), used when the split
+  # lat/lon pair is missing or invalid
+  location_column = "location",
   country_question = "Q13",
   city_question = "Q14",
   log_name = "interview_location_log",
@@ -502,9 +494,10 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
-  logical_check_log,
   similar_surveys_log,
-  similar_questions_log
+  similar_questions_log,
+  outliers_log,
+  logical_check_log
 )
 
 combined_log <- cleaningkit::create_combined_log(
@@ -513,13 +506,64 @@ combined_log <- cleaningkit::create_combined_log(
 )
 ```
 
+## Create the review workbook
+
+[`create_review_workbook()`](../reference/create_review_workbook.md) is
+the usual route: it writes the cleaning log and the “other” text
+responses into a **single** file, so a reviewer opens one workbook and
+the second stage reads one file.
+
+| Sheet | What it is |
+|----|----|
+| `cleaning_log` | One row per flagged value. The reviewer fills in **Action taken** and **New value**. |
+| `dataset` | The checked dataset, with the check-flag columns in front. |
+| `readme` | What each sheet is for, and the **Action taken** codes. |
+| `validation_rules` | Hidden. Backs the **Action taken** drop-down. |
+| `other_responses` | Every “other” text response to review. |
+| `Dropdown_values` | Backs the other-responses drop-downs. |
+| `_ck_config` | Very hidden, `.xlsm` only. The macro’s configuration. |
+
+`vba = FALSE` (the default) writes a plain `.xlsx`. `vba = TRUE` writes
+a macro-enabled `.xlsm`, where an edit made on the `dataset` sheet is
+appended to the bottom of the `cleaning_log` sheet automatically — give
+the path an `.xlsm` extension — an `.xlsx` one still works, and is
+corrected to `.xlsm` with a message. Leave out `other_responses` and
+`other_db` and the output is exactly what
+[`create_cleaning_log()`](../reference/create_cleaning_log.md) produces.
+
+``` r
+
+cleaningkit::create_review_workbook(
+  write_list = combined_log,
+  other_responses = df,
+  other_db = other_db,
+  other_enumerator_id = "username",
+  vba = TRUE,
+  color_mode = "partial",
+  color_columns = c("old_value"),
+  group_by = "issue",
+  output_path = paste0(
+    "output/follow_ups/",
+    Sys.Date(),
+    "_follow-ups.xlsx"
+  )
+)
+```
+
+The `dataset` sheet leads with the check-flag columns, so a reviewer can
+filter on them and decide keep-or-delete against the raw data. Editing
+one of those flag columns never appends a row to the cleaning log.
+`include_dataset` is forced to `TRUE` when `vba = TRUE`, since without
+that sheet there is nothing for the macro to watch.
+
 ## Create cleaning log
 
-[`create_cleaning_log()`](../reference/create_cleaning_log.md) turns the
-combined log into the reviewer-facing Excel workbook: the log itself on
-the first sheet, the checked dataset on a `dataset` sheet, a `readme`
-sheet listing the action codes, and a drop-down on the **Action taken**
-column.
+[`create_cleaning_log()`](../reference/create_cleaning_log.md) is the
+cleaning-log-only writer, unchanged and still available when the two
+logs go to different people. It turns the combined log into the
+reviewer-facing Excel workbook: the log itself on the first sheet, the
+checked dataset on a `dataset` sheet, a `readme` sheet listing the
+action codes, and a drop-down on the **Action taken** column.
 
 ``` r
 
@@ -547,8 +591,8 @@ How much of each row is filled is controlled by `color_mode`:
 
 | `color_mode` | What it does |
 |----|----|
-| `"on"` | **Default.** The whole row is filled, one shade per `check_binding`. |
-| `"partial"` | Only the columns listed in `color_columns` are filled; every other cell keeps the plain body style. |
+| `"on"` | The whole row is filled, one shade per `check_binding`. |
+| `"partial"` | **Default**, with `color_columns = c("old_value")`. Only the columns listed in `color_columns` are filled; every other cell keeps the plain body style. |
 | `"off"` | No fills at all. |
 
 `color_mode` never touches the header. In all three modes the header row
@@ -556,10 +600,10 @@ keeps the MMC blue fill, the white bold Arial Narrow text, the borders,
 the column filter and the frozen first row and column, and the body
 keeps its borders and fonts — only the row fills change.
 
-#### Colours on (the default)
+#### Colours on the whole row
 
-Nothing needs to be passed; `color_mode = "on"` is shown here only to
-make the option explicit.
+Pass `color_mode = "on"` to fill every cell of the row instead of only
+the columns named in `color_columns`.
 
 ``` r
 
@@ -574,12 +618,13 @@ cleaningkit::create_cleaning_log(
 )
 ```
 
-#### Colours on selected columns only
+#### Colours on selected columns only (the default)
 
-Pass `color_mode = "partial"` together with the column or columns that
-should carry the colour. This is useful when the colour is only needed
-as a pointer to the value under review, and a fully coloured row makes
-the sheet harder to read or to print.
+This is what you get without passing anything. `color_mode = "partial"`
+is shown here together with the column or columns that should carry the
+colour. This is useful when the colour is only needed as a pointer to
+the value under review, and a fully coloured row makes the sheet harder
+to read or to print.
 
 ``` r
 
@@ -721,8 +766,8 @@ is completely unaffected.
 
 Every argument of
 [`create_cleaning_log()`](../reference/create_cleaning_log.md) works
-here too (`color_mode`, `color_columns`, `column_for_color`,
-`group_by_uuid`, `skip_label_row`, the fonts, and so on), with one
+here too (`color_mode`, `color_columns`, `column_for_color`, `group_by`,
+`flag_columns`, `skip_label_row`, the fonts, and so on), with one
 exception: `include_dataset` is forced to `TRUE`, because without the
 `dataset` sheet there is nothing for the macro to watch. An `.xlsx`
 extension is corrected to `.xlsm` with a message.

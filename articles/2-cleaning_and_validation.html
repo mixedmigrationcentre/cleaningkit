@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.07.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.08.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -113,6 +113,8 @@
 <div class="section level2">
 <h2 id="keep-only-the-newly-collected-records">Keep only the newly collected records<a class="anchor" aria-label="anchor" href="#keep-only-the-newly-collected-records"></a>
 </h2>
+<p>A filter can also be run on the raw dataset itself when several
+cleaning log outputs are wanted from one export.</p>
 <p>Data collection for a round usually runs over several weeks while
 validation is run twice a week, and every ONA download contains the
 whole dataset collected so far. Running the <code>validate_*</code>
@@ -184,45 +186,32 @@ the whole dataset is being validated in one go.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="filter-read-raw-data">Filter read raw data<a class="anchor" aria-label="anchor" href="#filter-read-raw-data"></a>
-</h2>
-<p>Perform a filter on the raw dataset for multiple cleaning logs
-outputs.</p>
-</div>
-<div class="section level2">
-<h2 id="prepare-and-save-other-responses">Prepare and save other responses<a class="anchor" aria-label="anchor" href="#prepare-and-save-other-responses"></a>
+<h2 id="prepare-other-responses">Prepare other responses<a class="anchor" aria-label="anchor" href="#prepare-other-responses"></a>
 </h2>
 <p>Add the other responses questions you want to be included in the
-output in the question argument.</p>
+output in the question argument, e.g questions = c(“Q34_1”,
+“Q35_1”,“Q37_1”). The usual route now hands the resulting dataframe to
+<code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> further down, so the “other”
+responses and the cleaning log land in one workbook.
+<code><a href="../reference/save_other_responses.html">save_other_responses()</a></code> is still there for when the two logs
+go to different reviewers.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  raw_data <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
 <span>  tool_choices <span class="op">=</span> <span class="va">tool_choices</span>,</span>
-<span>  extra_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"username"</span><span class="op">)</span>,</span>
-<span>  questions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>    <span class="st">"Q34_1"</span>,</span>
-<span>    <span class="st">"Q35_1"</span>,</span>
-<span>    <span class="st">"Q37_1"</span>,</span>
-<span>    <span class="st">"Q38_1"</span>,</span>
-<span>    <span class="st">"Q39_1"</span>,</span>
-<span>    <span class="st">"Q41_1"</span>,</span>
-<span>    <span class="st">"Q33_1"</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/save_other_responses.html">save_other_responses</a></span><span class="op">(</span></span>
-<span>  df <span class="op">=</span> <span class="va">df</span>,</span>
-<span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
-<span>  save_location <span class="op">=</span> <span class="st">"./output/other_responses/"</span>,</span>
-<span>  enumerator_id <span class="op">=</span> <span class="st">"username"</span></span>
+<span>  extra_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"username"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="validate-duration">Validate duration<a class="anchor" aria-label="anchor" href="#validate-duration"></a>
 </h2>
-<p>Flags anything below 15 mins and above 60 mins.</p>
+<p>Flags surveys shorter than <code>lower_bound</code>. Surveys longer
+than <code>upper_bound</code> are <strong>not</strong> flagged by
+default — a long interview is normally legitimate and only inflates the
+cleaning log — so set <code>flag_above_upper = TRUE</code> to log those
+too.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">duration_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duration.html">validate_duration</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -231,6 +220,7 @@ output in the question argument.</p>
 <span>  log_name <span class="op">=</span> <span class="st">"duration_log"</span>,</span>
 <span>  lower_bound <span class="op">=</span> <span class="fl">15</span>,</span>
 <span>  upper_bound <span class="op">=</span> <span class="fl">60</span>,</span>
+<span>  flag_above_upper <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -323,8 +313,14 @@ hour is 5am and latest hour is 10pm.</p>
 <code class="sourceCode R"><span><span class="va">similar_surveys_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_similar_surveys.html">validate_similar_surveys</a></span><span class="op">(</span></span>
 <span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
+<span>    enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
 <span>    idnk_value <span class="op">=</span> <span class="st">"Don't know"</span>,</span>
-<span>    threshold <span class="op">=</span> <span class="fl">30</span></span>
+<span>    sm_separator <span class="op">=</span> <span class="st">"/"</span>,</span>
+<span>    <span class="co"># flags a survey whose closest neighbour differs in at most this many columns</span></span>
+<span>    threshold <span class="op">=</span> <span class="fl">7</span>,</span>
+<span>    <span class="co"># TRUE returns a row for every survey, which is useful for per-enumerator</span></span>
+<span>    <span class="co"># analysis rather than for the cleaning log</span></span>
+<span>    return_all_results <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -341,30 +337,21 @@ similarity.</p>
 <div class="section level2">
 <h2 id="validate-outliers">Validate outliers<a class="anchor" aria-label="anchor" href="#validate-outliers"></a>
 </h2>
-<p>Outliers in all integer columns in the dataset or particular
-columns</p>
+<p>Looks through all integer questions and checks for any outliers. Set
+<code>columns_to_check = c("Q141_3")</code> with your own integer
+question to check that question only.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">outliers_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
-<span>    columns_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q141_3"</span><span class="op">)</span>,</span>
+<span>    <span class="co"># leave columns_to_check = NULL to check every numeric column</span></span>
+<span>    columns_to_check <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>    <span class="co"># tool_survey lets the function pick the numeric questions from the tool</span></span>
+<span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
 <span>    strongness_factor <span class="op">=</span> <span class="fl">3</span>,</span>
-<span>    min_unique_values <span class="op">=</span> <span class="fl">5</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="validate-spatial-distance">Validate spatial distance<a class="anchor" aria-label="anchor" href="#validate-spatial-distance"></a>
-</h2>
-<p>Spatial distance between two interviews per enumerator or for the
-entire dataset</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">spatial_proximity_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
-<span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_spatial_proximity.html">validate_spatial_proximity</a></span><span class="op">(</span></span>
-<span>    lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
-<span>    lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
-<span>    uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
-<span>    enumerator_column <span class="op">=</span> <span class="st">"username"</span>,</span>
-<span>    log_name <span class="op">=</span> <span class="st">"spatial_proximity_log"</span>,</span>
-<span>    distance_threshold_m <span class="op">=</span> <span class="fl">50</span></span>
+<span>    min_unique_values <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>    remove_sm_binary <span class="op">=</span> <span class="cn">TRUE</span>, <span class="co"># skip the 0/1 select_multiple columns</span></span>
+<span>    sm_separator <span class="op">=</span> <span class="st">"/"</span>,</span>
+<span>    columns_to_skip <span class="op">=</span> <span class="cn">NULL</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -384,12 +371,15 @@ longer the first time it runs on a new dataset. City names in the data
 should be spelled in English and reasonably match OpenStreetMap
 (e.g. “Kampala”, “Addis Ababa”); any city that cannot be geocoded is
 skipped with a warning.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  lat_column <span class="op">=</span> <span class="st">"_location_latitude"</span>,</span>
 <span>  lon_column <span class="op">=</span> <span class="st">"_location_longitude"</span>,</span>
+<span>  <span class="co"># raw ONA geopoint column ("lat lon altitude precision"), used when the split</span></span>
+<span>  <span class="co"># lat/lon pair is missing or invalid</span></span>
+<span>  location_column <span class="op">=</span> <span class="st">"location"</span>,</span>
 <span>  country_question <span class="op">=</span> <span class="st">"Q13"</span>,</span>
 <span>  city_question <span class="op">=</span> <span class="st">"Q14"</span>,</span>
 <span>  log_name <span class="op">=</span> <span class="st">"interview_location_log"</span>,</span>
@@ -402,7 +392,7 @@ skipped with a warning.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Either check can be switched off, which is useful when there is no
 internet connection or when only one of the two is relevant:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># country check only - no internet needed</span></span>
 <span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -460,7 +450,7 @@ to clean.</td>
 </tbody>
 </table>
 <p>Some worked examples of <code>check_to_perform</code>:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># a straightforward comparison of two questions</span></span>
 <span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
 <span></span>
@@ -482,7 +472,7 @@ rather than <code>==</code>.</p>
 <p>A ready-made checklist with the standard MMC core checks ships with
 the package. Copy it into the project’s <code>resources/</code> folder
 and edit it there:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># where the template lives</span></span>
 <span><span class="va">template_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
 <span>  <span class="st">"extdata"</span>,</span>
@@ -497,7 +487,7 @@ and edit it there:</p>
 <div class="section level3">
 <h3 id="running-the-checks">Running the checks<a class="anchor" aria-label="anchor" href="#running-the-checks"></a>
 </h3>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span></span>
 <span>  <span class="st">"./resources/logical_checks_mmc.xlsx"</span>,</span>
 <span>  sheet <span class="op">=</span> <span class="fl">1</span></span>
@@ -515,7 +505,7 @@ and edit it there:</p>
 <code>logical_log</code>. Setting <code>bind_checks = FALSE</code>
 stores each check in its own log named after its <code>check_id</code>,
 which is handy when one check needs to be inspected on its own:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
 <span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
@@ -532,7 +522,7 @@ which is handy when one check needs to be inspected on its own:</p>
 for every check (named after the <code>check_id</code>,
 <code>TRUE</code> = flagged), so the number of records each check caught
 can be reviewed before the log is exported:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">checked_dataset</span><span class="op">$</span><span class="va">check_01</span><span class="op">)</span></span></code></pre></div>
 <p>If a check is written badly the function stops and prints both the
 <code>check_id</code> and the offending expression, so the row in the
@@ -542,7 +532,7 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <div class="section level2">
 <h2 id="combine-logs">Combine logs<a class="anchor" aria-label="anchor" href="#combine-logs"></a>
 </h2>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">list_of_log_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="va">duration_log</span>,</span>
 <span>  <span class="va">completeness_log</span>,</span>
@@ -551,9 +541,10 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <span>  <span class="va">country_of_interview_log</span>,</span>
 <span>  <span class="va">interview_time_log</span>,</span>
 <span>  <span class="va">interview_location_log</span>,</span>
-<span>  <span class="va">logical_check_log</span>,</span>
 <span>  <span class="va">similar_surveys_log</span>,</span>
-<span>  <span class="va">similar_questions_log</span></span>
+<span>  <span class="va">similar_questions_log</span>,</span>
+<span>  <span class="va">outliers_log</span>,</span>
+<span>  <span class="va">logical_check_log</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">combined_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_combined_log.html">create_combined_log</a></span><span class="op">(</span></span>
@@ -562,13 +553,97 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="create-the-review-workbook">Create the review workbook<a class="anchor" aria-label="anchor" href="#create-the-review-workbook"></a>
+</h2>
+<p><code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> is the usual route: it writes
+the cleaning log and the “other” text responses into a
+<strong>single</strong> file, so a reviewer opens one workbook and the
+second stage reads one file.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>Sheet</th>
+<th>What it is</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>cleaning_log</code></td>
+<td>One row per flagged value. The reviewer fills in <strong>Action
+taken</strong> and <strong>New value</strong>.</td>
+</tr>
+<tr class="even">
+<td><code>dataset</code></td>
+<td>The checked dataset, with the check-flag columns in front.</td>
+</tr>
+<tr class="odd">
+<td><code>readme</code></td>
+<td>What each sheet is for, and the <strong>Action taken</strong>
+codes.</td>
+</tr>
+<tr class="even">
+<td><code>validation_rules</code></td>
+<td>Hidden. Backs the <strong>Action taken</strong> drop-down.</td>
+</tr>
+<tr class="odd">
+<td><code>other_responses</code></td>
+<td>Every “other” text response to review.</td>
+</tr>
+<tr class="even">
+<td><code>Dropdown_values</code></td>
+<td>Backs the other-responses drop-downs.</td>
+</tr>
+<tr class="odd">
+<td><code>_ck_config</code></td>
+<td>Very hidden, <code>.xlsm</code> only. The macro’s
+configuration.</td>
+</tr>
+</tbody>
+</table>
+<p><code>vba = FALSE</code> (the default) writes a plain
+<code>.xlsx</code>. <code>vba = TRUE</code> writes a macro-enabled
+<code>.xlsm</code>, where an edit made on the <code>dataset</code> sheet
+is appended to the bottom of the <code>cleaning_log</code> sheet
+automatically — give the path an <code>.xlsm</code> extension — an
+<code>.xlsx</code> one still works, and is corrected to
+<code>.xlsm</code> with a message. Leave out
+<code>other_responses</code> and <code>other_db</code> and the output is
+exactly what <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> produces.</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_review_workbook.html">create_review_workbook</a></span><span class="op">(</span></span>
+<span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
+<span>  other_responses <span class="op">=</span> <span class="va">df</span>,</span>
+<span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
+<span>  other_enumerator_id <span class="op">=</span> <span class="st">"username"</span>,</span>
+<span>  vba <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  color_mode <span class="op">=</span> <span class="st">"partial"</span>,</span>
+<span>  color_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"old_value"</span><span class="op">)</span>,</span>
+<span>  group_by <span class="op">=</span> <span class="st">"issue"</span>,</span>
+<span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
+<span>    <span class="st">"output/follow_ups/"</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.time.html" class="external-link">Sys.Date</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>    <span class="st">"_follow-ups.xlsx"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The <code>dataset</code> sheet leads with the check-flag columns, so
+a reviewer can filter on them and decide keep-or-delete against the raw
+data. Editing one of those flag columns never appends a row to the
+cleaning log. <code>include_dataset</code> is forced to
+<code>TRUE</code> when <code>vba = TRUE</code>, since without that sheet
+there is nothing for the macro to watch.</p>
+</div>
+<div class="section level2">
 <h2 id="create-cleaning-log">Create cleaning log<a class="anchor" aria-label="anchor" href="#create-cleaning-log"></a>
 </h2>
-<p><code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> turns the combined log into the
-reviewer-facing Excel workbook: the log itself on the first sheet, the
-checked dataset on a <code>dataset</code> sheet, a <code>readme</code>
-sheet listing the action codes, and a drop-down on the <strong>Action
-taken</strong> column.</p>
+<p><code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> is the cleaning-log-only writer,
+unchanged and still available when the two logs go to different people.
+It turns the combined log into the reviewer-facing Excel workbook: the
+log itself on the first sheet, the checked dataset on a
+<code>dataset</code> sheet, a <code>readme</code> sheet listing the
+action codes, and a drop-down on the <strong>Action taken</strong>
+column.</p>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
@@ -602,14 +677,16 @@ many bindings still stays in range of the brand colours.</p>
 <tbody>
 <tr class="odd">
 <td><code>"on"</code></td>
-<td>
-<strong>Default.</strong> The whole row is filled, one shade per
+<td>The whole row is filled, one shade per
 <code>check_binding</code>.</td>
 </tr>
 <tr class="even">
 <td><code>"partial"</code></td>
-<td>Only the columns listed in <code>color_columns</code> are filled;
-every other cell keeps the plain body style.</td>
+<td>
+<strong>Default</strong>, with
+<code>color_columns = c("old_value")</code>. Only the columns listed in
+<code>color_columns</code> are filled; every other cell keeps the plain
+body style.</td>
 </tr>
 <tr class="odd">
 <td><code>"off"</code></td>
@@ -623,10 +700,10 @@ text, the borders, the column filter and the frozen first row and
 column, and the body keeps its borders and fonts — only the row fills
 change.</p>
 <div class="section level4">
-<h4 id="colours-on-the-default">Colours on (the default)<a class="anchor" aria-label="anchor" href="#colours-on-the-default"></a>
+<h4 id="colours-on-the-whole-row">Colours on the whole row<a class="anchor" aria-label="anchor" href="#colours-on-the-whole-row"></a>
 </h4>
-<p>Nothing needs to be passed; <code>color_mode = "on"</code> is shown
-here only to make the option explicit.</p>
+<p>Pass <code>color_mode = "on"</code> to fill every cell of the row
+instead of only the columns named in <code>color_columns</code>.</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
@@ -639,12 +716,13 @@ here only to make the option explicit.</p>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
-<h4 id="colours-on-selected-columns-only">Colours on selected columns only<a class="anchor" aria-label="anchor" href="#colours-on-selected-columns-only"></a>
+<h4 id="colours-on-selected-columns-only-the-default">Colours on selected columns only (the default)<a class="anchor" aria-label="anchor" href="#colours-on-selected-columns-only-the-default"></a>
 </h4>
-<p>Pass <code>color_mode = "partial"</code> together with the column or
-columns that should carry the colour. This is useful when the colour is
-only needed as a pointer to the value under review, and a fully coloured
-row makes the sheet harder to read or to print.</p>
+<p>This is what you get without passing anything.
+<code>color_mode = "partial"</code> is shown here together with the
+column or columns that should carry the colour. This is useful when the
+colour is only needed as a pointer to the value under review, and a
+fully coloured row makes the sheet harder to read or to print.</p>
 <div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># colour only the "Old value" column</span></span>
 <span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
@@ -826,12 +904,12 @@ behaves unexpectedly - the plain <code>.xlsx</code> log is completely
 unaffected.</p>
 <p>Every argument of <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> works here too
 (<code>color_mode</code>, <code>color_columns</code>,
-<code>column_for_color</code>, <code>group_by_uuid</code>,
-<code>skip_label_row</code>, the fonts, and so on), with one exception:
-<code>include_dataset</code> is forced to <code>TRUE</code>, because
-without the <code>dataset</code> sheet there is nothing for the macro to
-watch. An <code>.xlsx</code> extension is corrected to
-<code>.xlsm</code> with a message.</p>
+<code>column_for_color</code>, <code>group_by</code>,
+<code>flag_columns</code>, <code>skip_label_row</code>, the fonts, and
+so on), with one exception: <code>include_dataset</code> is forced to
+<code>TRUE</code>, because without the <code>dataset</code> sheet there
+is nothing for the macro to watch. An <code>.xlsx</code> extension is
+corrected to <code>.xlsm</code> with a message.</p>
 <div class="section level3">
 <h3 id="what-an-edit-produces">What an edit produces<a class="anchor" aria-label="anchor" href="#what-an-edit-produces"></a>
 </h3>
