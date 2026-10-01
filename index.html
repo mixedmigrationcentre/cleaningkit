@@ -491,6 +491,116 @@
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="reviewing-the-follow-up-workbook">Reviewing the Follow-up Workbook<a class="anchor" aria-label="anchor" href="#reviewing-the-follow-up-workbook"></a>
+</h3>
+<p><code><a href="reference/create_review_workbook.html">cleaningkit::create_review_workbook()</a></code> leaves one file in <code>output/follow_ups/</code>, named <code>&lt;date&gt;_follow-ups.xlsm</code>. That file is what goes to the reviewer, and everything the next stage reads comes back in the same file — so work in it directly, keep the sheet names as they are, and save it under a name ending in <code>_follow-ups_edited.xlsm</code> when you are done. Its <code>readme</code> sheet repeats the essentials below, so a reviewer who did not read this guide still has the codes to hand.</p>
+<div class="section level4">
+<h4 id="before-you-start-enable-the-macros">Before you start: enable the macros<a class="anchor" aria-label="anchor" href="#before-you-start-enable-the-macros"></a>
+</h4>
+<p>The workbook is macro-enabled. Open it and click <strong>Enable Content</strong> on the yellow bar at the top; if the file came by email, right-click it first, choose <strong>Properties</strong>, tick <strong>Unblock</strong>, and reopen. The macro is what links the two sheets: whenever you change a value on the <code>dataset</code> sheet, a matching row is appended to <code>cleaning_log</code> by itself, with the uuid, the question, and the old and new values already filled in. Without macros enabled those edits are silently lost, so check the bar before touching anything.</p>
+</div>
+<div class="section level4">
+<h4 id="the-cleaning_log-sheet">The <code>cleaning_log</code> sheet<a class="anchor" aria-label="anchor" href="#the-cleaning_log-sheet"></a>
+</h4>
+<p>One row per flagged value. Each row tells you which survey (<code>uuid</code>), which question, what the respondent answered (<code>old_value</code>) and why it was flagged (<code>issue</code>). Work through it row by row:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Read the <code>issue</code></strong> to see what the check objected to, and look at <code>old_value</code> next to it.</li>
+<li>
+<strong>Cross-check on the <code>dataset</code> sheet</strong> if the row alone is not enough — find the same uuid and read the rest of that interview around it.</li>
+<li>
+<strong>Decide and record the action</strong> in the <strong>Action taken</strong> column, using the drop-down.</li>
+<li>
+<strong>Fill in <code>new_value</code></strong> whenever the action changes the data — <code>recoded</code> and <code>addition</code> both need one. Leave it blank for the actions that do not.</li>
+<li>
+<strong>Add a note in <code>Comments</code></strong> where the decision is not obvious, especially for <code>other</code> and <code>discard</code>.</li>
+</ol>
+<p>The six codes in the <strong>Action taken</strong> drop-down are:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Code</th>
+<th>What it means</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>recoded</code></td>
+<td>A change to a data point, e.g. remove a comma, correct a typo, change a reported age</td>
+</tr>
+<tr>
+<td><code>delete_data_point</code></td>
+<td>The single data point is deleted</td>
+</tr>
+<tr>
+<td><code>discard</code></td>
+<td>The whole survey is dropped</td>
+</tr>
+<tr>
+<td><code>addition</code></td>
+<td>Something added to the raw data, e.g. filling in an empty cell</td>
+</tr>
+<tr>
+<td><code>no_action</code></td>
+<td>No change — the value stays as it is</td>
+</tr>
+<tr>
+<td><code>other</code></td>
+<td>A change that none of the codes above describes; explain it in <code>Comments</code>
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A blank Action taken is read as <code>no_action</code>.</strong> You only have to fill in the rows that need a change; everything you leave untouched is carried through unchanged. There is no need to type <code>no_action</code> into hundreds of rows.</p>
+</div>
+<div class="section level4">
+<h4 id="the-dataset-sheet">The <code>dataset</code> sheet<a class="anchor" aria-label="anchor" href="#the-dataset-sheet"></a>
+</h4>
+<p>This is the checked dataset, with the flag columns moved to the front so you can filter on them: <strong>duration</strong>, <strong>completeness</strong>, <strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong>. Each one carries the flag for every survey, so you can filter to see only the interviews a given check objected to, or sort by one to see how a flagged survey compares with the rest. Use it to put a cleaning-log row in context before deciding on it — and remember that any value you edit here is appended to <code>cleaning_log</code> automatically by the macro.</p>
+</div>
+<div class="section level4">
+<h4 id="the-other_responses-sheet">The <code>other_responses</code> sheet<a class="anchor" aria-label="anchor" href="#the-other_responses-sheet"></a>
+</h4>
+<p>One row per free-text “other, please specify” answer, with the response itself and the choices the respondent selected in the parent question. Five columns are yours to fill in, and the drop-downs are backed by the hidden <code>Dropdown_values</code> sheet:</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Column</th>
+<th>What to put there</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Input translation or improved text</strong></td>
+<td>A translation, or a cleaned-up version of what the respondent said</td>
+</tr>
+<tr>
+<td><strong>Correct to existing answer option</strong></td>
+<td>Pick the choice from the tool that the answer really belongs to, when it is one that already exists</td>
+</tr>
+<tr>
+<td><strong>Invalid other</strong></td>
+<td>Mark the response as not usable</td>
+</tr>
+<tr>
+<td><strong>Comment from IM</strong></td>
+<td>A note or question back to the field team</td>
+</tr>
+<tr>
+<td><strong>Response from field team</strong></td>
+<td>The field team’s reply</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Leave a row’s columns blank and that response is ignored</strong> — it stays exactly as the respondent gave it. As with the cleaning log, only the rows you actually touch have any effect.</p>
+<p>If anything here is unclear, the <code>readme</code> sheet inside the workbook spells out what each sheet is for and lists the action codes again; this README is the fuller reference for how the two fit into the round.</p>
+</div>
+</div>
+<div class="section level3">
 <h3 id="apply-cleaning">Apply Cleaning<a class="anchor" aria-label="anchor" href="#apply-cleaning"></a>
 </h3>
 <p>Once the cleaning logs and other responses have been reviewed and edited, you can apply these changes to produce the final clean dataset.</p>

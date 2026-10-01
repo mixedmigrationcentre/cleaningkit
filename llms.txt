@@ -527,6 +527,97 @@ cleaningkit::create_review_workbook(
 )
 ```
 
+### Reviewing the Follow-up Workbook
+
+[`cleaningkit::create_review_workbook()`](reference/create_review_workbook.md)
+leaves one file in `output/follow_ups/`, named `<date>_follow-ups.xlsm`.
+That file is what goes to the reviewer, and everything the next stage
+reads comes back in the same file — so work in it directly, keep the
+sheet names as they are, and save it under a name ending in
+`_follow-ups_edited.xlsm` when you are done. Its `readme` sheet repeats
+the essentials below, so a reviewer who did not read this guide still
+has the codes to hand.
+
+#### Before you start: enable the macros
+
+The workbook is macro-enabled. Open it and click **Enable Content** on
+the yellow bar at the top; if the file came by email, right-click it
+first, choose **Properties**, tick **Unblock**, and reopen. The macro is
+what links the two sheets: whenever you change a value on the `dataset`
+sheet, a matching row is appended to `cleaning_log` by itself, with the
+uuid, the question, and the old and new values already filled in.
+Without macros enabled those edits are silently lost, so check the bar
+before touching anything.
+
+#### The `cleaning_log` sheet
+
+One row per flagged value. Each row tells you which survey (`uuid`),
+which question, what the respondent answered (`old_value`) and why it
+was flagged (`issue`). Work through it row by row:
+
+1.  **Read the `issue`** to see what the check objected to, and look at
+    `old_value` next to it.
+2.  **Cross-check on the `dataset` sheet** if the row alone is not
+    enough — find the same uuid and read the rest of that interview
+    around it.
+3.  **Decide and record the action** in the **Action taken** column,
+    using the drop-down.
+4.  **Fill in `new_value`** whenever the action changes the data —
+    `recoded` and `addition` both need one. Leave it blank for the
+    actions that do not.
+5.  **Add a note in `Comments`** where the decision is not obvious,
+    especially for `other` and `discard`.
+
+The six codes in the **Action taken** drop-down are:
+
+| Code | What it means |
+|----|----|
+| `recoded` | A change to a data point, e.g. remove a comma, correct a typo, change a reported age |
+| `delete_data_point` | The single data point is deleted |
+| `discard` | The whole survey is dropped |
+| `addition` | Something added to the raw data, e.g. filling in an empty cell |
+| `no_action` | No change — the value stays as it is |
+| `other` | A change that none of the codes above describes; explain it in `Comments` |
+
+**A blank Action taken is read as `no_action`.** You only have to fill
+in the rows that need a change; everything you leave untouched is
+carried through unchanged. There is no need to type `no_action` into
+hundreds of rows.
+
+#### The `dataset` sheet
+
+This is the checked dataset, with the flag columns moved to the front so
+you can filter on them: **duration**, **completeness**, **refused**,
+**back to back** and **similarity**. Each one carries the flag for every
+survey, so you can filter to see only the interviews a given check
+objected to, or sort by one to see how a flagged survey compares with
+the rest. Use it to put a cleaning-log row in context before deciding on
+it — and remember that any value you edit here is appended to
+`cleaning_log` automatically by the macro.
+
+#### The `other_responses` sheet
+
+One row per free-text “other, please specify” answer, with the response
+itself and the choices the respondent selected in the parent question.
+Five columns are yours to fill in, and the drop-downs are backed by the
+hidden `Dropdown_values` sheet:
+
+| Column | What to put there |
+|----|----|
+| **Input translation or improved text** | A translation, or a cleaned-up version of what the respondent said |
+| **Correct to existing answer option** | Pick the choice from the tool that the answer really belongs to, when it is one that already exists |
+| **Invalid other** | Mark the response as not usable |
+| **Comment from IM** | A note or question back to the field team |
+| **Response from field team** | The field team’s reply |
+
+**Leave a row’s columns blank and that response is ignored** — it stays
+exactly as the respondent gave it. As with the cleaning log, only the
+rows you actually touch have any effect.
+
+If anything here is unclear, the `readme` sheet inside the workbook
+spells out what each sheet is for and lists the action codes again; this
+README is the fuller reference for how the two fit into the round.
+
 ### Apply Cleaning
 
 Once the cleaning logs and other responses have been reviewed and
