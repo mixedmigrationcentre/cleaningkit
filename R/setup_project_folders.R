@@ -43,7 +43,6 @@ setup_project_folders <- function(
   # ---- standard folders ----
   standard_folders <- c(
     "data",
-    "raw_data_cleaning",
     "resources",
     "output",
     "output/follow_ups",
