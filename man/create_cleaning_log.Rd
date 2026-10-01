@@ -123,8 +123,7 @@ row: column names supply \strong{Question number} and that first row supplies
 \strong{Question text}. \strong{Date} and \strong{Enumerator} are looked up per interview
 from \code{date_column} and \code{enumerator_column}. The remaining reviewer columns
 (\strong{New value}, \strong{Identified by}, \strong{Action taken}, \strong{Comments},
-\strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
-be completed during review.
+\strong{PO feedback}) are left blank to be completed during review.
 
 The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
 \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
@@ -137,6 +136,13 @@ to the drop-down, which still offers the six codes above.
 \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 headers stay visible while a reviewer scrolls right and down.
+
+\strong{Tab order.} A reviewer meets the raw data first, so the tabs are ordered
+\code{dataset}, \code{cleaning_log}, \code{readme} (and, in
+\code{\link{create_review_workbook}}, \code{other_responses} between the log and the
+readme, with \code{Dropdown_values} last). Only the visible order changes: the sheets
+keep their internal positions, and everything that finds a sheet - the macro,
+\code{\link{read_cleaning_log}}, \code{\link{read_other_responses}} - does so by name.
 
 \strong{Row order.} The combined log arrives stacked check by check, so rows that belong
 together are scattered down the sheet. By default the reviewer log is regrouped by

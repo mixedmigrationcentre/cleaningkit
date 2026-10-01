@@ -505,7 +505,7 @@ cleaningkit::create_review_workbook(
 
 ### Reviewing the Follow-up Workbook
 
-`cleaningkit::create_review_workbook()` leaves one file in
+`cleaningkit::create_review_workbook()` leaves one file in The tabs are in the order you work through them: `dataset`, `cleaning_log`, `other_responses`, `readme`, `Dropdown_values`.
 `output/follow_ups/`, named `<date>_follow-ups.xlsm`. That file is what
 goes to the reviewer, and everything the next stage reads comes back in
 the same file — so work in it directly, keep the sheet names as they
@@ -523,6 +523,17 @@ sheet, a matching row is appended to `cleaning_log` by itself, with the
 uuid, the question, and the old and new values already filled in.
 Without macros enabled those edits are silently lost, so check the bar
 before touching anything.
+
+#### The `dataset` sheet
+
+This is the checked dataset, with the flag columns moved to the front so
+you can filter on them: **duration**, **completeness**, **refused**,
+**back to back** and **similarity**. Each one carries the flag for every
+survey, so you can filter to see only the interviews a given check
+objected to, or sort by one to see how a flagged survey compares with
+the rest. Use it to put a cleaning-log row in context before deciding on
+it — and remember that any value you edit here is appended to
+`cleaning_log` automatically by the macro.
 
 #### The `cleaning_log` sheet
 
@@ -558,17 +569,6 @@ The six codes in the **Action taken** drop-down are:
 in the rows that need a change; everything you leave untouched is
 carried through unchanged. There is no need to type `no_action` into
 hundreds of rows.
-
-#### The `dataset` sheet
-
-This is the checked dataset, with the flag columns moved to the front so
-you can filter on them: **duration**, **completeness**, **refused**,
-**back to back** and **similarity**. Each one carries the flag for every
-survey, so you can filter to see only the interviews a given check
-objected to, or sort by one to see how a flagged survey compares with
-the rest. Use it to put a cleaning-log row in context before deciding on
-it — and remember that any value you edit here is appended to
-`cleaning_log` automatically by the macro.
 
 #### The `other_responses` sheet
 

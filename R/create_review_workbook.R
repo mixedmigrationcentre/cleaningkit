@@ -5,25 +5,27 @@
 #' reads one file instead of two.
 #'
 #' @details
-#' \strong{The sheets.} In the order they are written:
+#' \strong{The sheets.} In the order a reviewer sees them:
 #' \describe{
+#'   \item{\code{dataset}}{The checked dataset with the flag block in front.
+#'     First, because it is where a keep-or-discard decision is actually made.}
 #'   \item{\code{cleaning_log}}{One row per flagged value. Exactly what
 #'     \code{create_cleaning_log()} produces.}
-#'   \item{\code{dataset}}{The checked dataset with the flag block in front.}
-#'   \item{\code{readme}}{The guide, extended to cover the other-responses
-#'     sheet and its three review columns.}
-#'   \item{\code{validation_rules}}{Hidden. Source of the \code{Action taken}
-#'     drop-down.}
 #'   \item{\code{other_responses}}{The other text responses to review. Exactly
 #'     what \code{save_other_responses()} produces, on a named sheet rather
 #'     than \code{Sheet1}.}
+#'   \item{\code{readme}}{The guide, extended to cover the other-responses
+#'     sheet and its three review columns.}
 #'   \item{\code{Dropdown_values}}{Source of the other-responses drop-downs.}
+#'   \item{\code{validation_rules}}{Hidden. Source of the \code{Action taken}
+#'     drop-down.}
 #'   \item{\code{_ck_config}}{Very hidden, \code{.xlsm} only. The macro's
-#'     configuration.}
+#'     configuration, and the last sheet in the workbook.}
 #' }
-#' The tabs are not reordered, so the visible order a reviewer sees is
-#' \code{cleaning_log}, \code{dataset}, \code{readme}, \code{other_responses},
-#' \code{Dropdown_values}.
+#' The tabs are put in this order by \code{ck_order_worksheets()} once every
+#' sheet has been written. Only the visible order changes - the sheets keep
+#' their internal positions, and the macro and both readers address them by
+#' name.
 #'
 #' \strong{Two styling regimes, deliberately.} The log and dataset sheets carry
 #' the MMC header and Arial Narrow body styling; the other-responses sheet
@@ -259,6 +261,16 @@ create_review_workbook <- function(
     )
   }
 
+  # ---- tab order ----
+  # Applied here as well as inside create_cleaning_log(), because the two
+  # other-responses sheets were added after that call and openxlsx puts a new
+  # worksheet at the end of the order. The .xlsm route re-applies it once more
+  # after _ck_config, which is why that sheet still ends up last.
+  ck_order_worksheets(
+    workbook,
+    ck_tab_order(cleaning_log_name, other_sheet_name, other_dropdown_sheet)
+  )
+
   # ---- write it out ----
   out_dir <- dirname(output_path)
   if (nzchar(out_dir) && !dir.exists(out_dir)) {
@@ -283,6 +295,8 @@ create_review_workbook <- function(
         names(write_list[[dataset_name]])
       ),
       vba_project = resolved_vba,
+      other_sheet_name = other_sheet_name,
+      dropdown_sheet = other_dropdown_sheet,
       caller = "create_review_workbook"
     )
   } else {
