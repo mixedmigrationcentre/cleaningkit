@@ -399,15 +399,16 @@ combined_log <- cleaningkit::create_combined_log(
 #----------------------------------
 # create the review workbook
 #
-# one file for the reviewer, holding both logs:
-#   cleaning_log      the flagged values to act on
+# one file for the reviewer, holding both logs. the tabs come out in the order
+# a reviewer works through them:
 #   dataset           the checked dataset, flag columns in front
-#   readme            what each sheet is for, and the codes to use
+#   cleaning_log      the flagged values to act on
 #   other_responses   the "other" text responses to review
+#   readme            what each sheet is for, and the codes to use
 #   Dropdown_values   backs the other-responses drop-downs
 #
-# pass `other_responses` and `other_db` and the last two sheets are added;
-# leave them out and you get exactly what create_cleaning_log() produced.
+# pass `other_responses` and `other_db` and the other-responses sheets are
+# added; leave them out and you get exactly what create_cleaning_log() produced.
 #
 # the row colours on the cleaning_log sheet are controlled with `color_mode`:
 #   "on"      -> the whole row is coloured by check_binding
