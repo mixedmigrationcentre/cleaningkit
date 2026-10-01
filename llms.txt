@@ -37,6 +37,8 @@ The two files below contain the actual working code for the whole
 workflow. Download them from GitHub (open the file, then use the
 download raw file button) and copy them into your new project directory:
 
+![](reference/figures/examples-download.png)
+
 - [1-cleaning_and_validation.R](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/examples/1-cleaning_and_validation.R)
 - [2-create_clean_data.R](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/examples/2-create_clean_data.R)
 
