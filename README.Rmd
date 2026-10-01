@@ -17,6 +17,17 @@ knitr::opts_chunk$set(
 
 `cleaningkit` is an R package built to help clean and validate survey data (especially Ona surveys).
 
+## Before you start
+
+`cleaningkit` is an R package, so you need two free programs installed, in this order:
+
+* [R](https://cran.r-project.org/) — the language the package runs on
+* [RStudio Desktop](https://posit.co/download/rstudio-desktop/) — the editor you will actually work in
+
+## How the script is organised
+
+The pipeline is a series of functions, and the sections of this guide follow the example script one function at a time. Each one does a single job — flagging short interviews, flagging outliers, building the review workbook — and each has a *Customise* line telling you which arguments to adapt to your own survey. Not every check applies to every survey: to switch one off, select its lines in RStudio and press **Ctrl+Shift+C** (**Cmd+Shift+C** on macOS), which comments them out. Pressing it again brings them back, so you never have to delete anything. Remember to comment out the matching entry in `list_of_log_all` further down as well.
+
 ## Installation
 
 ```r
@@ -30,17 +41,9 @@ pak::pak("mixedmigrationcentre/cleaningkit")
 
 Open RStudio and go to **File > New Project...** to open the New Project Wizard.
 
-Choose **New Directory**:
-
-![](man/figures/new-project-step-2.png)
-
-Choose **New Project**:
-
-![](man/figures/new-project-step-1.png)
-
-Type a project name (1), **Browse...** to the folder where the project should sit (2), then click **Create Project** (3):
-
-![](man/figures/new-project-step-3.png)
+| Choose **New Directory**: | Choose **New Project**: | Type a project name (1), **Browse...** to the folder where the project should sit (2), then click **Create Project** (3): |
+|:--:|:--:|:--:|
+| ![](man/figures/new-project-step-2.png) | ![](man/figures/new-project-step-1.png) | ![](man/figures/new-project-step-3.png) |
 
 ### 2. Add the example scripts
 
@@ -55,23 +58,39 @@ The two files below contain the actual working code for the whole workflow. Down
 
 Before running any other functions, you need to run `load_packages()`. This ensures that all required dependencies for `cleaningkit` are installed and loaded properly.
 
+*Customise:* `base_path` is the project root (`here::here()` keeps it portable) and `extra_folders` adds any site-specific folders. `setup_project_folders()` also copies `logical_checklist.xlsx` into `resources/` — pass `copy_templates = FALSE` to skip that, or `templates` to copy it under a different name.
+
 ```r
 library(cleaningkit)
-load_packages()
+cleaningkit::load_packages()
 
 # create project folders (run once)
-setup_project_folders(
+cleaningkit::setup_project_folders(
   base_path = here::here(),
   extra_folders = NULL # any site-specific extras
 )
 ```
 
+This creates the folder structure the rest of the pipeline reads from and writes to. Two folders hold what you put in, three hold what comes out:
+
+| Folder | In / out | What lives there |
+|---|---|---|
+| `data/` | input | The raw ONA export for the round. `filter_new_records()` also keeps its archive and its `processed_uuids.csv` ledger here. |
+| `resources/` | input | The XLSForm tool (`tool.xlsx`) and the logical checks (`logical_checklist.xlsx`, copied in for you). |
+| `output/` | output | Anything the pipeline writes that is not a follow-up or a final file. |
+| `output/follow_ups/` | output | One review workbook per validation round — the cleaning log and other responses that go out for review, and the edited file that comes back. |
+| `output/final/` | output | The final clean dataset, written at the end by `export_final_output()`. |
+
+Only `data/` and `resources/` need anything from you. Everything under `output/` is created by the pipeline, so there is no need to put files there by hand.
+
 ### Preparing the Data for a New Validation Round
+
+*Customise:* `data_folder` and `output_name` if your exports do not live at `./data/data.xlsx`; `uuid_column` if the id column is not `_uuid`; `use_ledger = FALSE` to compare only against the previous file instead of the running ledger; `archive = FALSE` to leave the inputs where they are.
 
 ```r
 # reduces a cumulative ONA export to the records collected since the last
 # validation round, and writes them to data/data.xlsx
-filter_new_records(
+cleaningkit::filter_new_records(
   data_folder = "./data",
   uuid_column = "_uuid",
   skip_label_row = TRUE,
@@ -87,9 +106,9 @@ Skip this step for the first round, or when the whole dataset is being validated
 
 The package provides a suite of `validate_*` functions to run various data quality checks. Each function returns a list containing the checked dataset and a log of flagged issues.
 
-```r
-library(cleaningkit)
+*Customise:* the two paths — the XLSForm at `./resources/tool.xlsx` and the export at `./data/data.xlsx`. Every `validate_*` function below takes `skip_label_row = TRUE` because ONA exports carry a label row; set it to `FALSE` for an export that has none.
 
+```r
 # read the tool, then the raw data
 tool_survey  <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
 tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
@@ -100,7 +119,24 @@ raw_data <- cleaningkit::read_raw_data(
 )
 ```
 
+## Creating "Other" Responses
+
+This step collects every free-text answer given to an “other, please specify” question into one sheet, so the reviewer can read each one and decide whether it should be recoded into an existing choice or kept as it is.
+
+*Customise:* `extra_columns` for the extra columns the reviewer should see next to each "other" response (enumerator, country, …), and `questions` to restrict the output to specific `_other` questions. `save_location` only matters on the standalone route.
+
+```r
+# Prepare the other responses dataframe
+other_responses_df <- cleaningkit::prepare_other_responses(
+  raw_data = raw_data,
+  other_db = other_db,
+  tool_choices = choices_sheet
+)
+```
+
 **`validate_duration()`** - flags surveys shorter or longer than the expected interview length.
+
+*Customise:* `lower_bound` and `upper_bound` in minutes, to match how long your interview actually takes; `flag_above_upper = TRUE` to log over-long interviews as well (off by default, they are usually legitimate); `column_to_check` if your duration column is not `_duration`.
 
 ```r
 duration_log <- cleaningkit::validate_duration(
@@ -116,6 +152,8 @@ duration_log <- cleaningkit::validate_duration(
 
 **`validate_completeness()`** - flags surveys with fewer than the given number of answered questions (metadata columns are ignored).
 
+*Customise:* `min_content_cells` — roughly the number of questions a complete interview answers, so set it from your own tool; `metadata_cols` to change which columns are ignored when counting answers.
+
 ```r
 completeness_log <- cleaningkit::validate_completeness(
   dataset = raw_data,
@@ -127,6 +165,8 @@ completeness_log <- cleaningkit::validate_completeness(
 ```
 
 **`validate_refused()`** - flags surveys with too many "Refused" answers.
+
+*Customise:* `max_refused` for how many refusals a survey may contain, and `refused_value` if your tool labels the option something other than `"Refused"`.
 
 ```r
 refused_log <- cleaningkit::validate_refused(
@@ -140,6 +180,8 @@ refused_log <- cleaningkit::validate_refused(
 ```
 
 **`validate_back_to_back()`** - flags interviews by the same enumerator with a gap shorter than the threshold.
+
+*Customise:* `threshold_hours` and `threshold_mins` for the smallest acceptable gap between two interviews; `enumerator_column`, `start_column` and `end_column` for your tool's column names; `gap_from` for which timestamps the gap is measured between.
 
 ```r
 back_to_back_log <- cleaningkit::validate_back_to_back(
@@ -158,6 +200,8 @@ back_to_back_log <- cleaningkit::validate_back_to_back(
 
 **`validate_country_of_interview()`** - flags respondents interviewed in their own country of nationality or journey start.
 
+*Customise:* the three question codes — `country_interview_col`, `nationality_col` and `journey_start_col`. These are 4Mi codes and will be different in any other tool.
+
 ```r
 country_of_interview_log <- cleaningkit::validate_country_of_interview(
   dataset = raw_data,
@@ -171,6 +215,8 @@ country_of_interview_log <- cleaningkit::validate_country_of_interview(
 ```
 
 **`validate_interview_time()`** - flags interviews conducted outside plausible hours of the day.
+
+*Customise:* `earliest_hour` and `latest_hour` for the hours interviewing is plausible in your context; `time_column` for your timestamp; `flag_missing = TRUE` to also log surveys with no time recorded.
 
 ```r
 interview_time_log <- cleaningkit::validate_interview_time(
@@ -187,6 +233,8 @@ interview_time_log <- cleaningkit::validate_interview_time(
 
 **`validate_similar_surveys()`** - groups the data by enumerator and flags surveys that are suspiciously similar to each other.
 
+*Customise:* `threshold` — the lower the number, the stricter the check; `idnk_value` to match your tool's "Don't know" label; `enumerator_column` for your column name; `return_all_results = TRUE` to get a row for every survey rather than only the flagged ones.
+
 ```r
 similar_surveys_log <- raw_data |>
   cleaningkit::validate_similar_surveys(
@@ -198,30 +246,24 @@ similar_surveys_log <- raw_data |>
   )
 ```
 
-**`validate_similar_questions()`** - flags questions where an enumerator keeps recording the same answer.
+**`validate_outliers()`** - looks through every integer question for outliers. Set `columns_to_check = c("Q141_3")` to check specific questions only.
 
-```r
-similar_questions_log <- raw_data |>
-  cleaningkit::validate_similar_questions(
-    questions_to_check = c("Q161_1", "Q162_1", "Q152_1", "P2P18_1")
-  )
-```
-
-**`validate_outliers()`** - looks through every integer question for outliers. Set `columns_to_check = c("Q141_3")` to check one question only.
+*Customise:* `columns_to_check` to check named integer questions only (drop it to scan them all); `strongness_factor` to loosen or tighten what counts as an outlier; `min_unique_values` to skip near-constant questions; `columns_to_skip` to exclude questions you do not want checked.
 
 ```r
 outliers_log <- raw_data |>
   cleaningkit::validate_outliers(
-    columns_to_check = NULL,
+    columns_to_check = c("QN7_a"),
     tool_survey = tool_survey,
-    strongness_factor = 3,
+    strongness_factor = 2,
     min_unique_values = 5,
-    remove_sm_binary = TRUE, # skip the 0/1 select_multiple columns
     sm_separator = "/"
   )
 ```
 
 **`validate_interview_location()`** - flags a missing GPS point, or one that falls outside the claimed country or too far from the claimed city. Needs {rnaturalearthdata} and an internet connection (cities are geocoded once via OpenStreetMap).
+
+*Customise:* `country_question` and `city_question` for your tool; `city_radius_km` for how far from the claimed city still counts as acceptable; `check_country`, `check_city` and `flag_missing_gps` to switch individual checks off; `lat_column`, `lon_column` and `location_column` if your GPS columns are named differently.
 
 ```r
 interview_location_log <- cleaningkit::validate_interview_location(
@@ -245,6 +287,8 @@ interview_location_log <- cleaningkit::validate_interview_location(
 
 **`validate_logical_with_list()`** - runs the checks written in the Excel checklist (see the next section).
 
+*Customise:* nothing in this call — the checks themselves are the thing you edit, and they live in `resources/logical_checklist.xlsx` (see the next section). Only change the path here if you renamed the checklist, and the four `*_column` arguments if you renamed its columns.
+
 ```r
 logical_list <- openxlsx::read.xlsx("./resources/logical_checklist_example.xlsx", sheet = 1)
 
@@ -264,17 +308,7 @@ Logical checks are the consistency rules of the questionnaire — the "this answ
 
 **Where to find the template.** A ready-made checklist containing the standard MMC core checks ships with the package. Copy it into your project's `resources/` folder and edit it there:
 
-```r
-# where the template lives on your machine
-template_path <- system.file(
-  "extdata", "logical_checklist_example.xlsx", package = "cleaningkit"
-)
-
-# copy it into your project so you can edit it
-file.copy(template_path, "./resources/logical_checks_mmc.xlsx")
-```
-
-You can also browse it on GitHub under [`inst/extdata/logical_checklist_example.xlsx`](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx).
+You can also browse it on GitHub under [`inst/extdata/logical_checklist.xlsx`](https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist.xlsx).
 
 **How the checklist is structured.** Each row is one check. Four columns are read by the function (`module` is optional and only helps you organise the sheet):
 
@@ -308,10 +342,10 @@ str_detect(Q78, fixed("Natural disaster or environmental factors")) & Q86_a == "
 **Running the checks.**
 
 ```r
-logical_list <- openxlsx::read.xlsx("./resources/logical_checks_mmc.xlsx", sheet = 1)
+logical_list <- openxlsx::read.xlsx("./resources/logical_checklist.xlsx", sheet = 1)
 
 logical_check_log <- raw_data |>
-  validate_logical_with_list(
+  cleaningkit::validate_logical_with_list(
     list_of_check = logical_list,
     check_id_column = "check_id",
     check_to_perform_column = "check_to_perform",
@@ -326,11 +360,11 @@ logical_check_log$logical_log
 table(logical_check_log$checked_dataset$check_01)
 ```
 
-By default all checks are stacked into a single `logical_log`. Set `bind_checks = FALSE` to store each check in its own log named after its `check_id` (`logical_check_log$check_01`), which is useful when a single check needs to be inspected on its own. If a check is written badly the function stops and prints both the `check_id` and the offending expression, so you know exactly which row of the Excel sheet to fix.
-
 ### Combining and Exporting Logs
 
 After running the validation checks, you can combine all the individual logs and save them into an Excel file for review and follow-up:
+
+*Customise:* `list_of_log_all` — drop any log you did not run and add any you did. On the workbook: `vba = TRUE` writes a macro-enabled `.xlsm` that appends edits to the cleaning log, `color_mode` and `color_columns` control the highlighting, `group_by` sets the column the log is sorted by, and `output_path` sets the file name. Leave out `other_responses` and `other_db` to produce the cleaning log on its own.
 
 ```r
 #----------------------------------
@@ -344,8 +378,6 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
-  similar_surveys_log,
-  similar_questions_log,
   outliers_log,
   logical_check_log
 )
@@ -379,56 +411,38 @@ cleaningkit::create_review_workbook(
 )
 ```
 
-### Creating Other Responses
-
-```r
-# Prepare the other responses dataframe
-other_responses_df <- prepare_other_responses(
-  raw_data = raw_data,
-  other_db = other_db,
-  tool_choices = choices_sheet
-)
-
-# Usual route: pass it to create_review_workbook() - see above
-
-# Or a standalone file for review
-save_other_responses(
-  df = other_responses_df,
-  other_db = other_db,
-  save_location = "output"
-)
-```
-
 ### Apply Cleaning
 
 Once the cleaning logs and other responses have been reviewed and edited, you can apply these changes to produce the final clean dataset.
+
+*Customise:* `path` on `read_cleaning_log()` and `read_other_responses()` — both point at the folder holding the reviewed workbook, normally `output/follow_ups/` — and `output_path` on `export_final_output()` for the final file name.
 
 ```r
 #----------------------------------
 # apply cleaning
 #----------------------------------
-cleaning_log <- read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
-evaluated_log <- evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
-cleaned_data_list <- apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
+cleaning_log <- cleaningkit::read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
+evaluated_log <- cleaningkit::evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
+cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
 
 # the same reviewed workbook - each reader finds its own sheet by name
-other_log <- read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
-cleaned_data_list <- apply_other_responses(dataset = cleaned_data_list$clean_dataset, other_log = other_log)
+other_log <- cleaningkit::read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
+cleaned_data_list <- cleaningkit::apply_other_responses(dataset = cleaned_data_list$clean_dataset, other_log = other_log)
 
 #----------------------------------
 # combine cleaning logs
 #----------------------------------
-final_log <- combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
+final_log <- cleaningkit::combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
 
 #----------------------------------
 # review clean dataset
 #----------------------------------
-review_log <- review_cleaned_data(raw_dataset = raw_data, clean_dataset = cleaned_data_list$dataset, cleaning_log = final_log)
+review_log <- cleaningkit::review_cleaned_data(raw_dataset = raw_data, clean_dataset = cleaned_data_list$dataset, cleaning_log = final_log)
 
 #----------------------------------
 # create final workbook
 #----------------------------------
-export_final_output(
+cleaningkit::export_final_output(
   raw_dataset = raw_data,
   clean_dataset = cleaned_data_list$dataset,
   combined_log = final_log,

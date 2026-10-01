@@ -111,6 +111,15 @@
 #' unreadable the function falls back to the plain two-file comparison and says
 #' so.
 #'
+#' \strong{The first round.} A folder holding a single export and no ledger is
+#' the normal state of the very first validation round: there is nothing to
+#' compare against, so there is nothing to filter. The function does not treat
+#' this as an error. It renames the export to \code{output_name} (unless
+#' \code{rename_single_file = FALSE}) so the rest of the pipeline finds it at
+#' the usual path, reports that the filtering step was skipped, and returns with
+#' \code{filtered = FALSE}. Nothing is archived, deleted or written to the
+#' ledger, so the call can safely be repeated.
+#'
 #' \strong{Safety.} Nothing is removed until the filtered output has been built
 #' successfully, and nothing is removed at all if the filtering leaves zero new
 #' records - that usually means the same export was downloaded twice. With
@@ -144,11 +153,19 @@
 #'   removed from \code{data_folder}. If \code{FALSE} they are deleted outright.
 #' @param archive_folder Name of the archive sub-folder inside
 #'   \code{data_folder}. Default \code{"archive"}. Created if it does not exist.
+#' @param rename_single_file Logical. Only used on the first round, when
+#'   \code{data_folder} holds a single export and there is no ledger to compare
+#'   it against. If \code{TRUE} (the default), that file is renamed to
+#'   \code{output_name} so \code{read_raw_data()} finds it at the usual path.
+#'   Set to \code{FALSE} to leave the file name untouched.
 #' @param verbose Logical. If \code{TRUE} (the default), progress messages are
 #'   printed showing how many records were read, dropped and kept.
 #'
 #' @return Invisibly, a list with:
 #' \describe{
+#'   \item{\code{filtered}}{\code{TRUE} when records were actually filtered out,
+#'     \code{FALSE} when the step was skipped because there was nothing to
+#'     compare against (see \emph{The first round} above).}
 #'   \item{\code{data}}{The filtered dataset as written, label row included.}
 #'   \item{\code{output_path}}{Path of the written file.}
 #'   \item{\code{new_export}}{File name treated as the new ONA export.}
@@ -193,6 +210,7 @@ filter_new_records <- function(
   ledger_name = "processed_uuids.csv",
   archive = TRUE,
   archive_folder = "archive",
+  rename_single_file = TRUE,
   verbose = TRUE
 ) {
   # ---- argument checks ----
@@ -237,6 +255,9 @@ filter_new_records <- function(
   }
   if (!is.logical(archive) || length(archive) != 1) {
     stop("`archive` must be TRUE or FALSE.")
+  }
+  if (!is.logical(rename_single_file) || length(rename_single_file) != 1) {
+    stop("`rename_single_file` must be TRUE or FALSE.")
   }
 
   ledger_path <- file.path(data_folder, ledger_name)
@@ -332,18 +353,83 @@ filter_new_records <- function(
   } else {
     new_idx <- 1L
     prev_idx <- integer(0)
+
+    # ---- first round: one export and nothing to compare it against ----
+    # this is the normal state of the very first validation round, not an
+    # error. the file is renamed to `output_name` so read_raw_data() finds it
+    # at the usual path, and the function returns without archiving, deleting
+    # or writing to the ledger - so the call can safely be repeated.
     if (!use_ledger || !file.exists(ledger_path)) {
-      stop(
-        "Only one Excel file found in ",
-        data_folder,
-        " (",
-        input_files,
-        ") and no usable ledger at ",
-        ledger_path,
-        ". Add the previous round's file to the folder, or set use_ledger = TRUE",
-        " once a ledger exists."
-      )
+      single_file <- input_files[1]
+      single_path <- input_paths[1]
+      final_path <- single_path
+
+      if (rename_single_file && !identical(single_file, output_name)) {
+        if (file.exists(output_path)) {
+          stop(
+            "Cannot rename ",
+            single_file,
+            " to ",
+            output_name,
+            ": a file of that name already exists in ",
+            data_folder,
+            "."
+          )
+        }
+        if (!file.rename(single_path, output_path)) {
+          stop(
+            "Could not rename ",
+            single_path,
+            " to ",
+            output_path,
+            ". Rename it by hand, or set rename_single_file = FALSE."
+          )
+        }
+        final_path <- output_path
+      }
+
+      if (verbose) {
+        cat(crayon::yellow(paste0(
+          "--> only one export in ",
+          data_folder,
+          " and no ledger at ",
+          ledger_path,
+          ";\n",
+          "    nothing to compare against, so no records were filtered\n"
+        )))
+        if (!identical(basename(final_path), single_file)) {
+          cat(crayon::green(paste0(
+            "--> RENAMED  --> ",
+            single_file,
+            " --> ",
+            basename(final_path),
+            "\n"
+          )))
+        }
+        cat(crayon::green(paste0(
+          "--> READY    --> ",
+          final_path,
+          " --> ",
+          n_records[[1]],
+          " record(s) \n"
+        )))
+      }
+
+      return(invisible(list(
+        filtered = FALSE,
+        data = datasets[[1]],
+        output_path = final_path,
+        new_export = single_file,
+        previous_file = NA_character_,
+        n_new_export = n_records[[1]],
+        n_previous = 0,
+        n_dropped = 0,
+        n_kept = n_records[[1]],
+        archived_files = character(0),
+        ledger_path = if (use_ledger) ledger_path else NA_character_
+      )))
     }
+
     if (verbose) {
       cat(crayon::yellow(paste0(
         "--> only one export found; filtering against the ledger alone\n"
@@ -571,6 +657,7 @@ filter_new_records <- function(
   }
 
   invisible(list(
+    filtered = TRUE,
     data = filtered,
     output_path = output_path,
     new_export = input_files[new_idx],
