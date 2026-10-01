@@ -11,6 +11,14 @@ cleaningkit::load_packages()
 #----------------------------------
 # Setup project folders
 # Run once
+#
+# CUSTOMISE: base_path is the project root - here::here() keeps it portable.
+# extra_folders adds any site-specific folders, e.g. c("output/archive").
+# this call also copies logical_checklist.xlsx into resources/ - use
+# copy_templates = FALSE to skip it, or
+# templates = c("logical_checklist.xlsx" = "resources/my_checks.xlsx")
+# to copy it under a different name. an existing file is never overwritten
+# unless overwrite_templates = TRUE
 #----------------------------------
 
 setup_project_folders(
@@ -20,6 +28,10 @@ setup_project_folders(
 
 #----------------------------------
 # Read tool data
+#
+# CUSTOMISE: the path to your XLSForm. both functions read the same file -
+# read_tool_survey() the `survey` sheet, read_tool_choices() the `choices`
+# sheet
 #----------------------------------
 
 tool_survey <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
@@ -29,6 +41,10 @@ tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
 # create other response db
 # in case other label has not been picked up, use
 # the argument other_text_types = c("Q31_2") and add the "other" question that was missed
+#
+# CUSTOMISE: other_text_types on get_other_labels() - add any "other" text
+# question the tool did not detect automatically. nothing else here is
+# survey-specific
 #----------------------------------
 
 other_labels <- cleaningkit::get_other_labels(
@@ -56,6 +72,11 @@ other_db <- cleaningkit::get_other_db(
 # rounds cannot come back from the third round onwards
 # skip this section for the first round, or when the whole dataset is being
 # validated in one go
+#
+# CUSTOMISE: data_folder and output_name if your exports do not live at
+# ./data/data.xlsx; uuid_column if the id column is not "_uuid";
+# use_ledger = FALSE to compare only against the previous file instead of
+# the running ledger; archive = FALSE to leave the inputs where they are
 #----------------------------------
 
 cleaningkit::filter_new_records(
@@ -73,6 +94,10 @@ cleaningkit::filter_new_records(
 
 #----------------------------------
 # Read raw data
+#
+# CUSTOMISE: filename - the export to validate. this is the file
+# filter_new_records() just wrote, or your full export if you skipped
+# that step
 #----------------------------------
 
 raw_data <- cleaningkit::read_raw_data(
@@ -96,6 +121,10 @@ raw_data <- cleaningkit::read_raw_data(
 #   )
 # the result is written into the same workbook as the cleaning log further
 # down, by create_review_workbook() - there is no separate file any more
+#
+# CUSTOMISE: questions to restrict the output to specific "other" questions
+# (leave it out for all of them), and extra_columns for the columns the
+# reviewer should see next to each response, e.g. c("username", "Q13")
 #----------------------------------
 
 df <- cleaningkit::prepare_other_responses(
@@ -112,6 +141,10 @@ df <- cleaningkit::prepare_other_responses(
 # surveys longer than upper_bound are NOT flagged by default - long interviews
 # are usually legitimate and only inflate the log - set flag_above_upper = TRUE
 # to log those as well
+#
+# CUSTOMISE: lower_bound and upper_bound in minutes, to match how long your
+# interview actually takes; flag_above_upper; column_to_check if your
+# duration column is not "_duration"
 #----------------------------------
 
 duration_log <- cleaningkit::validate_duration(
@@ -132,6 +165,10 @@ duration_log <- cleaningkit::validate_duration(
 #   "uuid","_uuid","id","_id","submission_time","_submission_time",
 #   "index","_index","df_name")
 # pass your own metadata_cols to change that list
+#
+# CUSTOMISE: min_content_cells - roughly the number of questions a complete
+# interview answers, so set it from your own tool; metadata_cols to change
+# which columns are ignored in the count
 #----------------------------------
 
 completeness_log <- cleaningkit::validate_completeness(
@@ -145,6 +182,10 @@ completeness_log <- cleaningkit::validate_completeness(
 #----------------------------------
 # validate refused
 # flags any surveys that have more than 6 "Refused" be default
+#
+# CUSTOMISE: max_refused for how many refusals a survey may contain, and
+# refused_value if your tool labels the option something other than
+# "Refused"
 #----------------------------------
 
 refused_log <- cleaningkit::validate_refused(
@@ -159,6 +200,11 @@ refused_log <- cleaningkit::validate_refused(
 #----------------------------------
 # validate back to back interviews
 # flags any interviews from the same enumerator if they are 10 mins apart by default
+#
+# CUSTOMISE: threshold_hours and threshold_mins for the smallest acceptable
+# gap between two interviews by the same enumerator; enumerator_column,
+# start_column and end_column for your tool's column names; gap_from for
+# which timestamps the gap is measured between
 #----------------------------------
 
 back_to_back_log <- cleaningkit::validate_back_to_back(
@@ -177,6 +223,10 @@ back_to_back_log <- cleaningkit::validate_back_to_back(
 #----------------------------------
 # validate country of interview
 # flags if the respondent is being interviewed in their country of nationality
+#
+# CUSTOMISE: the three question codes - country_interview_col,
+# nationality_col and journey_start_col. these are 4Mi codes and will be
+# different in any other tool
 #----------------------------------
 
 country_of_interview_log <- cleaningkit::validate_country_of_interview(
@@ -193,6 +243,10 @@ country_of_interview_log <- cleaningkit::validate_country_of_interview(
 # validate time of interview
 # flags the earliest and latest times of interview
 # by default earliest hour is 5am and latest hour is 10pm
+#
+# CUSTOMISE: earliest_hour and latest_hour for the hours interviewing is
+# plausible in your context; time_column for your timestamp column;
+# flag_missing = TRUE to also log surveys with no time recorded
 #----------------------------------
 
 interview_time_log <- cleaningkit::validate_interview_time(
@@ -209,6 +263,11 @@ interview_time_log <- cleaningkit::validate_interview_time(
 #----------------------------------
 # validate similar surveys
 # groups data by enumerator and checks surveys which are similar
+#
+# CUSTOMISE: threshold - the lower the number, the stricter the check;
+# idnk_value to match your tool's "Don't know" label; enumerator_column for
+# your column name; return_all_results = TRUE for a row per survey rather
+# than only the flagged ones
 #----------------------------------
 # similar_surveys_log <- raw_data %>%
 #   cleaningkit::validate_similar_surveys(
@@ -227,6 +286,11 @@ interview_time_log <- cleaningkit::validate_interview_time(
 # looks through all integer questions and checks for any outliers
 # or checks on specific columns
 # add columns_to_check = c("QN7_a") with you integer question to check for only that question
+#
+# CUSTOMISE: columns_to_check to check named integer questions only (drop it
+# to scan them all); strongness_factor to loosen or tighten what counts as
+# an outlier; min_unique_values to skip near-constant questions;
+# columns_to_skip to exclude questions you do not want checked
 #----------------------------------
 outliers_log <- raw_data %>%
   cleaningkit::validate_outliers(
@@ -245,6 +309,12 @@ outliers_log <- raw_data %>%
 # the country check needs the {rnaturalearthdata} package, and the city
 # check geocodes each unique city + country pair once via OpenStreetMap
 # (Nominatim), so an internet connection is required
+#
+# CUSTOMISE: country_question and city_question for your tool;
+# city_radius_km for how far from the claimed city still counts as
+# acceptable; check_country, check_city and flag_missing_gps to switch
+# individual checks off; lat_column, lon_column and location_column if your
+# GPS columns are named differently
 #----------------------------------
 
 interview_location_log <- cleaningkit::validate_interview_location(
@@ -271,6 +341,11 @@ interview_location_log <- cleaningkit::validate_interview_location(
 # reads the logical excel sheets and uses that for validating the survey
 # a ready-made template of the checklist ships with the package, see:
 # system.file("extdata", "logical_checklist.xlsx", package = "cleaningkit")
+#
+# CUSTOMISE: nothing in this call - the checks themselves are what you edit,
+# and they live in ./resources/logical_checklist.xlsx (one row per check).
+# change the path below only if you renamed the checklist, and the four
+# *_column arguments only if you renamed its columns
 #----------------------------------
 logical_list <- read.xlsx(
   "./resources/logical_checklist.xlsx",
@@ -288,6 +363,9 @@ logical_check_log <- raw_data %>%
 
 #----------------------------------
 # combine logs
+#
+# CUSTOMISE: the list below - drop any log you did not run, and add any you
+# did. the names must match the objects created above
 #----------------------------------
 
 list_of_log_all <- c(
@@ -334,6 +412,12 @@ combined_log <- cleaningkit::create_combined_log(
 # flag_columns puts the check flags at the front of the `dataset` sheet, so a
 # reviewer can filter on them; group_by = "issue" sets the column the log is
 # sorted and coloured by
+#
+# CUSTOMISE: vba for the file type, color_mode and color_columns for the
+# highlighting, group_by for how the log is sorted, output_path for the file
+# name, and other_enumerator_id for the enumerator column on the
+# other-responses sheet. drop other_responses and other_db to produce the
+# cleaning log on its own
 #----------------------------------
 
 cleaningkit::create_review_workbook(

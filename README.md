@@ -41,6 +41,12 @@ Before running any other functions, you need to run `load_packages()`.
 This ensures that all required dependencies for `cleaningkit` are
 installed and loaded properly.
 
+*Customise:* `base_path` is the project root (`here::here()` keeps it
+portable) and `extra_folders` adds any site-specific folders.
+`setup_project_folders()` also copies `logical_checklist.xlsx` into
+`resources/` — pass `copy_templates = FALSE` to skip that, or
+`templates` to copy it under a different name.
+
 ``` r
 library(cleaningkit)
 load_packages()
@@ -53,6 +59,12 @@ setup_project_folders(
 ```
 
 ### Preparing the Data for a New Validation Round
+
+*Customise:* `data_folder` and `output_name` if your exports do not live
+at `./data/data.xlsx`; `uuid_column` if the id column is not `_uuid`;
+`use_ledger = FALSE` to compare only against the previous file instead
+of the running ledger; `archive = FALSE` to leave the inputs where they
+are.
 
 ``` r
 # reduces a cumulative ONA export to the records collected since the last
@@ -76,6 +88,11 @@ The package provides a suite of `validate_*` functions to run various
 data quality checks. Each function returns a list containing the checked
 dataset and a log of flagged issues.
 
+*Customise:* the two paths — the XLSForm at `./resources/tool.xlsx` and
+the export at `./data/data.xlsx`. Every `validate_*` function below
+takes `skip_label_row = TRUE` because ONA exports carry a label row; set
+it to `FALSE` for an export that has none.
+
 ``` r
 library(cleaningkit)
 
@@ -92,6 +109,12 @@ raw_data <- cleaningkit::read_raw_data(
 **`validate_duration()`** - flags surveys shorter or longer than the
 expected interview length.
 
+*Customise:* `lower_bound` and `upper_bound` in minutes, to match how
+long your interview actually takes; `flag_above_upper = TRUE` to log
+over-long interviews as well (off by default, they are usually
+legitimate); `column_to_check` if your duration column is not
+`_duration`.
+
 ``` r
 duration_log <- cleaningkit::validate_duration(
   dataset = raw_data,
@@ -107,6 +130,11 @@ duration_log <- cleaningkit::validate_duration(
 **`validate_completeness()`** - flags surveys with fewer than the given
 number of answered questions (metadata columns are ignored).
 
+*Customise:* `min_content_cells` — roughly the number of questions a
+complete interview answers, so set it from your own tool;
+`metadata_cols` to change which columns are ignored when counting
+answers.
+
 ``` r
 completeness_log <- cleaningkit::validate_completeness(
   dataset = raw_data,
@@ -119,6 +147,10 @@ completeness_log <- cleaningkit::validate_completeness(
 
 **`validate_refused()`** - flags surveys with too many “Refused”
 answers.
+
+*Customise:* `max_refused` for how many refusals a survey may contain,
+and `refused_value` if your tool labels the option something other than
+`"Refused"`.
 
 ``` r
 refused_log <- cleaningkit::validate_refused(
@@ -133,6 +165,11 @@ refused_log <- cleaningkit::validate_refused(
 
 **`validate_back_to_back()`** - flags interviews by the same enumerator
 with a gap shorter than the threshold.
+
+*Customise:* `threshold_hours` and `threshold_mins` for the smallest
+acceptable gap between two interviews; `enumerator_column`,
+`start_column` and `end_column` for your tool's column names; `gap_from`
+for which timestamps the gap is measured between.
 
 ``` r
 back_to_back_log <- cleaningkit::validate_back_to_back(
@@ -152,6 +189,10 @@ back_to_back_log <- cleaningkit::validate_back_to_back(
 **`validate_country_of_interview()`** - flags respondents interviewed in
 their own country of nationality or journey start.
 
+*Customise:* the three question codes — `country_interview_col`,
+`nationality_col` and `journey_start_col`. These are 4Mi codes and will
+be different in any other tool.
+
 ``` r
 country_of_interview_log <- cleaningkit::validate_country_of_interview(
   dataset = raw_data,
@@ -166,6 +207,11 @@ country_of_interview_log <- cleaningkit::validate_country_of_interview(
 
 **`validate_interview_time()`** - flags interviews conducted outside
 plausible hours of the day.
+
+*Customise:* `earliest_hour` and `latest_hour` for the hours
+interviewing is plausible in your context; `time_column` for your
+timestamp; `flag_missing = TRUE` to also log surveys with no time
+recorded.
 
 ``` r
 interview_time_log <- cleaningkit::validate_interview_time(
@@ -183,6 +229,11 @@ interview_time_log <- cleaningkit::validate_interview_time(
 **`validate_similar_surveys()`** - groups the data by enumerator and
 flags surveys that are suspiciously similar to each other.
 
+*Customise:* `threshold` — the lower the number, the stricter the check;
+`idnk_value` to match your tool's "Don't know" label;
+`enumerator_column` for your column name; `return_all_results = TRUE` to
+get a row for every survey rather than only the flagged ones.
+
 ``` r
 similar_surveys_log <- raw_data |>
   cleaningkit::validate_similar_surveys(
@@ -197,6 +248,12 @@ similar_surveys_log <- raw_data |>
 **`validate_outliers()`** - looks through every integer question for
 outliers. Set `columns_to_check = c("Q141_3")` to check specific
 questions only.
+
+*Customise:* `columns_to_check` to check named integer questions only
+(drop it to scan them all); `strongness_factor` to loosen or tighten
+what counts as an outlier; `min_unique_values` to skip near-constant
+questions; `columns_to_skip` to exclude questions you do not want
+checked.
 
 ``` r
 outliers_log <- raw_data |>
@@ -213,6 +270,12 @@ outliers_log <- raw_data |>
 that falls outside the claimed country or too far from the claimed city.
 Needs {rnaturalearthdata} and an internet connection (cities are
 geocoded once via OpenStreetMap).
+
+*Customise:* `country_question` and `city_question` for your tool;
+`city_radius_km` for how far from the claimed city still counts as
+acceptable; `check_country`, `check_city` and `flag_missing_gps` to
+switch individual checks off; `lat_column`, `lon_column` and
+`location_column` if your GPS columns are named differently.
 
 ``` r
 interview_location_log <- cleaningkit::validate_interview_location(
@@ -236,6 +299,11 @@ interview_location_log <- cleaningkit::validate_interview_location(
 
 **`validate_logical_with_list()`** - runs the checks written in the
 Excel checklist (see the next section).
+
+*Customise:* nothing in this call — the checks themselves are the thing
+you edit, and they live in `resources/logical_checklist.xlsx` (see the
+next section). Only change the path here if you renamed the checklist,
+and the four `*_column` arguments if you renamed its columns.
 
 ``` r
 logical_list <- openxlsx::read.xlsx("./resources/logical_checklist_example.xlsx", sheet = 1)
@@ -326,6 +394,13 @@ table(logical_check_log$checked_dataset$check_01)
 After running the validation checks, you can combine all the individual
 logs and save them into an Excel file for review and follow-up:
 
+*Customise:* `list_of_log_all` — drop any log you did not run and add
+any you did. On the workbook: `vba = TRUE` writes a macro-enabled
+`.xlsm` that appends edits to the cleaning log, `color_mode` and
+`color_columns` control the highlighting, `group_by` sets the column the
+log is sorted by, and `output_path` sets the file name. Leave out
+`other_responses` and `other_db` to produce the cleaning log on its own.
+
 ``` r
 #----------------------------------
 # combine logs
@@ -373,6 +448,11 @@ cleaningkit::create_review_workbook(
 
 ### Creating Other Responses
 
+*Customise:* `extra_columns` for the extra columns the reviewer should
+see next to each "other" response (enumerator, country, …), and
+`questions` to restrict the output to specific `_other` questions.
+`save_location` only matters on the standalone route.
+
 ``` r
 # Prepare the other responses dataframe
 other_responses_df <- prepare_other_responses(
@@ -395,6 +475,11 @@ save_other_responses(
 
 Once the cleaning logs and other responses have been reviewed and
 edited, you can apply these changes to produce the final clean dataset.
+
+*Customise:* `path` on `read_cleaning_log()` and
+`read_other_responses()` — both point at the folder holding the reviewed
+workbook, normally `output/follow_ups/` — and `output_path` on
+`export_final_output()` for the final file name.
 
 ``` r
 #----------------------------------
