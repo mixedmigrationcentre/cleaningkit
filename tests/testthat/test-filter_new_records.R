@@ -122,9 +122,14 @@ test_that("nothing is touched when the same export is downloaded twice", {
   make_export(file.path(dd, "same.xlsx"), paste0("u", 1:8))
   before <- sort(list.files(dd))
 
-  expect_error(
-    filter_new_records(data_folder = dd, verbose = FALSE),
-    "No new records"
+  # both files hold the same number of records, so the most recently
+  # modified one is picked as the new export - with a warning
+  expect_warning(
+    expect_error(
+      filter_new_records(data_folder = dd, verbose = FALSE),
+      "No new records"
+    ),
+    "most recently modified"
   )
   expect_equal(sort(list.files(dd)), before)
 })
@@ -188,6 +193,73 @@ test_that("equal record counts fall back to the most recent file", {
   expect_equal(res$n_kept, 1)
 })
 
+test_that("a first round with one export and no ledger is not an error", {
+  dd <- withr::local_tempdir()
+  make_export(file.path(dd, "round1.xlsx"), paste0("f", 1:3))
+
+  res <- filter_new_records(data_folder = dd, verbose = FALSE)
+
+  expect_false(res$filtered)
+  expect_equal(res$n_kept, 3)
+  expect_equal(res$n_dropped, 0)
+  expect_true(is.na(res$previous_file))
+
+  # renamed, so read_raw_data() finds it at the usual path
+  expect_equal(list.files(dd), "data.xlsx")
+  expect_equal(res$output_path, file.path(dd, "data.xlsx"))
+
+  # the records themselves are untouched, label row included
+  out <- read_output(file.path(dd, "data.xlsx"))
+  expect_equal(nrow(out), 4)
+  expect_equal(out[["_uuid"]][-1], paste0("f", 1:3))
+
+  # nothing archived, deleted or written to the ledger
+  expect_false(file.exists(file.path(dd, "processed_uuids.csv")))
+  expect_false(dir.exists(file.path(dd, "archive")))
+})
+
+test_that("the first round can be run twice without side effects", {
+  dd <- withr::local_tempdir()
+  make_export(file.path(dd, "round1.xlsx"), paste0("g", 1:4))
+
+  filter_new_records(data_folder = dd, verbose = FALSE)
+  res <- filter_new_records(data_folder = dd, verbose = FALSE)
+
+  expect_false(res$filtered)
+  expect_equal(res$new_export, "data.xlsx")
+  expect_equal(res$n_kept, 4)
+  expect_equal(list.files(dd), "data.xlsx")
+})
+
+test_that("rename_single_file = FALSE leaves the export name alone", {
+  dd <- withr::local_tempdir()
+  make_export(file.path(dd, "keep_me.xlsx"), paste0("h", 1:2))
+
+  res <- filter_new_records(
+    data_folder = dd,
+    rename_single_file = FALSE,
+    verbose = FALSE
+  )
+
+  expect_false(res$filtered)
+  expect_equal(list.files(dd), "keep_me.xlsx")
+  expect_equal(res$output_path, file.path(dd, "keep_me.xlsx"))
+})
+
+test_that("a single export is still filtered when a ledger exists", {
+  dd <- withr::local_tempdir()
+  make_export(file.path(dd, "round1.xlsx"), paste0("k", 1:5))
+  make_export(file.path(dd, "round2.xlsx"), paste0("k", 1:8))
+  filter_new_records(data_folder = dd, verbose = FALSE)
+  file.remove(file.path(dd, "data.xlsx"))
+
+  make_export(file.path(dd, "round3.xlsx"), paste0("k", 1:10))
+  res <- filter_new_records(data_folder = dd, verbose = FALSE)
+
+  expect_true(res$filtered)
+  expect_equal(res$n_kept, 2)
+})
+
 test_that("bad inputs are rejected with a clear message", {
   dd <- withr::local_tempdir()
 
@@ -198,7 +270,6 @@ test_that("bad inputs are rejected with a clear message", {
   expect_error(filter_new_records(data_folder = dd), "No Excel files found")
 
   make_export(file.path(dd, "a.xlsx"), paste0("y", 1:3))
-  expect_error(filter_new_records(data_folder = dd), "Only one Excel file")
   expect_error(
     filter_new_records(data_folder = dd, uuid_column = "nope"),
     "not found in"

@@ -14,6 +14,7 @@ filter_new_records(
   ledger_name = "processed_uuids.csv",
   archive = TRUE,
   archive_folder = "archive",
+  rename_single_file = TRUE,
   verbose = TRUE
 )
 }
@@ -49,12 +50,21 @@ removed from \code{data_folder}. If \code{FALSE} they are deleted outright.}
 \item{archive_folder}{Name of the archive sub-folder inside
 \code{data_folder}. Default \code{"archive"}. Created if it does not exist.}
 
+\item{rename_single_file}{Logical. Only used on the first round, when
+\code{data_folder} holds a single export and there is no ledger to compare
+it against. If \code{TRUE} (the default), that file is renamed to
+\code{output_name} so \code{read_raw_data()} finds it at the usual path.
+Set to \code{FALSE} to leave the file name untouched.}
+
 \item{verbose}{Logical. If \code{TRUE} (the default), progress messages are
 printed showing how many records were read, dropped and kept.}
 }
 \value{
 Invisibly, a list with:
 \describe{
+\item{\code{filtered}}{\code{TRUE} when records were actually filtered out,
+\code{FALSE} when the step was skipped because there was nothing to
+compare against (see \emph{The first round} above).}
 \item{\code{data}}{The filtered dataset as written, label row included.}
 \item{\code{output_path}}{Path of the written file.}
 \item{\code{new_export}}{File name treated as the new ONA export.}
@@ -99,6 +109,15 @@ it processed. The csv is ignored when the function looks for input files, so
 it can live in \code{data/} without interfering. If the ledger is deleted or
 unreadable the function falls back to the plain two-file comparison and says
 so.
+
+\strong{The first round.} A folder holding a single export and no ledger is
+the normal state of the very first validation round: there is nothing to
+compare against, so there is nothing to filter. The function does not treat
+this as an error. It renames the export to \code{output_name} (unless
+\code{rename_single_file = FALSE}) so the rest of the pipeline finds it at
+the usual path, reports that the filtering step was skipped, and returns with
+\code{filtered = FALSE}. Nothing is archived, deleted or written to the
+ledger, so the call can safely be repeated.
 
 \strong{Safety.} Nothing is removed until the filtered output has been built
 successfully, and nothing is removed at all if the filtering leaves zero new

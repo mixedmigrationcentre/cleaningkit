@@ -6,6 +6,28 @@
 `cleaningkit` is an R package built to help clean and validate survey
 data (especially Ona surveys).
 
+## Before you start
+
+`cleaningkit` is an R package, so you need two free programs installed,
+in this order:
+
+- [R](https://cran.r-project.org/) — the language the package runs on
+- [RStudio Desktop](https://posit.co/download/rstudio-desktop/) — the
+  editor you will actually work in
+
+## How the script is organised
+
+The pipeline is a series of functions, and the sections of this guide
+follow the example script one function at a time. Each one does a single
+job — flagging short interviews, flagging outliers, building the review
+workbook — and each has a *Customise* line telling you which arguments
+to adapt to your own survey. Not every check applies to every survey: to
+switch one off, select its lines in RStudio and press **Ctrl+Shift+C**
+(**Cmd+Shift+C** on macOS), which comments them out. Pressing it again
+brings them back, so you never have to delete anything. Remember to
+comment out the matching entry in `list_of_log_all` further down as
+well.
+
 ## Installation
 
 ``` r
@@ -168,7 +190,7 @@ with a gap shorter than the threshold.
 
 *Customise:* `threshold_hours` and `threshold_mins` for the smallest
 acceptable gap between two interviews; `enumerator_column`,
-`start_column` and `end_column` for your tool's column names; `gap_from`
+`start_column` and `end_column` for your tool’s column names; `gap_from`
 for which timestamps the gap is measured between.
 
 ``` r
@@ -230,7 +252,7 @@ interview_time_log <- cleaningkit::validate_interview_time(
 flags surveys that are suspiciously similar to each other.
 
 *Customise:* `threshold` — the lower the number, the stricter the check;
-`idnk_value` to match your tool's "Don't know" label;
+`idnk_value` to match your tool’s “Don’t know” label;
 `enumerator_column` for your column name; `return_all_results = TRUE` to
 get a row for every survey rather than only the flagged ones.
 
@@ -449,7 +471,7 @@ cleaningkit::create_review_workbook(
 ### Creating Other Responses
 
 *Customise:* `extra_columns` for the extra columns the reviewer should
-see next to each "other" response (enumerator, country, …), and
+see next to each “other” response (enumerator, country, …), and
 `questions` to restrict the output to specific `_other` questions.
 `save_location` only matters on the standalone route.
 

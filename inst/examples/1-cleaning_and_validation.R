@@ -73,10 +73,17 @@ other_db <- cleaningkit::get_other_db(
 # skip this section for the first round, or when the whole dataset is being
 # validated in one go
 #
+# the first round needs no filtering: with a single export and no ledger
+# there is nothing to compare against, so filter_new_records() renames that
+# file to data.xlsx, says the step was skipped and returns - it no longer
+# errors, and the call can safely be left in the script from round one
+#
 # CUSTOMISE: data_folder and output_name if your exports do not live at
 # ./data/data.xlsx; uuid_column if the id column is not "_uuid";
 # use_ledger = FALSE to compare only against the previous file instead of
-# the running ledger; archive = FALSE to leave the inputs where they are
+# the running ledger; archive = FALSE to leave the inputs where they are;
+# rename_single_file = FALSE to keep the original file name on the first
+# round
 #----------------------------------
 
 cleaningkit::filter_new_records(
@@ -89,15 +96,18 @@ cleaningkit::filter_new_records(
   ledger_name = "processed_uuids.csv",
   archive = TRUE,
   archive_folder = "archive",
+  rename_single_file = TRUE,
   verbose = TRUE
 )
 
 #----------------------------------
 # Read raw data
 #
-# CUSTOMISE: filename - the export to validate. this is the file
-# filter_new_records() just wrote, or your full export if you skipped
-# that step
+# the file filter_new_records() left in ./data - the new records on a later
+# round, the renamed export on the first one
+#
+# CUSTOMISE: filename, if your export lives somewhere else or you changed
+# output_name above
 #----------------------------------
 
 raw_data <- cleaningkit::read_raw_data(
