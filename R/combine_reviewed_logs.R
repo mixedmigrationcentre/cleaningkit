@@ -55,11 +55,11 @@
 #'
 #' @return A single dataframe in the \code{create_cleaning_log()} column shape,
 #'   with the other-response rows appended after the main cleaning log rows.
-#'   Columns: \code{Date}, \code{Survey UUID}, \code{Survey Registration Date},
-#'   \code{Enumerator}, \code{Section}, \code{Question number},
-#'   \code{Question text}, \code{Issue}, \code{Old value}, \code{Action taken},
-#'   \code{New value}, \code{Identified by}, \code{Comments},
-#'   \code{PO feedback}, \code{check_binding}.
+#'   Columns: \code{Date}, \code{Survey UUID}, \code{Enumerator},
+#'   \code{Question number}, \code{Question text}, \code{Issue},
+#'   \code{Old value}, \code{Action taken}, \code{New value},
+#'   \code{Identified by}, \code{Comments}, \code{PO feedback},
+#'   \code{check_binding}.
 #' @export
 combine_reviewed_logs <- function(
   main_log,
@@ -227,9 +227,7 @@ combine_reviewed_logs <- function(
     stringsAsFactors = FALSE,
     "Date" = lkp(date_lookup, or_uuids),
     "Survey UUID" = or_uuids,
-    "Survey Registration Date" = NA_character_,
     "Enumerator" = lkp(enum_lookup, or_uuids),
-    "Section" = NA_character_,
     "Question number" = or_questions,
     "Question text" = unname(label_lookup[or_questions]),
     "Issue" = or_issue,

@@ -486,14 +486,17 @@ combined_log <- cleaningkit::create_combined_log(
 the "other" text responses into a **single** file, so a reviewer opens one
 workbook and the second stage reads one file.
 
+The tabs appear in the order a reviewer works through them — the raw data
+first, then the log, then the other responses:
+
 | Sheet | What it is |
 |---|---|
-| `cleaning_log` | One row per flagged value. The reviewer fills in **Action taken** and **New value**. |
 | `dataset` | The checked dataset, with the check-flag columns in front. |
-| `readme` | What each sheet is for, and the **Action taken** codes. |
-| `validation_rules` | Hidden. Backs the **Action taken** drop-down. |
+| `cleaning_log` | One row per flagged value. The reviewer fills in **Action taken** and **New value**. |
 | `other_responses` | Every "other" text response to review. |
+| `readme` | What each sheet is for, and the **Action taken** codes. |
 | `Dropdown_values` | Backs the other-responses drop-downs. |
+| `validation_rules` | Hidden. Backs the **Action taken** drop-down. |
 | `_ck_config` | Very hidden, `.xlsm` only. The macro's configuration. |
 
 `vba = FALSE` (the default) writes a plain `.xlsx`. `vba = TRUE` writes a
@@ -629,9 +632,7 @@ each one:
 |---|---|
 | `Date` | `date` |
 | `Survey UUID` | `uuid`, `survey_uuid` |
-| `Survey Registration Date` | `survey_registration_date` |
 | `Enumerator` | `enumerator` |
-| `Section` | `section` |
 | `Question number` | `question`, `question_number` |
 | `Question text` | `question_text` |
 | `Issue` | `issue` |

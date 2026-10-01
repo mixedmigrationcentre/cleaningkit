@@ -53,11 +53,11 @@ when building the date/enumerator lookup and question-text lookup.}
 \value{
 A single dataframe in the \code{create_cleaning_log()} column shape,
 with the other-response rows appended after the main cleaning log rows.
-Columns: \code{Date}, \code{Survey UUID}, \code{Survey Registration Date},
-\code{Enumerator}, \code{Section}, \code{Question number},
-\code{Question text}, \code{Issue}, \code{Old value}, \code{Action taken},
-\code{New value}, \code{Identified by}, \code{Comments},
-\code{PO feedback}, \code{check_binding}.
+Columns: \code{Date}, \code{Survey UUID}, \code{Enumerator},
+\code{Question number}, \code{Question text}, \code{Issue},
+\code{Old value}, \code{Action taken}, \code{New value},
+\code{Identified by}, \code{Comments}, \code{PO feedback},
+\code{check_binding}.
 }
 \description{
 Merges the other-responses cleaning log (from \code{read_other_responses()})

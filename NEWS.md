@@ -1,3 +1,31 @@
+# cleaningkit (development version)
+
+## The follow-up workbook
+* **Two unused columns are gone from the cleaning log**: `Survey Registration
+  Date` and `Section`. Both were written blank and never filled in, by a
+  reviewer or by any function. They are dropped from `create_cleaning_log()`,
+  from `create_cleaning_log_vba()`, from `create_review_workbook()` and from the
+  rows `combine_reviewed_logs()` appends for the other responses. The aliases
+  `survey_registration_date` and `section` no longer resolve to anything in
+  `color_columns` / `group_by`.
+* **The tabs are in reviewer order**: `dataset`, `cleaning_log`,
+  `other_responses`, `readme`, `Dropdown_values`, with the hidden
+  `validation_rules` and the very hidden `_ck_config` behind them. The raw data
+  leads because that is where a keep-or-discard decision is actually made.
+  Only the visible order changed: the sheets keep their internal positions, and
+  the macro, `read_cleaning_log()` and `read_other_responses()` all find their
+  sheet by name.
+* No change to the compiled VBA project &mdash; the macro maps the log's
+  columns from its header row, so it writes to the same headers as before and
+  does not need rebuilding.
+
+### Upgrading
+`read_cleaning_log()` stacks the files it finds and requires them to carry
+identical columns, so a folder holding both an older follow-up file (with the
+two columns) and a newer one will stop with a column mismatch. Finish a round
+with the files it started with, or drop the two columns from the older file by
+hand.
+
 # cleaningkit 2026.08.0
 
 ## One review workbook instead of two

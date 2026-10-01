@@ -272,6 +272,9 @@ create_cleaning_log_vba <- function(
 #' @param ignore_columns Headers on the dataset sheet the macro must not log.
 #' @param vba_project Path to an existing \code{vbaProject.bin}, already
 #'   resolved and checked by the caller.
+#' @param other_sheet_name,dropdown_sheet Names of the other-responses sheets
+#'   when the caller wrote them, so the tab order can place them. Defaults are
+#'   the canonical names; they are simply absent in the log-only workbook.
 #' @param caller Name of the calling function, used in messages.
 #' @param cleaning_log_name,uuid_column,date_column,enumerator_column,macro_issue_prefix,body_front,body_front_size,skip_label_row
 #'   As documented on \code{create_cleaning_log_vba()}.
@@ -291,6 +294,8 @@ create_cleaning_log_vba <- function(
   skip_label_row,
   ignore_columns,
   vba_project,
+  other_sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown"),
   caller = "create_cleaning_log_vba"
 ) {
   dataset_sheet <- ck_sheet_name("dataset")
@@ -328,6 +333,14 @@ create_cleaning_log_vba <- function(
   config_sheet <- ck_sheet_name("config")
   openxlsx::addWorksheet(workbook, config_sheet, visible = "veryHidden")
   openxlsx::writeData(workbook, sheet = config_sheet, config, rowNames = FALSE)
+
+  # Re-applied now that _ck_config exists: it is not named in the tab order, so
+  # it keeps its place behind the sheets that are - which is the end of the
+  # workbook, where it was added.
+  ck_order_worksheets(
+    workbook,
+    ck_tab_order(cleaning_log_name, other_sheet_name, dropdown_sheet)
+  )
 
   # ---- save and inject ----
   if (!grepl("\\.xlsm$", output_path, ignore.case = TRUE)) {

@@ -38,14 +38,9 @@ ck_readme_df <- function(
   }
 
   # ---- what each tab is for ----
+  # Listed in the order the tabs appear (see ck_tab_order()), so the sheet
+  # reads as a walk through the workbook from left to right.
   add("SHEETS IN THIS WORKBOOK")
-  add(
-    cleaning_log_name,
-    paste0(
-      "One row per flagged value. Fill in 'Action taken' and, where the action ",
-      "needs one, 'New value'. Rows that need no change can be left blank."
-    )
-  )
   if (include_dataset) {
     add(
       sheets[["dataset"]],
@@ -58,6 +53,13 @@ ck_readme_df <- function(
       )
     )
   }
+  add(
+    cleaning_log_name,
+    paste0(
+      "One row per flagged value. Fill in 'Action taken' and, where the action ",
+      "needs one, 'New value'. Rows that need no change can be left blank."
+    )
+  )
   if (include_other) {
     add(
       sheets[["other_responses"]],
@@ -69,6 +71,9 @@ ck_readme_df <- function(
         " sheet; they are read straight off this sheet."
       )
     )
+  }
+  add(sheets[["readme"]], "This sheet.")
+  if (include_other) {
     add(
       sheets[["dropdown"]],
       paste0(
@@ -78,7 +83,6 @@ ck_readme_df <- function(
       )
     )
   }
-  add(sheets[["readme"]], "This sheet.")
 
   # ---- the action vocabulary ----
   add("")
@@ -204,11 +208,9 @@ ck_log_column_aliases <- function() {
     "actiontaken" = "Action taken",
     "date" = "Date",
     "enumerator" = "Enumerator",
-    "section" = "Section",
     "identifiedby" = "Identified by",
     "comments" = "Comments",
     "pofeedback" = "PO feedback",
-    "surveyregistrationdate" = "Survey Registration Date",
     "checkbinding" = "check_binding"
   )
 }
@@ -593,8 +595,7 @@ create_formated_wb <- function(
 #' \strong{Question text}. \strong{Date} and \strong{Enumerator} are looked up per interview
 #' from \code{date_column} and \code{enumerator_column}. The remaining reviewer columns
 #' (\strong{New value}, \strong{Identified by}, \strong{Action taken}, \strong{Comments},
-#' \strong{PO feedback}, \strong{Survey Registration Date}, \strong{Section}) are left blank to
-#' be completed during review.
+#' \strong{PO feedback}) are left blank to be completed during review.
 #'
 #' The \strong{Action taken} drop-down and the \code{readme} sheet share these six codes:
 #' \code{recoded}, \code{delete_data_point}, \code{discard}, \code{addition},
@@ -607,6 +608,13 @@ create_formated_wb <- function(
 #' \strong{Column layout.} \strong{Survey UUID} is the first column (column A) and
 #' \strong{Date} the second. Column A and the header row are both frozen, so the uuid and the
 #' headers stay visible while a reviewer scrolls right and down.
+#'
+#' \strong{Tab order.} A reviewer meets the raw data first, so the tabs are ordered
+#' \code{dataset}, \code{cleaning_log}, \code{readme} (and, in
+#' \code{\link{create_review_workbook}}, \code{other_responses} between the log and the
+#' readme, with \code{Dropdown_values} last). Only the visible order changes: the sheets
+#' keep their internal positions, and everything that finds a sheet - the macro,
+#' \code{\link{read_cleaning_log}}, \code{\link{read_other_responses}} - does so by name.
 #'
 #' \strong{Row order.} The combined log arrives stacked check by check, so rows that belong
 #' together are scattered down the sheet. By default the reviewer log is regrouped by
@@ -937,9 +945,7 @@ create_cleaning_log <- function(
     # Survey UUID first so it lands in column A, which is the frozen column
     "Survey UUID" = cl_uuid,
     "Date" = lookup(date_lookup, cl_uuid),
-    "Survey Registration Date" = blank_column,
     "Enumerator" = lookup(enum_lookup, cl_uuid),
-    "Section" = blank_column,
     "Question number" = as.character(cl$question),
     "Question text" = unname(label_lookup[as.character(cl$question)]),
     "Issue" = as.character(cl$issue),
@@ -1001,6 +1007,10 @@ create_cleaning_log <- function(
   )
 
   # ---- order the sheets and build the workbook ----
+  # The sheets are *created* log-first, as they always have been, so the
+  # worksheet parts inside the file and every by-index lookup below keep their
+  # existing positions. Only the tab order a reviewer sees is changed, right at
+  # the end, by ck_order_worksheets().
   out_list <- list()
   out_list[[cleaning_log_name]] <- final_log
   if (include_dataset) {
@@ -1088,6 +1098,13 @@ create_cleaning_log <- function(
     ) |>
       suppressWarnings()
   }
+
+  # ---- tab order ----
+  # Last, after every sheet has been added. create_cleaning_log_vba() and
+  # create_review_workbook() add more sheets to this workbook and re-apply the
+  # order themselves, so the two routes end up with the same tabs in the same
+  # places.
+  ck_order_worksheets(workbook, ck_tab_order(cleaning_log_name))
 
   if (is.null(output_path)) {
     return(workbook)

@@ -301,7 +301,9 @@ test_that("the plain .xlsx path is unchanged", {
 
   expect_true(file.exists(out))
   sheets <- openxlsx::getSheetNames(out)
-  expect_equal(sheets[1], "cleaning_log")
+  # the reviewer meets the raw data first, then the log
+  expect_equal(sheets[1], "dataset")
+  expect_equal(sheets[2], "cleaning_log")
   expect_false("_ck_config" %in% sheets)
 
   ct <- ck_read_part(out, "[Content_Types].xml")
@@ -379,8 +381,8 @@ test_that("the hidden config sheet describes the workbook the macro will see", {
   expect_true("_ck_config" %in% sheets)
   # last, so the positions of the existing sheets do not move
   expect_equal(sheets[length(sheets)], "_ck_config")
-  expect_equal(sheets[1], "cleaning_log")
-  expect_equal(sheets[2], "dataset")
+  expect_equal(sheets[1], "dataset")
+  expect_equal(sheets[2], "cleaning_log")
 
   cfg <- openxlsx::read.xlsx(out, sheet = "_ck_config")
   kv <- stats::setNames(as.character(cfg$value), as.character(cfg$key))

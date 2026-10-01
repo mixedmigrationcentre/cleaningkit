@@ -50,6 +50,73 @@ ck_sheet_name <- function(key) {
   unname(nms[[key]])
 }
 
+#' The tab order a reviewer should meet
+#'
+#' A reviewer opens the workbook on the raw data, decides what to do there, and
+#' only then works through the log, so \code{dataset} leads and
+#' \code{cleaning_log} follows it. \code{other_responses} comes next because it
+#' is the second thing to fill in, \code{readme} after the three working sheets,
+#' and \code{Dropdown_values} last of the visible tabs - it is a source list,
+#' nothing to fill in.
+#'
+#' Sheets not named here (the hidden \code{validation_rules}, \code{_ck_config}
+#' and \code{_ck_ledger}) keep their existing relative order behind the ones
+#' that are, which is what keeps \code{_ck_config} at the end of the workbook.
+#'
+#' @param cleaning_log_name,other_sheet_name,dropdown_sheet The names those
+#'   sheets were actually given, which the caller may have changed.
+#'
+#' @return Character vector of sheet names, in the order the tabs should appear.
+#' @noRd
+ck_tab_order <- function(
+  cleaning_log_name = ck_sheet_name("cleaning_log"),
+  other_sheet_name = ck_sheet_name("other_responses"),
+  dropdown_sheet = ck_sheet_name("dropdown")
+) {
+  c(
+    ck_sheet_name("dataset"),
+    cleaning_log_name,
+    other_sheet_name,
+    ck_sheet_name("readme"),
+    dropdown_sheet
+  )
+}
+
+#' Put the worksheets of a workbook in a given tab order
+#'
+#' Only the display order changes. The sheets keep their creation order
+#' internally, so anything that addresses a sheet by name - the macro, the
+#' readers, \code{sheetVisibility()} - is untouched, and so are the worksheet
+#' parts inside the saved file.
+#'
+#' Call this last, once every sheet has been added: \code{openxlsx} appends each
+#' new worksheet to the order, so a sheet added afterwards would land at the end
+#' regardless of where \code{preferred} wants it.
+#'
+#' @param wb An openxlsx \code{Workbook}.
+#' @param preferred Sheet names in the order they should appear. Names that the
+#'   workbook does not carry are ignored; sheets not named keep their relative
+#'   order behind those that are.
+#'
+#' @return \code{wb}, invisibly. The workbook is modified in place.
+#' @noRd
+ck_order_worksheets <- function(wb, preferred) {
+  present <- names(wb)
+  if (length(present) < 2) {
+    return(invisible(wb))
+  }
+
+  preferred <- as.character(preferred)
+  preferred <- preferred[!is.na(preferred) & nzchar(preferred)]
+
+  front <- match(preferred, present)
+  front <- unique(front[!is.na(front)])
+  back <- setdiff(seq_along(present), front)
+
+  openxlsx::worksheetOrder(wb) <- c(front, back)
+  invisible(wb)
+}
+
 #' Sheet names to look for when reading a reviewed file, best first
 #'
 #' The other-responses sheet was called \code{Sheet1} before the cleaning log

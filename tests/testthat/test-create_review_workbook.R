@@ -154,12 +154,12 @@ test_that("create_review_workbook() writes both logs into one file", {
   expect_identical(
     readxl::excel_sheets(res),
     c(
-      "cleaning_log",
       "dataset",
-      "readme",
-      "validation_rules",
+      "cleaning_log",
       "other_responses",
-      "Dropdown_values"
+      "readme",
+      "Dropdown_values",
+      "validation_rules"
     )
   )
 })
@@ -389,12 +389,12 @@ test_that("the macro workbook keeps _ck_config last and points at the right shee
   expect_identical(
     sheets,
     c(
-      "cleaning_log",
       "dataset",
-      "readme",
-      "validation_rules",
+      "cleaning_log",
       "other_responses",
+      "readme",
       "Dropdown_values",
+      "validation_rules",
       "_ck_config"
     )
   )
@@ -476,12 +476,22 @@ test_that("both sets of drop-downs survive in one workbook", {
 
   dir <- withr::local_tempdir()
   utils::unzip(out, exdir = dir)
-  read_part <- function(n) {
-    f <- file.path(dir, "xl", "worksheets", n)
-    readChar(f, file.info(f)$size, useBytes = TRUE)
-  }
 
-  # sheet1 is cleaning_log, sheet5 is other_responses
-  expect_true(grepl("validation_rules", read_part("sheet1.xml"), fixed = TRUE))
-  expect_true(grepl("Dropdown_values", read_part("sheet5.xml"), fixed = TRUE))
+  # Searched across every worksheet part rather than by part number: the tabs
+  # are reordered before saving, and which sheetN.xml holds which sheet is not
+  # something this test is about. One part must point at each validation
+  # source - the log's `Action taken` list and the other-responses drop-downs.
+  parts <- list.files(
+    file.path(dir, "xl", "worksheets"),
+    pattern = "\\.xml$",
+    full.names = TRUE
+  )
+  xml <- vapply(
+    parts,
+    function(f) readChar(f, file.info(f)$size, useBytes = TRUE),
+    character(1)
+  )
+
+  expect_true(any(grepl("validation_rules", xml, fixed = TRUE)))
+  expect_true(any(grepl("Dropdown_values", xml, fixed = TRUE)))
 })
