@@ -493,11 +493,16 @@
 <div class="section level3">
 <h3 id="reviewing-the-follow-up-workbook">Reviewing the Follow-up Workbook<a class="anchor" aria-label="anchor" href="#reviewing-the-follow-up-workbook"></a>
 </h3>
-<p><code><a href="reference/create_review_workbook.html">cleaningkit::create_review_workbook()</a></code> leaves one file in <code>output/follow_ups/</code>, named <code>&lt;date&gt;_follow-ups.xlsm</code>. That file is what goes to the reviewer, and everything the next stage reads comes back in the same file — so work in it directly, keep the sheet names as they are, and save it under a name ending in <code>_follow-ups_edited.xlsm</code> when you are done. Its <code>readme</code> sheet repeats the essentials below, so a reviewer who did not read this guide still has the codes to hand.</p>
+<p><code><a href="reference/create_review_workbook.html">cleaningkit::create_review_workbook()</a></code> leaves one file in The tabs are in the order you work through them: <code>dataset</code>, <code>cleaning_log</code>, <code>other_responses</code>, <code>readme</code>, <code>Dropdown_values</code>. <code>output/follow_ups/</code>, named <code>&lt;date&gt;_follow-ups.xlsm</code>. That file is what goes to the reviewer, and everything the next stage reads comes back in the same file — so work in it directly, keep the sheet names as they are, and save it under a name ending in <code>_follow-ups_edited.xlsm</code> when you are done. Its <code>readme</code> sheet repeats the essentials below, so a reviewer who did not read this guide still has the codes to hand.</p>
 <div class="section level4">
 <h4 id="before-you-start-enable-the-macros">Before you start: enable the macros<a class="anchor" aria-label="anchor" href="#before-you-start-enable-the-macros"></a>
 </h4>
 <p>The workbook is macro-enabled. Open it and click <strong>Enable Content</strong> on the yellow bar at the top; if the file came by email, right-click it first, choose <strong>Properties</strong>, tick <strong>Unblock</strong>, and reopen. The macro is what links the two sheets: whenever you change a value on the <code>dataset</code> sheet, a matching row is appended to <code>cleaning_log</code> by itself, with the uuid, the question, and the old and new values already filled in. Without macros enabled those edits are silently lost, so check the bar before touching anything.</p>
+</div>
+<div class="section level4">
+<h4 id="the-dataset-sheet">The <code>dataset</code> sheet<a class="anchor" aria-label="anchor" href="#the-dataset-sheet"></a>
+</h4>
+<p>This is the checked dataset, with the flag columns moved to the front so you can filter on them: <strong>duration</strong>, <strong>completeness</strong>, <strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong>. Each one carries the flag for every survey, so you can filter to see only the interviews a given check objected to, or sort by one to see how a flagged survey compares with the rest. Use it to put a cleaning-log row in context before deciding on it — and remember that any value you edit here is appended to <code>cleaning_log</code> automatically by the macro.</p>
 </div>
 <div class="section level4">
 <h4 id="the-cleaning_log-sheet">The <code>cleaning_log</code> sheet<a class="anchor" aria-label="anchor" href="#the-cleaning_log-sheet"></a>
@@ -554,11 +559,6 @@
 </tbody>
 </table>
 <p><strong>A blank Action taken is read as <code>no_action</code>.</strong> You only have to fill in the rows that need a change; everything you leave untouched is carried through unchanged. There is no need to type <code>no_action</code> into hundreds of rows.</p>
-</div>
-<div class="section level4">
-<h4 id="the-dataset-sheet">The <code>dataset</code> sheet<a class="anchor" aria-label="anchor" href="#the-dataset-sheet"></a>
-</h4>
-<p>This is the checked dataset, with the flag columns moved to the front so you can filter on them: <strong>duration</strong>, <strong>completeness</strong>, <strong>refused</strong>, <strong>back to back</strong> and <strong>similarity</strong>. Each one carries the flag for every survey, so you can filter to see only the interviews a given check objected to, or sort by one to see how a flagged survey compares with the rest. Use it to put a cleaning-log row in context before deciding on it — and remember that any value you edit here is appended to <code>cleaning_log</code> automatically by the macro.</p>
 </div>
 <div class="section level4">
 <h4 id="the-other_responses-sheet">The <code>other_responses</code> sheet<a class="anchor" aria-label="anchor" href="#the-other_responses-sheet"></a>

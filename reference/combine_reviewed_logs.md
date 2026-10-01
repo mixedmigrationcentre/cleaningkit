@@ -81,10 +81,9 @@ combine_reviewed_logs(
 A single dataframe in the
 [`create_cleaning_log()`](create_cleaning_log.md) column shape, with the
 other-response rows appended after the main cleaning log rows. Columns:
-`Date`, `Survey UUID`, `Survey Registration Date`, `Enumerator`,
-`Section`, `Question number`, `Question text`, `Issue`, `Old value`,
-`Action taken`, `New value`, `Identified by`, `Comments`, `PO feedback`,
-`check_binding`.
+`Date`, `Survey UUID`, `Enumerator`, `Question number`, `Question text`,
+`Issue`, `Old value`, `Action taken`, `New value`, `Identified by`,
+`Comments`, `PO feedback`, `check_binding`.
 
 ## Details
 

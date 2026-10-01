@@ -185,8 +185,8 @@ row as its first row: column names supply **Question number** and that
 first row supplies **Question text**. **Date** and **Enumerator** are
 looked up per interview from `date_column` and `enumerator_column`. The
 remaining reviewer columns (**New value**, **Identified by**, **Action
-taken**, **Comments**, **PO feedback**, **Survey Registration Date**,
-**Section**) are left blank to be completed during review.
+taken**, **Comments**, **PO feedback**) are left blank to be completed
+during review.
 
 The **Action taken** drop-down and the `readme` sheet share these six
 codes: `recoded`, `delete_data_point`, `discard`, `addition`,
@@ -203,6 +203,15 @@ offers the six codes above.
 **Date** the second. Column A and the header row are both frozen, so the
 uuid and the headers stay visible while a reviewer scrolls right and
 down.
+
+**Tab order.** A reviewer meets the raw data first, so the tabs are
+ordered `dataset`, `cleaning_log`, `readme` (and, in
+[`create_review_workbook`](create_review_workbook.md), `other_responses`
+between the log and the readme, with `Dropdown_values` last). Only the
+visible order changes: the sheets keep their internal positions, and
+everything that finds a sheet - the macro,
+[`read_cleaning_log`](read_cleaning_log.md),
+[`read_other_responses`](read_other_responses.md) - does so by name.
 
 **Row order.** The combined log arrives stacked check by check, so rows
 that belong together are scattered down the sheet. By default the

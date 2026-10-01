@@ -179,37 +179,39 @@ dataset sheet there is nothing for the macro to watch.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p><strong>The sheets.</strong> In the order they are written:</p><dl><dt><code>cleaning_log</code></dt>
+    <p><strong>The sheets.</strong> In the order a reviewer sees them:</p><dl><dt><code>dataset</code></dt>
+<dd><p>The checked dataset with the flag block in front.
+First, because it is where a keep-or-discard decision is actually made.</p></dd>
+
+<dt><code>cleaning_log</code></dt>
 <dd><p>One row per flagged value. Exactly what
 <code><a href="create_cleaning_log.html">create_cleaning_log()</a></code> produces.</p></dd>
-
-<dt><code>dataset</code></dt>
-<dd><p>The checked dataset with the flag block in front.</p></dd>
-
-<dt><code>readme</code></dt>
-<dd><p>The guide, extended to cover the other-responses
-sheet and its three review columns.</p></dd>
-
-<dt><code>validation_rules</code></dt>
-<dd><p>Hidden. Source of the <code>Action taken</code>
-drop-down.</p></dd>
 
 <dt><code>other_responses</code></dt>
 <dd><p>The other text responses to review. Exactly
 what <code><a href="save_other_responses.html">save_other_responses()</a></code> produces, on a named sheet rather
 than <code>Sheet1</code>.</p></dd>
 
+<dt><code>readme</code></dt>
+<dd><p>The guide, extended to cover the other-responses
+sheet and its three review columns.</p></dd>
+
 <dt><code>Dropdown_values</code></dt>
 <dd><p>Source of the other-responses drop-downs.</p></dd>
 
+<dt><code>validation_rules</code></dt>
+<dd><p>Hidden. Source of the <code>Action taken</code>
+drop-down.</p></dd>
+
 <dt><code>_ck_config</code></dt>
 <dd><p>Very hidden, <code>.xlsm</code> only. The macro's
-configuration.</p></dd>
+configuration, and the last sheet in the workbook.</p></dd>
 
 
-</dl><p>The tabs are not reordered, so the visible order a reviewer sees is
-<code>cleaning_log</code>, <code>dataset</code>, <code>readme</code>, <code>other_responses</code>,
-<code>Dropdown_values</code>.</p>
+</dl><p>The tabs are put in this order by <code>ck_order_worksheets()</code> once every
+sheet has been written. Only the visible order changes - the sheets keep
+their internal positions, and the macro and both readers address them by
+name.</p>
 <p><strong>Two styling regimes, deliberately.</strong> The log and dataset sheets carry
 the MMC header and Arial Narrow body styling; the other-responses sheet
 keeps its own green / green / blue column blocks, which are what tell a

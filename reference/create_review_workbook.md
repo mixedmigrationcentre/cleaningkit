@@ -136,25 +136,17 @@ create_review_workbook(
 
 ## Details
 
-**The sheets.** In the order they are written:
+**The sheets.** In the order a reviewer sees them:
+
+- `dataset`:
+
+  The checked dataset with the flag block in front. First, because it is
+  where a keep-or-discard decision is actually made.
 
 - `cleaning_log`:
 
   One row per flagged value. Exactly what
   [`create_cleaning_log()`](create_cleaning_log.md) produces.
-
-- `dataset`:
-
-  The checked dataset with the flag block in front.
-
-- `readme`:
-
-  The guide, extended to cover the other-responses sheet and its three
-  review columns.
-
-- `validation_rules`:
-
-  Hidden. Source of the `Action taken` drop-down.
 
 - `other_responses`:
 
@@ -162,17 +154,28 @@ create_review_workbook(
   [`save_other_responses()`](save_other_responses.md) produces, on a
   named sheet rather than `Sheet1`.
 
+- `readme`:
+
+  The guide, extended to cover the other-responses sheet and its three
+  review columns.
+
 - `Dropdown_values`:
 
   Source of the other-responses drop-downs.
 
+- `validation_rules`:
+
+  Hidden. Source of the `Action taken` drop-down.
+
 - `_ck_config`:
 
-  Very hidden, `.xlsm` only. The macro's configuration.
+  Very hidden, `.xlsm` only. The macro's configuration, and the last
+  sheet in the workbook.
 
-The tabs are not reordered, so the visible order a reviewer sees is
-`cleaning_log`, `dataset`, `readme`, `other_responses`,
-`Dropdown_values`.
+The tabs are put in this order by `ck_order_worksheets()` once every
+sheet has been written. Only the visible order changes - the sheets keep
+their internal positions, and the macro and both readers address them by
+name.
 
 **Two styling regimes, deliberately.** The log and dataset sheets carry
 the MMC header and Arial Narrow body styling; the other-responses sheet

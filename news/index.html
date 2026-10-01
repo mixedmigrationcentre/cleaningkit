@@ -37,6 +37,21 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
+<div class="section level3">
+<h3 id="the-follow-up-workbook-development-version">The follow-up workbook<a class="anchor" aria-label="anchor" href="#the-follow-up-workbook-development-version"></a></h3>
+<ul><li>
+<strong>Two unused columns are gone from the cleaning log</strong>: <code>Survey Registration Date</code> and <code>Section</code>. Both were written blank and never filled in, by a reviewer or by any function. They are dropped from <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code>, from <code><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code>, from <code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> and from the rows <code><a href="../reference/combine_reviewed_logs.html">combine_reviewed_logs()</a></code> appends for the other responses. The aliases <code>survey_registration_date</code> and <code>section</code> no longer resolve to anything in <code>color_columns</code> / <code>group_by</code>.</li>
+<li>
+<strong>The tabs are in reviewer order</strong>: <code>dataset</code>, <code>cleaning_log</code>, <code>other_responses</code>, <code>readme</code>, <code>Dropdown_values</code>, with the hidden <code>validation_rules</code> and the very hidden <code>_ck_config</code> behind them. The raw data leads because that is where a keep-or-discard decision is actually made. Only the visible order changed: the sheets keep their internal positions, and the macro, <code><a href="../reference/read_cleaning_log.html">read_cleaning_log()</a></code> and <code><a href="../reference/read_other_responses.html">read_other_responses()</a></code> all find their sheet by name.</li>
+<li>No change to the compiled VBA project — the macro maps the log’s columns from its header row, so it writes to the same headers as before and does not need rebuilding.</li>
+</ul><div class="section level4">
+<h4 id="upgrading-development-version">Upgrading<a class="anchor" aria-label="anchor" href="#upgrading-development-version"></a></h4>
+<p><code><a href="../reference/read_cleaning_log.html">read_cleaning_log()</a></code> stacks the files it finds and requires them to carry identical columns, so a folder holding both an older follow-up file (with the two columns) and a newer one will stop with a column mismatch. Finish a round with the files it started with, or drop the two columns from the older file by hand.</p>
+</div>
+</div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="2026.08.0" id="cleaningkit-2026080">cleaningkit 2026.08.0<a class="anchor" aria-label="anchor" href="#cleaningkit-2026080"></a></h2>
 <div class="section level3">
 <h3 id="one-review-workbook-instead-of-two-2026-08-0">One review workbook instead of two<a class="anchor" aria-label="anchor" href="#one-review-workbook-instead-of-two-2026-08-0"></a></h3>

@@ -215,8 +215,7 @@ row: column names supply <strong>Question number</strong> and that first row sup
 <strong>Question text</strong>. <strong>Date</strong> and <strong>Enumerator</strong> are looked up per interview
 from <code>date_column</code> and <code>enumerator_column</code>. The remaining reviewer columns
 (<strong>New value</strong>, <strong>Identified by</strong>, <strong>Action taken</strong>, <strong>Comments</strong>,
-<strong>PO feedback</strong>, <strong>Survey Registration Date</strong>, <strong>Section</strong>) are left blank to
-be completed during review.</p>
+<strong>PO feedback</strong>) are left blank to be completed during review.</p>
 <p>The <strong>Action taken</strong> drop-down and the <code>readme</code> sheet share these six codes:
 <code>recoded</code>, <code>delete_data_point</code>, <code>discard</code>, <code>addition</code>,
 <code>no_action</code>, <code>other</code>. A reviewer only has to fill in the rows that need a
@@ -227,6 +226,12 @@ to the drop-down, which still offers the six codes above.</p>
 <p><strong>Column layout.</strong> <strong>Survey UUID</strong> is the first column (column A) and
 <strong>Date</strong> the second. Column A and the header row are both frozen, so the uuid and the
 headers stay visible while a reviewer scrolls right and down.</p>
+<p><strong>Tab order.</strong> A reviewer meets the raw data first, so the tabs are ordered
+<code>dataset</code>, <code>cleaning_log</code>, <code>readme</code> (and, in
+<code><a href="create_review_workbook.html">create_review_workbook</a></code>, <code>other_responses</code> between the log and the
+readme, with <code>Dropdown_values</code> last). Only the visible order changes: the sheets
+keep their internal positions, and everything that finds a sheet - the macro,
+<code><a href="read_cleaning_log.html">read_cleaning_log</a></code>, <code><a href="read_other_responses.html">read_other_responses</a></code> - does so by name.</p>
 <p><strong>Row order.</strong> The combined log arrives stacked check by check, so rows that belong
 together are scattered down the sheet. By default the reviewer log is regrouped by
 <strong>Issue</strong>, so every row raising the same issue sits in one contiguous block and a

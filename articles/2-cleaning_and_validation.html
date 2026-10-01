@@ -82,6 +82,16 @@
 <div class="section level2">
 <h2 id="setup-project-folders-run-once">Setup project folders (run once)<a class="anchor" aria-label="anchor" href="#setup-project-folders-run-once"></a>
 </h2>
+<p>This call also copies <code>logical_checklist.xlsx</code> into
+<code>resources/</code>. Use <code>copy_templates = FALSE</code> to skip
+it, or
+<code>templates = c("logical_checklist.xlsx" = "resources/my_checks.xlsx")</code>
+to copy it under a different name. An existing file is never overwritten
+unless <code>overwrite_templates = TRUE</code>.</p>
+<p><strong>Customise:</strong> <code>base_path</code> is the project
+root — <code><a href="https://here.r-lib.org/reference/here.html" class="external-link">here::here()</a></code> keeps it portable.
+<code>extra_folders</code> adds any site-specific folders, e.g.
+<code>c("output/archive")</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/setup_project_folders.html">setup_project_folders</a></span><span class="op">(</span></span>
 <span>  base_path <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu"><a href="https://here.r-lib.org/reference/here.html" class="external-link">here</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -91,6 +101,10 @@
 <div class="section level2">
 <h2 id="read-tool-data">Read tool data<a class="anchor" aria-label="anchor" href="#read-tool-data"></a>
 </h2>
+<p>Both functions read the same file: <code><a href="../reference/read_tool_survey.html">read_tool_survey()</a></code>
+the <code>survey</code> sheet, <code><a href="../reference/read_tool_choices.html">read_tool_choices()</a></code> the
+<code>choices</code> sheet.</p>
+<p><strong>Customise:</strong> the path to your XLSForm.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tool_survey</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_tool_survey.html">read_tool_survey</a></span><span class="op">(</span><span class="st">"./resources/tool.xlsx"</span><span class="op">)</span></span>
 <span><span class="va">tool_choices</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_tool_choices.html">read_tool_choices</a></span><span class="op">(</span><span class="st">"./resources/tool.xlsx"</span><span class="op">)</span></span></code></pre></div>
@@ -98,6 +112,12 @@
 <div class="section level2">
 <h2 id="create-other-response-db">Create other response db<a class="anchor" aria-label="anchor" href="#create-other-response-db"></a>
 </h2>
+<p>In case an “other” label has not been picked up, pass
+<code>other_text_types = c("Q31_2")</code> and add the “other” question
+that was missed.</p>
+<p><strong>Customise:</strong> <code>other_text_types</code> on
+<code><a href="../reference/get_other_labels.html">get_other_labels()</a></code> — add any “other” text question the tool
+did not detect automatically. Nothing else here is survey-specific.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">other_labels</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/get_other_labels.html">get_other_labels</a></span><span class="op">(</span></span>
 <span>  tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
@@ -127,13 +147,27 @@ round left behind. The larger of the two files is treated as the new
 export, every <code>_uuid</code> found in the smaller one is removed,
 the two inputs are archived to <code>./data/archive/</code>, and the
 remaining records are written to <code>./data/data.xlsx</code>.</p>
+<p><strong>Customise:</strong> <code>data_folder</code> and
+<code>output_name</code> if your exports do not live at
+<code>./data/data.xlsx</code>; <code>uuid_column</code> if the id column
+is not <code>_uuid</code>; <code>use_ledger = FALSE</code> to compare
+only against the previous file instead of the running ledger;
+<code>archive = FALSE</code> to leave the inputs where they are;
+<code>rename_single_file = FALSE</code> to keep the original file name
+on the first round.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/filter_new_records.html">filter_new_records</a></span><span class="op">(</span></span>
 <span>  data_folder <span class="op">=</span> <span class="st">"./data"</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  output_name <span class="op">=</span> <span class="st">"data.xlsx"</span>,</span>
-<span>  archive <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  sheet <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  use_ledger <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ledger_name <span class="op">=</span> <span class="st">"processed_uuids.csv"</span>,</span>
+<span>  archive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  archive_folder <span class="op">=</span> <span class="st">"archive"</span>,</span>
+<span>  rename_single_file <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The ONA label row of the new export is written back as row one of the
 output, so <code><a href="../reference/read_raw_data.html">read_raw_data()</a></code> and every
@@ -172,13 +206,26 @@ deleted, so a round can be redone if something goes wrong. Set
 than a guess, and Excel’s <code>~$</code> lock files are ignored. The
 call returns, invisibly, a summary of how many records were read,
 dropped and kept.</p>
-<p>Skip this section for the first round of a data collection, or when
-the whole dataset is being validated in one go.</p>
+</div>
+<div class="section level3">
+<h3 id="the-first-round-needs-no-filtering">The first round needs no filtering<a class="anchor" aria-label="anchor" href="#the-first-round-needs-no-filtering"></a>
+</h3>
+<p>With a single export and no ledger there is nothing to compare
+against, so <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> renames that file to
+<code>data.xlsx</code>, reports that the step was skipped, and returns.
+It no longer errors, so the call can safely be left in the script from
+round one onwards — there is no need to comment it out for the first
+run, or when the whole dataset is being validated in one go.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="read-raw-data">Read raw data<a class="anchor" aria-label="anchor" href="#read-raw-data"></a>
 </h2>
+<p>This is the file <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code> left in
+<code>./data</code> — the new records on a later round, the renamed
+export on the first one.</p>
+<p><strong>Customise:</strong> <code>filename</code>, if your export
+lives somewhere else or you changed <code>output_name</code> above.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">raw_data</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/read_raw_data.html">read_raw_data</a></span><span class="op">(</span></span>
 <span>  filename <span class="op">=</span> <span class="st">"./data/data.xlsx"</span>,</span>
@@ -189,14 +236,19 @@ the whole dataset is being validated in one go.</p>
 <h2 id="prepare-other-responses">Prepare other responses<a class="anchor" aria-label="anchor" href="#prepare-other-responses"></a>
 </h2>
 <p>Add the other responses questions you want to be included in the
-output in the question argument, e.g questions = c(“Q34_1”,
-“Q35_1”,“Q37_1”). The usual route now hands the resulting dataframe to
+output in the <code>questions</code> argument,
+e.g. <code>questions = c("Q34_1", "Q35_1", "Q37_1")</code>. The usual
+route now hands the resulting dataframe to
 <code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> further down, so the “other”
-responses and the cleaning log land in one workbook.
-<code><a href="../reference/save_other_responses.html">save_other_responses()</a></code> is still there for when the two logs
-go to different reviewers.</p>
+responses and the cleaning log land in one workbook — there is no
+separate file any more. <code><a href="../reference/save_other_responses.html">save_other_responses()</a></code> is still
+there for when the two logs go to different reviewers.</p>
+<p><strong>Customise:</strong> <code>questions</code> to restrict the
+output to specific “other” questions (leave it out for all of them), and
+<code>extra_columns</code> for the columns the reviewer should see next
+to each response, e.g. <code>c("username", "Q13")</code>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">other_responses_df</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/prepare_other_responses.html">prepare_other_responses</a></span><span class="op">(</span></span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
 <span>  raw_data <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
@@ -212,6 +264,11 @@ than <code>upper_bound</code> are <strong>not</strong> flagged by
 default — a long interview is normally legitimate and only inflates the
 cleaning log — so set <code>flag_above_upper = TRUE</code> to log those
 too.</p>
+<p><strong>Customise:</strong> <code>lower_bound</code> and
+<code>upper_bound</code> in minutes, to match how long your interview
+actually takes; <code>flag_above_upper</code>;
+<code>column_to_check</code> if your duration column is not
+<code>_duration</code>.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">duration_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_duration.html">validate_duration</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -227,10 +284,18 @@ too.</p>
 <div class="section level2">
 <h2 id="validate-completeness">Validate completeness<a class="anchor" aria-label="anchor" href="#validate-completeness"></a>
 </h2>
-<p><code>metadata_cols = c("start","end","today","deviceid","username","phonenumber","_uuid")</code>
-has a list of all metadata columns that will be ingored during this
-check.</p>
+<p><code>metadata_cols</code> holds the metadata columns ignored when
+counting answers. It defaults to:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"start"</span>, <span class="st">"end"</span>, <span class="st">"today"</span>, <span class="st">"deviceid"</span>, <span class="st">"username"</span>, <span class="st">"simserial"</span>, <span class="st">"phonenumber"</span>,</span>
+<span>  <span class="st">"uuid"</span>, <span class="st">"_uuid"</span>, <span class="st">"id"</span>, <span class="st">"_id"</span>, <span class="st">"submission_time"</span>, <span class="st">"_submission_time"</span>,</span>
+<span>  <span class="st">"index"</span>, <span class="st">"_index"</span>, <span class="st">"df_name"</span><span class="op">)</span></span></code></pre></div>
+<p>Pass your own <code>metadata_cols</code> to change that list.</p>
+<p><strong>Customise:</strong> <code>min_content_cells</code> — roughly
+the number of questions a complete interview answers, so set it from
+your own tool; <code>metadata_cols</code> to change which columns are
+ignored in the count.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">completeness_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_completeness.html">validate_completeness</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -243,7 +308,10 @@ check.</p>
 <h2 id="validate-refused">Validate refused<a class="anchor" aria-label="anchor" href="#validate-refused"></a>
 </h2>
 <p>Flags any surveys that have more than 6 “Refused” by default.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> <code>max_refused</code> for how many
+refusals a survey may contain, and <code>refused_value</code> if your
+tool labels the option something other than <code>"Refused"</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">refused_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_refused.html">validate_refused</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -256,9 +324,15 @@ check.</p>
 <div class="section level2">
 <h2 id="validate-back-to-back-interviews">Validate back to back interviews<a class="anchor" aria-label="anchor" href="#validate-back-to-back-interviews"></a>
 </h2>
-<p>Flags any interviews from the same enumerator if they are 10 mins
-apart by default.</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p>Flags any two interviews by the same enumerator that are less than 3
+minutes apart, which is the default gap.</p>
+<p><strong>Customise:</strong> <code>threshold_hours</code> and
+<code>threshold_mins</code> for the smallest acceptable gap between two
+interviews by the same enumerator; <code>enumerator_column</code>,
+<code>start_column</code> and <code>end_column</code> for your tool’s
+column names; <code>gap_from</code> for which timestamps the gap is
+measured between.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">back_to_back_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_back_to_back.html">validate_back_to_back</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -267,7 +341,7 @@ apart by default.</p>
 <span>  end_column <span class="op">=</span> <span class="st">"end"</span>,</span>
 <span>  log_name <span class="op">=</span> <span class="st">"back_to_back_log"</span>,</span>
 <span>  threshold_hours <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>  threshold_mins <span class="op">=</span> <span class="fl">10</span>,</span>
+<span>  threshold_mins <span class="op">=</span> <span class="fl">3</span>,</span>
 <span>  gap_from <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"end"</span>, <span class="st">"start"</span><span class="op">)</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -277,7 +351,11 @@ apart by default.</p>
 </h2>
 <p>Flags if the respondent is being interviewed in their country of
 nationality.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> the three question codes —
+<code>country_interview_col</code>, <code>nationality_col</code> and
+<code>journey_start_col</code>. These are 4Mi codes and will be
+different in any other tool.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">country_of_interview_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_country_of_interview.html">validate_country_of_interview</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -293,7 +371,12 @@ nationality.</p>
 </h2>
 <p>Flags the earliest and latest times of interview. By default earliest
 hour is 5am and latest hour is 10pm.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> <code>earliest_hour</code> and
+<code>latest_hour</code> for the hours interviewing is plausible in your
+context; <code>time_column</code> for your timestamp column;
+<code>flag_missing = TRUE</code> to also log surveys with no time
+recorded.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interview_time_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_time.html">validate_interview_time</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -309,7 +392,12 @@ hour is 5am and latest hour is 10pm.</p>
 <h2 id="validate-similar-surveys">Validate similar surveys<a class="anchor" aria-label="anchor" href="#validate-similar-surveys"></a>
 </h2>
 <p>Groups data by enumerator and checks surveys which are similar.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> <code>threshold</code> — the lower the
+number, the stricter the check; <code>idnk_value</code> to match your
+tool’s “Don’t know” label; <code>enumerator_column</code> for your
+column name; <code>return_all_results = TRUE</code> for a row per survey
+rather than only the flagged ones.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">similar_surveys_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_similar_surveys.html">validate_similar_surveys</a></span><span class="op">(</span></span>
 <span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
@@ -328,7 +416,7 @@ hour is 5am and latest hour is 10pm.</p>
 </h2>
 <p>Groups data by enumerator and checks questions passed for
 similarity.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">similar_questions_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_similar_questions.html">validate_similar_questions</a></span><span class="op">(</span></span>
 <span>    questions_to_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Q161_1"</span>, <span class="st">"Q162_1"</span>, <span class="st">"Q152_1"</span>, <span class="st">"P2P18_1"</span><span class="op">)</span></span>
@@ -337,17 +425,24 @@ similarity.</p>
 <div class="section level2">
 <h2 id="validate-outliers">Validate outliers<a class="anchor" aria-label="anchor" href="#validate-outliers"></a>
 </h2>
-<p>Looks through all integer questions and checks for any outliers. Set
-<code>columns_to_check = c("Q141_3")</code> with your own integer
+<p>Looks through all integer questions and checks for any outliers, or
+checks only the columns you name. Set
+<code>columns_to_check = c("QN7_a")</code> with your own integer
 question to check that question only.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> <code>columns_to_check</code> to check
+named integer questions only (drop it to scan them all);
+<code>strongness_factor</code> to loosen or tighten what counts as an
+outlier; <code>min_unique_values</code> to skip near-constant questions;
+<code>columns_to_skip</code> to exclude questions you do not want
+checked.</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">outliers_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_outliers.html">validate_outliers</a></span><span class="op">(</span></span>
 <span>    <span class="co"># leave columns_to_check = NULL to check every numeric column</span></span>
 <span>    columns_to_check <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>    <span class="co"># tool_survey lets the function pick the numeric questions from the tool</span></span>
 <span>    tool_survey <span class="op">=</span> <span class="va">tool_survey</span>,</span>
-<span>    strongness_factor <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>    strongness_factor <span class="op">=</span> <span class="fl">2</span>,</span>
 <span>    min_unique_values <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>    remove_sm_binary <span class="op">=</span> <span class="cn">TRUE</span>, <span class="co"># skip the 0/1 select_multiple columns</span></span>
 <span>    sm_separator <span class="op">=</span> <span class="st">"/"</span>,</span>
@@ -371,7 +466,15 @@ longer the first time it runs on a new dataset. City names in the data
 should be spelled in English and reasonably match OpenStreetMap
 (e.g. “Kampala”, “Addis Ababa”); any city that cannot be geocoded is
 skipped with a warning.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> <code>country_question</code> and
+<code>city_question</code> for your tool; <code>city_radius_km</code>
+for how far from the claimed city still counts as acceptable;
+<code>check_country</code>, <code>check_city</code> and
+<code>flag_missing_gps</code> to switch individual checks off;
+<code>lat_column</code>, <code>lon_column</code> and
+<code>location_column</code> if your GPS columns are named
+differently.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
 <span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
@@ -392,7 +495,7 @@ skipped with a warning.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Either check can be switched off, which is useful when there is no
 internet connection or when only one of the two is relevant:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># country check only - no internet needed</span></span>
 <span><span class="va">interview_location_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_interview_location.html">validate_interview_location</a></span><span class="op">(</span></span>
 <span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -408,6 +511,11 @@ being written in R, they are maintained in an Excel checklist so that
 research staff can add, edit or retire a check without touching the
 code. <code><a href="../reference/validate_logical_with_list.html">validate_logical_with_list()</a></code> reads that checklist and
 runs every row of it against the dataset.</p>
+<p><strong>Customise:</strong> nothing in the call itself — the checks
+are what you edit, and they live in
+<code>./resources/logical_checklist.xlsx</code>, one row per check.
+Change the path below only if you renamed the checklist, and the four
+<code>*_column</code> arguments only if you renamed its columns.</p>
 <div class="section level3">
 <h3 id="the-checklist-file">The checklist file<a class="anchor" aria-label="anchor" href="#the-checklist-file"></a>
 </h3>
@@ -450,7 +558,7 @@ to clean.</td>
 </tbody>
 </table>
 <p>Some worked examples of <code>check_to_perform</code>:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># a straightforward comparison of two questions</span></span>
 <span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
 <span></span>
@@ -470,26 +578,27 @@ rather than <code>==</code>.</p>
 <h3 id="where-to-find-the-checklist-template">Where to find the checklist template<a class="anchor" aria-label="anchor" href="#where-to-find-the-checklist-template"></a>
 </h3>
 <p>A ready-made checklist with the standard MMC core checks ships with
-the package. Copy it into the project’s <code>resources/</code> folder
-and edit it there:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+the package, and <code><a href="../reference/setup_project_folders.html">setup_project_folders()</a></code> has already copied
+it to <code>./resources/logical_checklist.xlsx</code> — edit it there.
+To fetch it again, or to copy it under a different name:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># where the template lives</span></span>
 <span><span class="va">template_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span></span>
 <span>  <span class="st">"extdata"</span>,</span>
-<span>  <span class="st">"logical_checklist_example.xlsx"</span>,</span>
+<span>  <span class="st">"logical_checklist.xlsx"</span>,</span>
 <span>  package <span class="op">=</span> <span class="st">"cleaningkit"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># copy it into the project so it can be edited</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.copy</a></span><span class="op">(</span><span class="va">template_path</span>, <span class="st">"./resources/logical_checks_mmc.xlsx"</span><span class="op">)</span></span></code></pre></div>
-<p>It can also be browsed on GitHub under <a href="https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist_example.xlsx" class="external-link"><code>inst/extdata/logical_checklist_example.xlsx</code></a>.</p>
+<p>It can also be browsed on GitHub under <a href="https://github.com/mixedmigrationcentre/cleaningkit/blob/main/inst/extdata/logical_checklist.xlsx" class="external-link"><code>inst/extdata/logical_checklist.xlsx</code></a>.</p>
 </div>
 <div class="section level3">
 <h3 id="running-the-checks">Running the checks<a class="anchor" aria-label="anchor" href="#running-the-checks"></a>
 </h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span></span>
-<span>  <span class="st">"./resources/logical_checks_mmc.xlsx"</span>,</span>
+<span>  <span class="st">"./resources/logical_checklist.xlsx"</span>,</span>
 <span>  sheet <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -505,7 +614,7 @@ and edit it there:</p>
 <code>logical_log</code>. Setting <code>bind_checks = FALSE</code>
 stores each check in its own log named after its <code>check_id</code>,
 which is handy when one check needs to be inspected on its own:</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">%&gt;%</span></span>
 <span>  <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/validate_logical_with_list.html">validate_logical_with_list</a></span><span class="op">(</span></span>
 <span>    list_of_check <span class="op">=</span> <span class="va">logical_list</span>,</span>
@@ -522,7 +631,7 @@ which is handy when one check needs to be inspected on its own:</p>
 for every check (named after the <code>check_id</code>,
 <code>TRUE</code> = flagged), so the number of records each check caught
 can be reviewed before the log is exported:</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">logical_check_log</span><span class="op">$</span><span class="va">checked_dataset</span><span class="op">$</span><span class="va">check_01</span><span class="op">)</span></span></code></pre></div>
 <p>If a check is written badly the function stops and prints both the
 <code>check_id</code> and the offending expression, so the row in the
@@ -532,7 +641,10 @@ Excel sheet can be corrected and the checklist re-read.</p>
 <div class="section level2">
 <h2 id="combine-logs">Combine logs<a class="anchor" aria-label="anchor" href="#combine-logs"></a>
 </h2>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<p><strong>Customise:</strong> the list below — drop any log you did not
+run, and add any you did. The names must match the objects created
+above.</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">list_of_log_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="va">duration_log</span>,</span>
 <span>  <span class="va">completeness_log</span>,</span>
@@ -559,6 +671,8 @@ Excel sheet can be corrected and the checklist re-read.</p>
 the cleaning log and the “other” text responses into a
 <strong>single</strong> file, so a reviewer opens one workbook and the
 second stage reads one file.</p>
+<p>The tabs appear in the order a reviewer works through them — the raw
+data first, then the log, then the other responses:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -570,30 +684,30 @@ second stage reads one file.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><code>cleaning_log</code></td>
-<td>One row per flagged value. The reviewer fills in <strong>Action
-taken</strong> and <strong>New value</strong>.</td>
-</tr>
-<tr class="even">
 <td><code>dataset</code></td>
 <td>The checked dataset, with the check-flag columns in front.</td>
 </tr>
-<tr class="odd">
-<td><code>readme</code></td>
-<td>What each sheet is for, and the <strong>Action taken</strong>
-codes.</td>
-</tr>
 <tr class="even">
-<td><code>validation_rules</code></td>
-<td>Hidden. Backs the <strong>Action taken</strong> drop-down.</td>
+<td><code>cleaning_log</code></td>
+<td>One row per flagged value. The reviewer fills in <strong>Action
+taken</strong> and <strong>New value</strong>.</td>
 </tr>
 <tr class="odd">
 <td><code>other_responses</code></td>
 <td>Every “other” text response to review.</td>
 </tr>
 <tr class="even">
+<td><code>readme</code></td>
+<td>What each sheet is for, and the <strong>Action taken</strong>
+codes.</td>
+</tr>
+<tr class="odd">
 <td><code>Dropdown_values</code></td>
 <td>Backs the other-responses drop-downs.</td>
+</tr>
+<tr class="even">
+<td><code>validation_rules</code></td>
+<td>Hidden. Backs the <strong>Action taken</strong> drop-down.</td>
 </tr>
 <tr class="odd">
 <td><code>_ck_config</code></td>
@@ -611,10 +725,21 @@ automatically — give the path an <code>.xlsm</code> extension — an
 <code>.xlsm</code> with a message. Leave out
 <code>other_responses</code> and <code>other_db</code> and the output is
 exactly what <code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> produces.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<p><code>flag_columns</code> puts the check flags at the front of the
+<code>dataset</code> sheet so a reviewer can filter on them, and
+<code>group_by = "issue"</code> sets the column the log is sorted and
+coloured by.</p>
+<p><strong>Customise:</strong> <code>vba</code> for the file type,
+<code>color_mode</code> and <code>color_columns</code> for the
+highlighting, <code>group_by</code> for how the log is sorted,
+<code>output_path</code> for the file name, and
+<code>other_enumerator_id</code> for the enumerator column on the
+other-responses sheet. Drop <code>other_responses</code> and
+<code>other_db</code> to produce the cleaning log on its own.</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_review_workbook.html">create_review_workbook</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
-<span>  other_responses <span class="op">=</span> <span class="va">df</span>,</span>
+<span>  other_responses <span class="op">=</span> <span class="va">other_responses_df</span>,</span>
 <span>  other_db <span class="op">=</span> <span class="va">other_db</span>,</span>
 <span>  other_enumerator_id <span class="op">=</span> <span class="st">"username"</span>,</span>
 <span>  vba <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -640,11 +765,10 @@ there is nothing for the macro to watch.</p>
 <p><code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code> is the cleaning-log-only writer,
 unchanged and still available when the two logs go to different people.
 It turns the combined log into the reviewer-facing Excel workbook: the
-log itself on the first sheet, the checked dataset on a
-<code>dataset</code> sheet, a <code>readme</code> sheet listing the
-action codes, and a drop-down on the <strong>Action taken</strong>
-column.</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+checked dataset on the first tab, the log itself on the second, a
+<code>readme</code> sheet listing the action codes, and a drop-down on
+the <strong>Action taken</strong> column.</p>
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
@@ -704,7 +828,7 @@ change.</p>
 </h4>
 <p>Pass <code>color_mode = "on"</code> to fill every cell of the row
 instead of only the columns named in <code>color_columns</code>.</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  color_mode <span class="op">=</span> <span class="st">"on"</span>,</span>
@@ -723,7 +847,7 @@ instead of only the columns named in <code>color_columns</code>.</p>
 column or columns that should carry the colour. This is useful when the
 colour is only needed as a pointer to the value under review, and a
 fully coloured row makes the sheet harder to read or to print.</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># colour only the "Old value" column</span></span>
 <span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
@@ -769,16 +893,8 @@ the columns of the log and the names that resolve to each one:</p>
 </td>
 </tr>
 <tr class="odd">
-<td><code>Survey Registration Date</code></td>
-<td><code>survey_registration_date</code></td>
-</tr>
-<tr class="even">
 <td><code>Enumerator</code></td>
 <td><code>enumerator</code></td>
-</tr>
-<tr class="odd">
-<td><code>Section</code></td>
-<td><code>section</code></td>
 </tr>
 <tr class="even">
 <td><code>Question number</code></td>
@@ -829,7 +945,7 @@ colouring, and a warning names the columns that could not be found.</p>
 <div class="section level4">
 <h4 id="colours-off">Colours off<a class="anchor" aria-label="anchor" href="#colours-off"></a>
 </h4>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  color_mode <span class="op">=</span> <span class="st">"off"</span>,</span>
@@ -841,7 +957,7 @@ colouring, and a warning names the columns that could not be found.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code>TRUE</code> and <code>FALSE</code> work as shorthand for
 <code>"on"</code> and <code>"off"</code>:</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  color_mode <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -862,7 +978,7 @@ by.</p>
 which is occasionally useful for review workflows that are organised
 differently — for example one shade per interview rather than one shade
 per check:</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log.html">create_cleaning_log</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  column_for_color <span class="op">=</span> <span class="st">"Survey UUID"</span>,</span>
@@ -887,7 +1003,7 @@ then change a value directly on the <code>dataset</code> sheet, and the
 edit is appended to the bottom of the cleaning log automatically. The
 point is that a correction never has to be copied across by hand: the
 reviewer stays in one workbook.</p>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  output_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span>
@@ -999,7 +1115,7 @@ writes the most recent value.</p>
 <p>Use <code>macro_issue_prefix</code> to change the prefix if
 <code>manual_edit</code> clashes with an issue name one of your checks
 already produces.</p>
-<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  macro_issue_prefix <span class="op">=</span> <span class="st">"reviewer_edit"</span>,</span>
@@ -1019,7 +1135,7 @@ VBA source plus a p-code cache, so it is built once in Excel from the
 sources in <code>inst/vba/</code> and shipped as
 <code>inst/extdata/cleaningkit_vba.bin</code>. On Windows with Excel
 installed:</p>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># installs the COM toolchain (the MMC fork of RDCOMClient)</span></span>
 <span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/load_packages.html">load_packages</a></span><span class="op">(</span>vba <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
@@ -1049,7 +1165,7 @@ project rather than used from the installed package - and note that
 <code><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file()</a></code> also comes up empty when the package
 <em>is</em> installed but was installed before the binary was built.
 Either point at it directly:</p>
-<div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/create_cleaning_log_vba.html">create_cleaning_log_vba</a></span><span class="op">(</span></span>
 <span>  write_list <span class="op">=</span> <span class="va">combined_log</span>,</span>
 <span>  vba_project <span class="op">=</span> <span class="st">"resources/cleaningkit_vba.bin"</span>,</span>
@@ -1060,7 +1176,7 @@ Either point at it directly:</p>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>or set it once in a setup script:</p>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span></span>
 <span>  cleaningkit.vba_project <span class="op">=</span> <span class="st">"C:/path/to/cleaningkit/inst/extdata/cleaningkit_vba.bin"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
