@@ -24,7 +24,7 @@ validate_outliers(
   log_name = "outlier_log",
   columns_to_check = NULL,
   tool_survey = NULL,
-  strongness_factor = 3,
+  strongness_factor = 2,
   min_unique_values = 5,
   remove_sm_binary = TRUE,
   sm_separator = "/",

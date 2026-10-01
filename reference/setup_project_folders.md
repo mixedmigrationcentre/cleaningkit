@@ -1,14 +1,23 @@
 # Set Up Project Folder Structure
 
-Creates the standard folder structure used by the data cleaning
-pipeline. Safe to run on an existing project — folders that already
-exist are skipped with an informational message rather than overwritten
-or errored.
+Creates the standard folder structure used by the data cleaning pipeline
+and copies the packaged template files into `resources/`. Safe to run on
+an existing project — folders that already exist are skipped with an
+informational message rather than overwritten or errored, and existing
+template files are never overwritten unless
+`overwrite_templates = TRUE`.
 
 ## Usage
 
 ``` r
-setup_project_folders(base_path = ".", extra_folders = NULL, verbose = TRUE)
+setup_project_folders(
+  base_path = ".",
+  extra_folders = NULL,
+  copy_templates = TRUE,
+  templates = c(logical_checklist.xlsx = "resources/logical_checklist.xlsx"),
+  overwrite_templates = FALSE,
+  verbose = TRUE
+)
 ```
 
 ## Arguments
@@ -26,15 +35,38 @@ setup_project_folders(base_path = ".", extra_folders = NULL, verbose = TRUE)
   relative to `base_path` (e.g.
   `c("output/archive", "output/checking")`). Default `NULL`.
 
+- copy_templates:
+
+  Logical. If `TRUE` (the default), copy the packaged template files
+  into `resources/`.
+
+- templates:
+
+  Named character vector controlling which templates are copied. Names
+  are the file names inside the package's `extdata/` folder; values are
+  the destination paths relative to `base_path`. Defaults to
+  `c("logical_checklist.xlsx" = "resources/logical_checklist.xlsx")`.
+  Supply your own vector to rename the copy (e.g.
+  `c("logical_checklist.xlsx" = "resources/logical_checks.xlsx")`).
+
+- overwrite_templates:
+
+  Logical. If `TRUE`, an existing destination file is replaced by the
+  packaged template. Default `FALSE`.
+
 - verbose:
 
   Logical. If `TRUE` (the default), a message is printed for each folder
-  showing whether it was created or already existed.
+  showing whether it was created or already existed, and for each
+  template that was copied or skipped.
 
 ## Value
 
 Invisibly returns a named logical vector: `TRUE` for each folder that
-was newly created, `FALSE` for folders that already existed.
+was newly created, `FALSE` for folders that already existed. The result
+carries an attribute `"templates"` — a named logical vector, `TRUE` for
+each template that was copied, `FALSE` for templates that were skipped
+or could not be copied.
 
 ## Details
 
@@ -72,3 +104,32 @@ The following folders are created (relative to `base_path`):
 
   Final output workbooks produced by
   [`export_final_output()`](export_final_output.md).
+
+## Templates
+
+When `copy_templates = TRUE` (the default), the template files shipped
+with the package in `inst/extdata/` are copied into `resources/` so they
+can be edited in place for the current project. Currently this is
+`logical_checklist.xlsx`, the input expected by `validate_logical()`.
+Copying is skipped if a file of the same name already exists in
+`resources/`, so re-running the function will not clobber a checklist
+you have already filled in.
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# standard set-up: folders + logical_checklist.xlsx in resources/
+setup_project_folders()
+
+# copy the checklist under a project-specific name
+setup_project_folders(
+  templates = c(
+    "logical_checklist.xlsx" = "resources/logical_checks.xlsx"
+  )
+)
+
+# folders only
+setup_project_folders(copy_templates = FALSE)
+} # }
+```

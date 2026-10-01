@@ -23,6 +23,7 @@ filter_new_records(
   ledger_name = "processed_uuids.csv",
   archive = TRUE,
   archive_folder = "archive",
+  rename_single_file = TRUE,
   verbose = TRUE
 )
 ```
@@ -78,6 +79,14 @@ filter_new_records(
   Name of the archive sub-folder inside `data_folder`. Default
   `"archive"`. Created if it does not exist.
 
+- rename_single_file:
+
+  Logical. Only used on the first round, when `data_folder` holds a
+  single export and there is no ledger to compare it against. If `TRUE`
+  (the default), that file is renamed to `output_name` so
+  [`read_raw_data()`](read_raw_data.md) finds it at the usual path. Set
+  to `FALSE` to leave the file name untouched.
+
 - verbose:
 
   Logical. If `TRUE` (the default), progress messages are printed
@@ -86,6 +95,12 @@ filter_new_records(
 ## Value
 
 Invisibly, a list with:
+
+- `filtered`:
+
+  `TRUE` when records were actually filtered out, `FALSE` when the step
+  was skipped because there was nothing to compare against (see *The
+  first round* above).
 
 - `data`:
 
@@ -148,6 +163,15 @@ then appends whatever it processed. The csv is ignored when the function
 looks for input files, so it can live in `data/` without interfering. If
 the ledger is deleted or unreadable the function falls back to the plain
 two-file comparison and says so.
+
+**The first round.** A folder holding a single export and no ledger is
+the normal state of the very first validation round: there is nothing to
+compare against, so there is nothing to filter. The function does not
+treat this as an error. It renames the export to `output_name` (unless
+`rename_single_file = FALSE`) so the rest of the pipeline finds it at
+the usual path, reports that the filtering step was skipped, and returns
+with `filtered = FALSE`. Nothing is archived, deleted or written to the
+ledger, so the call can safely be repeated.
 
 **Safety.** Nothing is removed until the filtered output has been built
 successfully, and nothing is removed at all if the filtering leaves zero

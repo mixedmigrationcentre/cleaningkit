@@ -74,6 +74,7 @@ follow-up workbook only contains genuinely new issues.</p>
 <span>  ledger_name <span class="op">=</span> <span class="st">"processed_uuids.csv"</span>,</span>
 <span>  archive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  archive_folder <span class="op">=</span> <span class="st">"archive"</span>,</span>
+<span>  rename_single_file <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -131,6 +132,14 @@ removed from <code>data_folder</code>. If <code>FALSE</code> they are deleted ou
 <code>data_folder</code>. Default <code>"archive"</code>. Created if it does not exist.</p></dd>
 
 
+<dt id="arg-rename-single-file">rename_single_file<a class="anchor" aria-label="anchor" href="#arg-rename-single-file"></a></dt>
+<dd><p>Logical. Only used on the first round, when
+<code>data_folder</code> holds a single export and there is no ledger to compare
+it against. If <code>TRUE</code> (the default), that file is renamed to
+<code>output_name</code> so <code><a href="read_raw_data.html">read_raw_data()</a></code> finds it at the usual path.
+Set to <code>FALSE</code> to leave the file name untouched.</p></dd>
+
+
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), progress messages are
 printed showing how many records were read, dropped and kept.</p></dd>
@@ -138,7 +147,12 @@ printed showing how many records were read, dropped and kept.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Invisibly, a list with:</p><dl><dt><code>data</code></dt>
+    <p>Invisibly, a list with:</p><dl><dt><code>filtered</code></dt>
+<dd><p><code>TRUE</code> when records were actually filtered out,
+<code>FALSE</code> when the step was skipped because there was nothing to
+compare against (see <em>The first round</em> above).</p></dd>
+
+<dt><code>data</code></dt>
 <dd><p>The filtered dataset as written, label row included.</p></dd>
 
 <dt><code>output_path</code></dt>
@@ -192,6 +206,14 @@ it processed. The csv is ignored when the function looks for input files, so
 it can live in <code>data/</code> without interfering. If the ledger is deleted or
 unreadable the function falls back to the plain two-file comparison and says
 so.</p>
+<p><strong>The first round.</strong> A folder holding a single export and no ledger is
+the normal state of the very first validation round: there is nothing to
+compare against, so there is nothing to filter. The function does not treat
+this as an error. It renames the export to <code>output_name</code> (unless
+<code>rename_single_file = FALSE</code>) so the rest of the pipeline finds it at
+the usual path, reports that the filtering step was skipped, and returns with
+<code>filtered = FALSE</code>. Nothing is archived, deleted or written to the
+ledger, so the call can safely be repeated.</p>
 <p><strong>Safety.</strong> Nothing is removed until the filtered output has been built
 successfully, and nothing is removed at all if the filtering leaves zero new
 records - that usually means the same export was downloaded twice. With
