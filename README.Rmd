@@ -119,7 +119,7 @@ raw_data <- cleaningkit::read_raw_data(
 )
 ```
 
-## Creating "Other" Responses
+#### Creating "Other" Responses
 
 This step collects every free-text answer given to an “other, please specify” question into one sheet, so the reviewer can read each one and decide whether it should be recoded into an existing choice or kept as it is.
 
