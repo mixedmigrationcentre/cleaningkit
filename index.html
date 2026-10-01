@@ -210,11 +210,9 @@
 <span>  filename <span class="op">=</span> <span class="st">"./data/data.xlsx"</span>,</span>
 <span>  tool_survey <span class="op">=</span> <span class="va">tool_survey</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="creating-other-responses">Creating “Other” Responses<a class="anchor" aria-label="anchor" href="#creating-other-responses"></a>
-</h2>
+<div class="section level4">
+<h4 id="creating-other-responses">Creating “Other” Responses<a class="anchor" aria-label="anchor" href="#creating-other-responses"></a>
+</h4>
 <p>This step collects every free-text answer given to an “other, please specify” question into one sheet, so the reviewer can read each one and decide whether it should be recoded into an existing choice or kept as it is.</p>
 <p><em>Customise:</em> <code>extra_columns</code> for the extra columns the reviewer should see next to each “other” response (enumerator, country, …), and <code>questions</code> to restrict the output to specific <code>_other</code> questions. <code>save_location</code> only matters on the standalone route.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
@@ -352,6 +350,8 @@
 <span>    columns_to_clean_column <span class="op">=</span> <span class="st">"columns_to_clean"</span>,</span>
 <span>    description_column <span class="op">=</span> <span class="st">"description"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
+</div>
+</div>
 <div class="section level3">
 <h3 id="logical-checks">Logical Checks<a class="anchor" aria-label="anchor" href="#logical-checks"></a>
 </h3>
