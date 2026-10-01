@@ -71,14 +71,30 @@ portable) and `extra_folders` adds any site-specific folders.
 
 ``` r
 library(cleaningkit)
-load_packages()
+cleaningkit::load_packages()
 
 # create project folders (run once)
-setup_project_folders(
+cleaningkit::setup_project_folders(
   base_path = here::here(),
   extra_folders = NULL # any site-specific extras
 )
 ```
+
+This creates the folder structure the rest of the pipeline reads from
+and writes to. Two folders hold what you put in, three hold what comes
+out:
+
+| Folder | In / out | What lives there |
+|----|----|----|
+| `data/` | input | The raw ONA export for the round. `filter_new_records()` also keeps its archive and its `processed_uuids.csv` ledger here. |
+| `resources/` | input | The XLSForm tool (`tool.xlsx`) and the logical checks (`logical_checklist.xlsx`, copied in for you). |
+| `output/` | output | Anything the pipeline writes that is not a follow-up or a final file. |
+| `output/follow_ups/` | output | One review workbook per validation round — the cleaning log and other responses that go out for review, and the edited file that comes back. |
+| `output/final/` | output | The final clean dataset, written at the end by `export_final_output()`. |
+
+Only `data/` and `resources/` need anything from you. Everything under
+`output/` is created by the pipeline, so there is no need to put files
+there by hand.
 
 ### Preparing the Data for a New Validation Round
 
@@ -91,7 +107,7 @@ are.
 ``` r
 # reduces a cumulative ONA export to the records collected since the last
 # validation round, and writes them to data/data.xlsx
-filter_new_records(
+cleaningkit::filter_new_records(
   data_folder = "./data",
   uuid_column = "_uuid",
   skip_label_row = TRUE,
@@ -116,8 +132,6 @@ takes `skip_label_row = TRUE` because ONA exports carry a label row; set
 it to `FALSE` for an export that has none.
 
 ``` r
-library(cleaningkit)
-
 # read the tool, then the raw data
 tool_survey  <- cleaningkit::read_tool_survey("./resources/tool.xlsx")
 tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
@@ -125,6 +139,27 @@ tool_choices <- cleaningkit::read_tool_choices("./resources/tool.xlsx")
 raw_data <- cleaningkit::read_raw_data(
   filename = "./data/data.xlsx",
   tool_survey = tool_survey
+)
+```
+
+## Creating “Other” Responses
+
+This step collects every free-text answer given to an “other, please
+specify” question into one sheet, so the reviewer can read each one and
+decide whether it should be recoded into an existing choice or kept as
+it is.
+
+*Customise:* `extra_columns` for the extra columns the reviewer should
+see next to each “other” response (enumerator, country, …), and
+`questions` to restrict the output to specific `_other` questions.
+`save_location` only matters on the standalone route.
+
+``` r
+# Prepare the other responses dataframe
+other_responses_df <- cleaningkit::prepare_other_responses(
+  raw_data = raw_data,
+  other_db = other_db,
+  tool_choices = choices_sheet
 )
 ```
 
@@ -396,7 +431,7 @@ str_detect(Q78, fixed("Natural disaster or environmental factors")) & Q86_a == "
 logical_list <- openxlsx::read.xlsx("./resources/logical_checklist.xlsx", sheet = 1)
 
 logical_check_log <- raw_data |>
-  validate_logical_with_list(
+  cleaningkit::validate_logical_with_list(
     list_of_check = logical_list,
     check_id_column = "check_id",
     check_to_perform_column = "check_to_perform",
@@ -468,31 +503,6 @@ cleaningkit::create_review_workbook(
 )
 ```
 
-### Creating Other Responses
-
-*Customise:* `extra_columns` for the extra columns the reviewer should
-see next to each “other” response (enumerator, country, …), and
-`questions` to restrict the output to specific `_other` questions.
-`save_location` only matters on the standalone route.
-
-``` r
-# Prepare the other responses dataframe
-other_responses_df <- prepare_other_responses(
-  raw_data = raw_data,
-  other_db = other_db,
-  tool_choices = choices_sheet
-)
-
-# Usual route: pass it to create_review_workbook() - see above
-
-# Or a standalone file for review
-save_other_responses(
-  df = other_responses_df,
-  other_db = other_db,
-  save_location = "output"
-)
-```
-
 ### Apply Cleaning
 
 Once the cleaning logs and other responses have been reviewed and
@@ -507,28 +517,28 @@ workbook, normally `output/follow_ups/` — and `output_path` on
 #----------------------------------
 # apply cleaning
 #----------------------------------
-cleaning_log <- read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
-evaluated_log <- evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
-cleaned_data_list <- apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
+cleaning_log <- cleaningkit::read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
+evaluated_log <- cleaningkit::evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
+cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
 
 # the same reviewed workbook - each reader finds its own sheet by name
-other_log <- read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
-cleaned_data_list <- apply_other_responses(dataset = cleaned_data_list$clean_dataset, other_log = other_log)
+other_log <- cleaningkit::read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
+cleaned_data_list <- cleaningkit::apply_other_responses(dataset = cleaned_data_list$clean_dataset, other_log = other_log)
 
 #----------------------------------
 # combine cleaning logs
 #----------------------------------
-final_log <- combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
+final_log <- cleaningkit::combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
 
 #----------------------------------
 # review clean dataset
 #----------------------------------
-review_log <- review_cleaned_data(raw_dataset = raw_data, clean_dataset = cleaned_data_list$dataset, cleaning_log = final_log)
+review_log <- cleaningkit::review_cleaned_data(raw_dataset = raw_data, clean_dataset = cleaned_data_list$dataset, cleaning_log = final_log)
 
 #----------------------------------
 # create final workbook
 #----------------------------------
-export_final_output(
+cleaningkit::export_final_output(
   raw_dataset = raw_data,
   clean_dataset = cleaned_data_list$dataset,
   combined_log = final_log,

@@ -21,7 +21,7 @@ cleaningkit::load_packages()
 # unless overwrite_templates = TRUE
 #----------------------------------
 
-setup_project_folders(
+cleaningkit::setup_project_folders(
   base_path = here::here(),
   extra_folders = NULL # any site-specific extras
 )
@@ -137,7 +137,7 @@ raw_data <- cleaningkit::read_raw_data(
 # reviewer should see next to each response, e.g. c("username", "Q13")
 #----------------------------------
 
-df <- cleaningkit::prepare_other_responses(
+other_responses_df <- cleaningkit::prepare_other_responses(
   uuid_column = "_uuid",
   raw_data = raw_data,
   other_db = other_db,
@@ -433,7 +433,7 @@ combined_log <- cleaningkit::create_combined_log(
 cleaningkit::create_review_workbook(
   vba = TRUE,
   write_list = combined_log,
-  other_responses = df,
+  other_responses = other_responses_df,
   other_db = other_db,
   other_enumerator_id = "username",
   color_mode = "partial",
