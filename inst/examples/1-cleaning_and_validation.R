@@ -169,7 +169,7 @@ back_to_back_log <- cleaningkit::validate_back_to_back(
   end_column = "end",
   log_name = "back_to_back_log",
   threshold_hours = 0,
-  threshold_mins = 10,
+  threshold_mins = 3,
   gap_from = c("end", "start"),
   skip_label_row = TRUE
 )
@@ -210,33 +210,30 @@ interview_time_log <- cleaningkit::validate_interview_time(
 # validate similar surveys
 # groups data by enumerator and checks surveys which are similar
 #----------------------------------
-similar_surveys_log <- raw_data %>%
-  cleaningkit::validate_similar_surveys(
-    tool_survey = tool_survey,
-    enumerator_column = "username",
-    idnk_value = "Don't know",
-    sm_separator = "/",
-    # flags a survey whose closest neighbour differs in at most this many columns
-    threshold = 7,
-    # TRUE returns a row for every survey, not only the flagged ones
-    return_all_results = FALSE
-  )
+# similar_surveys_log <- raw_data %>%
+#   cleaningkit::validate_similar_surveys(
+#     tool_survey = tool_survey,
+#     enumerator_column = "username",
+#     idnk_value = "Don't know",
+#     sm_separator = "/",
+#     # flags a survey whose closest neighbour differs in at most this many columns
+#     threshold = 7,
+#     # TRUE returns a row for every survey, not only the flagged ones
+#     return_all_results = FALSE
+#   )
 
 #----------------------------------
 # validate outliers
 # looks through all integer questions and checks for any outliers
 # or checks on specific columns
-# add columns_to_check = c("Q141_3") with you integer question to check for only that question
+# add columns_to_check = c("QN7_a") with you integer question to check for only that question
 #----------------------------------
 outliers_log <- raw_data %>%
   cleaningkit::validate_outliers(
-    # leave columns_to_check = NULL to check every numeric column
-    columns_to_check = NULL,
-    # tool_survey lets the function pick the numeric questions from the tool
+    columns_to_check = c("QN7_a"),
     tool_survey = tool_survey,
-    strongness_factor = 3,
+    strongness_factor = 2,
     min_unique_values = 5,
-    remove_sm_binary = TRUE, # skip the 0/1 select_multiple columns
     sm_separator = "/",
     columns_to_skip = NULL
   )
@@ -273,10 +270,10 @@ interview_location_log <- cleaningkit::validate_interview_location(
 # validate logical
 # reads the logical excel sheets and uses that for validating the survey
 # a ready-made template of the checklist ships with the package, see:
-# system.file("extdata", "logical_checklist_example.xlsx", package = "cleaningkit")
+# system.file("extdata", "logical_checklist.xlsx", package = "cleaningkit")
 #----------------------------------
 logical_list <- read.xlsx(
-  "./resources/logical_checklist_example.xlsx",
+  "./resources/logical_checklist.xlsx",
   sheet = 1
 )
 
@@ -301,7 +298,7 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
-  similar_surveys_log,
+  # similar_surveys_log,
   outliers_log,
   logical_check_log
 )

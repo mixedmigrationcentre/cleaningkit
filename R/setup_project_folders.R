@@ -1,8 +1,10 @@
 #' Set Up Project Folder Structure
 #'
-#' Creates the standard folder structure used by the data cleaning pipeline.
-#' Safe to run on an existing project — folders that already exist are skipped
-#' with an informational message rather than overwritten or errored.
+#' Creates the standard folder structure used by the data cleaning pipeline and
+#' copies the packaged template files into \code{resources/}. Safe to run on an
+#' existing project — folders that already exist are skipped with an
+#' informational message rather than overwritten or errored, and existing
+#' template files are never overwritten unless \code{overwrite_templates = TRUE}.
 #'
 #' @details
 #' The following folders are created (relative to \code{base_path}):
@@ -23,21 +25,67 @@
 #'     \code{export_final_output()}.}
 #' }
 #'
+#' @section Templates:
+#' When \code{copy_templates = TRUE} (the default), the template files shipped
+#' with the package in \code{inst/extdata/} are copied into \code{resources/} so
+#' they can be edited in place for the current project. Currently this is
+#' \code{logical_checklist.xlsx}, the input expected by
+#' \code{validate_logical()}. Copying is skipped if a file of the same name
+#' already exists in \code{resources/}, so re-running the function will not
+#' clobber a checklist you have already filled in.
+#'
 #' @param base_path Root directory of the project. Default \code{"."} (current
 #'   working directory). Use \code{here::here()} for reproducible paths inside
 #'   an R project.
 #' @param extra_folders Optional character vector of additional folder paths to
 #'   create relative to \code{base_path} (e.g. \code{c("output/archive",
 #'   "output/checking")}). Default \code{NULL}.
+#' @param copy_templates Logical. If \code{TRUE} (the default), copy the
+#'   packaged template files into \code{resources/}.
+#' @param templates Named character vector controlling which templates are
+#'   copied. Names are the file names inside the package's \code{extdata/}
+#'   folder; values are the destination paths relative to \code{base_path}.
+#'   Defaults to
+#'   \code{c("logical_checklist.xlsx" = "resources/logical_checklist.xlsx")}.
+#'   Supply your own vector to rename the copy (e.g.
+#'   \code{c("logical_checklist.xlsx" = "resources/logical_checks.xlsx")}).
+#' @param overwrite_templates Logical. If \code{TRUE}, an existing destination
+#'   file is replaced by the packaged template. Default \code{FALSE}.
 #' @param verbose Logical. If \code{TRUE} (the default), a message is printed
-#'   for each folder showing whether it was created or already existed.
+#'   for each folder showing whether it was created or already existed, and for
+#'   each template that was copied or skipped.
 #'
 #' @return Invisibly returns a named logical vector: \code{TRUE} for each folder
-#'   that was newly created, \code{FALSE} for folders that already existed.
+#'   that was newly created, \code{FALSE} for folders that already existed. The
+#'   result carries an attribute \code{"templates"} — a named logical vector,
+#'   \code{TRUE} for each template that was copied, \code{FALSE} for templates
+#'   that were skipped or could not be copied.
+#'
+#' @examples
+#' \dontrun{
+#' # standard set-up: folders + logical_checklist.xlsx in resources/
+#' setup_project_folders()
+#'
+#' # copy the checklist under a project-specific name
+#' setup_project_folders(
+#'   templates = c(
+#'     "logical_checklist.xlsx" = "resources/logical_checks.xlsx"
+#'   )
+#' )
+#'
+#' # folders only
+#' setup_project_folders(copy_templates = FALSE)
+#' }
+#'
 #' @export
 setup_project_folders <- function(
   base_path = ".",
   extra_folders = NULL,
+  copy_templates = TRUE,
+  templates = c(
+    "logical_checklist.xlsx" = "resources/logical_checklist.xlsx"
+  ),
+  overwrite_templates = FALSE,
   verbose = TRUE
 ) {
   # ---- standard folders ----
@@ -64,14 +112,14 @@ setup_project_folders <- function(
       full <- file.path(base_path, folder)
       if (dir.exists(full)) {
         if (verbose) {
-          message("  \u2713 already exists: ", folder)
+          message("  ✓ already exists: ", folder)
         }
         return(FALSE)
       }
       dir.create(full, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(full)) {
         if (verbose) {
-          message("  \u2714 created:         ", folder)
+          message("  ✔ created:         ", folder)
         }
         return(TRUE)
       } else {
@@ -81,6 +129,83 @@ setup_project_folders <- function(
     },
     logical(1)
   )
+
+  # ---- copy packaged templates into the project ----
+  template_results <- logical(0)
+
+  if (isTRUE(copy_templates) && length(templates) > 0) {
+    if (is.null(names(templates)) || any(names(templates) == "")) {
+      stop(
+        "`templates` must be a named character vector: ",
+        "names are the file names in the package's extdata/ folder, ",
+        "values are the destination paths relative to `base_path`.",
+        call. = FALSE
+      )
+    }
+
+    if (verbose) {
+      message("")
+    }
+
+    template_results <- vapply(
+      seq_along(templates),
+      function(i) {
+        src_name <- names(templates)[i]
+        dest_rel <- unname(templates[i])
+
+        # where the template lives inside the installed package
+        template_path <- system.file(
+          "extdata",
+          src_name,
+          package = "cleaningkit"
+        )
+
+        if (!nzchar(template_path) || !file.exists(template_path)) {
+          warning(
+            paste0(
+              "Template not found in the installed package: inst/extdata/",
+              src_name
+            )
+          )
+          return(FALSE)
+        }
+
+        dest_full <- file.path(base_path, dest_rel)
+
+        # make sure the destination folder exists (it may be an extra folder)
+        dest_dir <- dirname(dest_full)
+        if (!dir.exists(dest_dir)) {
+          dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
+        }
+
+        if (file.exists(dest_full) && !isTRUE(overwrite_templates)) {
+          if (verbose) {
+            message("  ✓ template exists: ", dest_rel, " (not overwritten)")
+          }
+          return(FALSE)
+        }
+
+        copied <- file.copy(
+          from = template_path,
+          to = dest_full,
+          overwrite = TRUE
+        )
+
+        if (isTRUE(copied)) {
+          if (verbose) {
+            message("  ✔ template copied: ", dest_rel)
+          }
+          return(TRUE)
+        } else {
+          warning(paste0("Could not copy template to: ", dest_full))
+          return(FALSE)
+        }
+      },
+      logical(1)
+    )
+
+    names(template_results) <- unname(templates)
+  }
 
   # ---- summary ----
   n_created <- sum(results)
@@ -92,6 +217,11 @@ setup_project_folders <- function(
       " folder(s) created, ",
       n_existing,
       " already existed",
+      if (length(template_results) > 0) {
+        paste0(", ", sum(template_results), " template(s) copied")
+      } else {
+        ""
+      },
       if (!is.null(base_path) && base_path != ".") {
         paste0(" (base: ", base_path, ")")
       } else {
@@ -99,6 +229,8 @@ setup_project_folders <- function(
       }
     )
   }
+
+  attr(results, "templates") <- template_results
 
   invisible(results)
 }
