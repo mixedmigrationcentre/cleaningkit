@@ -915,7 +915,18 @@ prepare_other_responses <- function(
   addWorksheet(wb, dropdown_sheet)
   if (!is.null(other_db) && nrow(other_db) > 0) {
     for (r in seq_len(nrow(other_db))) {
-      if (other_db$q_type[r] != "text") {
+      # A row only gets a drop-down when its parent is a select question with
+      # choices to offer. q_type is NA whenever the parent could not be
+      # resolved to a question in the survey sheet, and `NA != "text"` is NA,
+      # which stops the whole write with "missing value where TRUE/FALSE
+      # needed"; choices / num_choices are NA on the same rows and would write
+      # the literal "NA" into the sheet and a `$1:$NA` validation range.
+      has_dropdown <- !is.na(other_db$q_type[r]) &&
+        other_db$q_type[r] != "text" &&
+        !is.na(other_db$choices[r]) &&
+        !is.na(other_db$num_choices[r]) &&
+        other_db$num_choices[r] > 0
+      if (has_dropdown) {
         choices <- str_split(other_db$choices[r], ";;")[[1]]
         writeData(wb, sheet = dropdown_sheet, x = choices, startCol = r)
         uuids <- which(df$question_name == other_db$name[r])

@@ -213,20 +213,75 @@ get_other_db <- function(
     ) %>%
     dplyr::select(-relevant)
 
-  # remove the "other" option from the choices available for recoding
+  # Remove the "other" option from the choices available for recoding.
+  #
+  # The option is identified by the PAIR (list_name, option_other) and matched
+  # exactly. Two things used to go wrong here, and both silently deleted a
+  # legitimate choice from every recoding dropdown rather than from one list:
+  #
+  #   * NA propagation. A row whose parent is not a select question carries
+  #     list_name = NA, so `list_name == NA` is NA for every choice and
+  #     `!(NA & TRUE)` is NA for the choice whose name equals option_other.
+  #     dplyr::filter() drops NA rows, so that choice vanished from EVERY
+  #     list. With the 4Mi "other" codes this is invisible (97 is meant to go
+  #     from all of them anyway), but when option_other was read as 197 or 297
+  #     - a code that only looks like an "other" code because it ends in 97 -
+  #     those real choices disappeared from every dropdown.
+  #   * Unscoped codes. option_other is read from the relevance expression and
+  #     only means anything for a select_one / select_multiple parent, so a
+  #     row of any other q_type must not remove a choice at all.
+  #
+  # Both are handled by building the set of (list_name, name) keys to drop
+  # first, keeping only rows where both halves are known and the parent is a
+  # select question, and then matching on the key itself.
   tool_choices_sub <- dplyr::filter(
     tool_choices,
-    list_name %in% other_db$list_name
+    !is.na(list_name) & list_name %in% other_db$list_name
   )
 
-  for (r in seq_len(nrow(other_db))) {
-    if (!is.na(other_db$option_other[r])) {
-      tool_choices_sub <- tool_choices_sub %>%
-        dplyr::filter(
-          !(list_name == other_db$list_name[r] &
-            name == other_db$option_other[r])
-        )
+  drop_rows <- !is.na(other_db$option_other) &
+    nzchar(trimws(as.character(other_db$option_other))) &
+    !is.na(other_db$list_name) &
+    !is.na(other_db$q_type) &
+    grepl("^select", as.character(other_db$q_type), ignore.case = TRUE)
+
+  if (any(drop_rows)) {
+    drop_keys <- unique(paste(
+      trimws(as.character(other_db$list_name[drop_rows])),
+      trimws(as.character(other_db$option_other[drop_rows])),
+      sep = "\u0001"
+    ))
+    choice_keys <- paste(
+      trimws(as.character(tool_choices_sub$list_name)),
+      trimws(as.character(tool_choices_sub$name)),
+      sep = "\u0001"
+    )
+
+    # An option_other that is not a choice of its own list means the relevance
+    # expression was read wrong - most often a filter clause such as
+    # `${Q12} = '197'` taken for the "other" option. Removing nothing and
+    # saying so is better than removing a choice that is not the one.
+    unknown <- setdiff(drop_keys, choice_keys)
+    if (length(unknown) > 0) {
+      parts <- strsplit(unknown, "\u0001", fixed = TRUE)
+      warning(
+        "get_other_db(): the 'other' option recorded for ",
+        length(unknown),
+        " question(s) is not a choice of its own list, so nothing was ",
+        "removed from those drop-downs (list / option): ",
+        paste0(
+          vapply(parts, function(p) paste0(p[1], " / ", p[2]), character(1)),
+          collapse = "; "
+        ),
+        call. = FALSE
+      )
     }
+
+    tool_choices_sub <- tool_choices_sub[
+      !(choice_keys %in% drop_keys),
+      ,
+      drop = FALSE
+    ]
   }
 
   # Resolve choice labels in the preferred language (fallback across languages,
