@@ -76,7 +76,13 @@ of <code>relevant</code>.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A character vector of option names, <code>NA</code> where none is found.</p>
+    <p>A character vector of option names, <code>NA</code> where none is found.
+When the parent is not compared anywhere in the expression, only an
+explicitly "other"-looking option is taken; otherwise the result is
+<code>NA</code>. Taking any other literal would pick up whatever a filter
+clause compares against (<code>${Q12} = '197' and ...</code>), and that code is
+then removed from the recoding drop-down as if it were the "other"
+option.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

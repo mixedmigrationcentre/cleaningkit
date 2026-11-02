@@ -26,4 +26,9 @@ instead of `other`).
 
 ## Value
 
-A character vector of option names, `NA` where none is found.
+A character vector of option names, `NA` where none is found. When the
+parent is not compared anywhere in the expression, only an explicitly
+"other"-looking option is taken; otherwise the result is `NA`. Taking
+any other literal would pick up whatever a filter clause compares
+against (`${Q12} = '197' and ...`), and that code is then removed from
+the recoding drop-down as if it were the "other" option.

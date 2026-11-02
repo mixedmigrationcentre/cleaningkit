@@ -2,6 +2,47 @@
 
 ## cleaningkit (development version)
 
+### The other-responses drop-downs
+
+- **Fixed: choices such as `197` and `297` went missing from every
+  recoding drop-down.** [`get_other_db()`](../reference/get_other_db.md)
+  removes a question’s “other” option from the choices offered for
+  recoding. It matched the pair `(list_name, option_other)`, but when
+  `list_name` was `NA` - which is what a question whose parent does not
+  resolve to a `select_one` / `select_multiple` gets - the comparison
+  evaluated to `NA`,
+  [`dplyr::filter()`](https://dplyr.tidyverse.org/reference/filter.html)
+  dropped the `NA` row, and the choice whose `name` equalled
+  `option_other` was removed from **every** list rather than from that
+  question’s own. With the 4Mi “other” codes (`97`, `997`, `99997`) this
+  went unnoticed, because those are meant to be dropped everywhere; it
+  became visible when `option_other` was read as a code that only looks
+  like an “other” code, so `197` and `297` disappeared from drop-downs
+  belonging to unrelated questions. The removal is now built from
+  `(list_name, name)` keys, skips any row where either half is unknown,
+  and only applies to rows whose parent really is a select question.
+- **`option_other` is no longer taken from a filter clause.**
+  [`.relevant_option_for_ref()`](../reference/dot-relevant_option_for_ref.md)
+  used to fall back to the first literal in the relevance expression
+  when the parent question was not compared in it, so
+  `${Q12} = '197' and ...` recorded `197` as the question’s “other”
+  option. Only an explicitly “other”-looking option is taken now;
+  otherwise the result is `NA`, which leaves the drop-down complete
+  instead of deleting a real choice from it.
+- **[`get_other_db()`](../reference/get_other_db.md) warns** when the
+  recorded `option_other` is not a choice of its own list, naming the
+  list and the option. Nothing is removed in that case - a mis-read
+  relevance expression is now visible rather than silently costing a
+  choice.
+- **The drop-down writer no longer stops on an unresolved question.**
+  [`save_other_responses()`](../reference/save_other_responses.md)
+  decided whether to write a drop-down with `q_type != "text"`, which is
+  `NA` for exactly those rows and failed the whole write with “missing
+  value where TRUE/FALSE needed”. Such a row is now skipped, along with
+  any row whose `choices` or `num_choices` is missing - those used to
+  write the literal `"NA"` into `Dropdown_values` and a `$1:$NA`
+  validation range.
+
 ### The follow-up workbook
 
 - **Two unused columns are gone from the cleaning log**:
