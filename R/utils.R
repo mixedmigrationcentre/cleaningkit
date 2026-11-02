@@ -745,6 +745,12 @@ get_ref_question <- function(x) {
 #' @param ref Character vector of parent question names, recycled to the length
 #'   of \code{relevant}.
 #' @return A character vector of option names, \code{NA} where none is found.
+#'   When the parent is not compared anywhere in the expression, only an
+#'   explicitly "other"-looking option is taken; otherwise the result is
+#'   \code{NA}. Taking any other literal would pick up whatever a filter
+#'   clause compares against (\code{${Q12} = '197' and ...}), and that code is
+#'   then removed from the recoding drop-down as if it were the "other"
+#'   option.
 #' @keywords internal
 .relevant_option_for_ref <- function(relevant, ref) {
   n <- max(length(relevant), length(ref))
@@ -767,11 +773,15 @@ get_ref_question <- function(x) {
       out[i] <- pairs$option[hit[length(hit)]]
       next
     }
+    # The parent is not compared in this expression. Only an explicitly
+    # "other"-looking option is safe to take here: falling back to the first
+    # literal in the expression picks up a filter clause's value (the '197' in
+    # `${Q12} = '197' and ...`), which get_other_db() would then strip out of
+    # the recoding drop-down as though it were the "other" option. Leaving it
+    # NA costs nothing but an "Other" entry left in one drop-down.
     other_like <- which(grepl("other", pairs$option, ignore.case = TRUE))
-    out[i] <- if (length(other_like) > 0) {
-      pairs$option[other_like[length(other_like)]]
-    } else {
-      pairs$option[1]
+    if (length(other_like) > 0) {
+      out[i] <- pairs$option[other_like[length(other_like)]]
     }
   }
   out

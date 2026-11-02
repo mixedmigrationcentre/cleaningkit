@@ -307,3 +307,99 @@ test_that("get_other_db() picks the right option_other and choice list", {
     c("No", "Yes")
   )
 })
+test_that(".relevant_option_for_ref() ignores a filter clause's value", {
+  # The parent is compared in the expression: that clause wins.
+  expect_equal(
+    .relevant_option_for_ref(
+      "${Q12} = '197' and selected(${Q32}, '97')",
+      "Q32"
+    ),
+    "97"
+  )
+  # The parent is not compared at all. The '197' belongs to a filter clause,
+  # not to the "other" option, so nothing is taken.
+  expect_true(is.na(.relevant_option_for_ref("${Q12} = '197'", "Q32")))
+  # An explicitly "other"-looking option is still safe to take.
+  expect_equal(
+    .relevant_option_for_ref("${Q12} = 'kenya' and ${Q13} = 'other'", "Q32"),
+    "other"
+  )
+})
+
+test_that("get_other_db() only removes the 'other' option from its own list", {
+  # A text question whose parent cannot be resolved to a select question ends
+  # up with list_name = NA and an option_other read from a filter clause. The
+  # pair filter used to let that NA propagate, so dplyr::filter() dropped the
+  # choice named by option_other from EVERY list - which is how 197 and 297
+  # went missing from drop-downs that had nothing to do with that question.
+  ts <- data.frame(
+    name = c("Q32", "Q32_1", "Q77_1"),
+    type = c("select_one region", "text", "text"),
+    relevant = c(NA, "selected(${Q32}, '97')", "${Q12} = '197'"),
+    label = c("Region", "Other region", "Orphan other question"),
+    stringsAsFactors = FALSE
+  )
+  ts$q_type <- vapply(strsplit(ts$type, " "), function(x) x[1], character(1))
+  ts$list_name <- vapply(
+    strsplit(ts$type, " "),
+    function(x) if (length(x) > 1) x[2] else NA_character_,
+    character(1)
+  )
+
+  tc <- data.frame(
+    list_name = rep("region", 4),
+    name = c("1", "97", "197", "297"),
+    label = c("Nairobi", "Other", "Do not know", "Prefer not to say"),
+    stringsAsFactors = FALSE
+  )
+
+  wd <- withr::local_tempdir()
+  withr::local_dir(wd)
+
+  labs <- suppressWarnings(get_other_labels(ts, preferred_language = NULL))
+  db <- suppressWarnings(get_other_db(ts, tc, labs, preferred_language = NULL))
+
+  expect_equal(db$option_other[db$name == "Q32_1"], "97")
+
+  choices <- strsplit(db$choices[db$name == "Q32_1"], ";;")[[1]]
+  # the real "other" code is still removed ...
+  expect_false("Other" %in% choices)
+  # ... and the codes that merely end in 97 are not
+  expect_true(all(c("Do not know", "Prefer not to say") %in% choices))
+  expect_equal(sort(choices), c("Do not know", "Nairobi", "Prefer not to say"))
+  expect_equal(db$num_choices[db$name == "Q32_1"], 3L)
+})
+
+test_that("get_other_db() warns when the 'other' option is not in its list", {
+  ts <- data.frame(
+    name = c("Q32", "Q32_1"),
+    type = c("select_one region", "text"),
+    relevant = c(NA, "selected(${Q32}, '999')"),
+    label = c("Region", "Other region"),
+    stringsAsFactors = FALSE
+  )
+  ts$q_type <- vapply(strsplit(ts$type, " "), function(x) x[1], character(1))
+  ts$list_name <- vapply(
+    strsplit(ts$type, " "),
+    function(x) if (length(x) > 1) x[2] else NA_character_,
+    character(1)
+  )
+
+  tc <- data.frame(
+    list_name = rep("region", 3),
+    name = c("1", "97", "197"),
+    label = c("Nairobi", "Other", "Do not know"),
+    stringsAsFactors = FALSE
+  )
+
+  wd <- withr::local_tempdir()
+  withr::local_dir(wd)
+
+  labs <- suppressWarnings(get_other_labels(ts, preferred_language = NULL))
+  expect_warning(
+    db <- get_other_db(ts, tc, labs, preferred_language = NULL),
+    "not a choice of its own list"
+  )
+  # nothing is removed when the recorded option cannot be trusted
+  expect_equal(db$num_choices[db$name == "Q32_1"], 3L)
+})
