@@ -17,6 +17,9 @@ apply_cleaning_log(
   remove_survey_values = "discard",
   no_action_values = "no_action",
   default_blank_action = "no_action",
+  apply_repeated_entries = TRUE,
+  log_issue_col = "Issue",
+  log_binding_col = "check_binding",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -63,6 +66,19 @@ cell is blank. Default \code{"no_action"}: an unfilled row means the data
 point stays as it is, so nothing is applied for it. Set to \code{NULL} to
 leave blank cells blank.}
 
+\item{apply_repeated_entries}{Logical. If \code{TRUE} (the default), the
+rows from \code{\link{validate_repeated_entries}} are applied with their
+suggested value whatever the reviewer filled in. If \code{FALSE}, they
+are applied only as the reviewer filled them in, like any other row.}
+
+\item{log_issue_col}{Name of the issue column in \code{cleaning_log}, used
+to find the repeated-entry rows and their suggested value. Default
+\code{"Issue"}.}
+
+\item{log_binding_col}{Name of the hidden check-binding column in
+\code{cleaning_log}. Default \code{"check_binding"}. When it is missing
+the rows are found from \code{log_issue_col} alone.}
+
 \item{skip_label_row}{Logical. If \code{TRUE} (the default), the first row
 of \code{raw_dataset} is preserved as the ONA label/description row and
 never modified by the cleaning log. Changes are only applied to rows 2+.}
@@ -75,11 +91,16 @@ and logical column types that were coerced to character.}
 printed on completion.}
 }
 \value{
-A list with two elements:
+A list with three elements:
 \item{clean_dataset}{The cleaned dataframe.}
 \item{audit_log}{A dataframe recording every change applied, with columns
 \code{uuid}, \code{question}, \code{action}, \code{value_before}, and
 \code{value_after}.}
+\item{cleaning_log}{The cleaning log that was applied: \code{cleaning_log}
+as passed in, with the repeated-entry rows' \strong{Action taken} and
+\strong{New value} filled in when \code{apply_repeated_entries = TRUE}.
+Pass this one on to \code{combine_reviewed_logs()} so the final log
+matches the clean data.}
 }
 \description{
 Applies every change specified in a filled and validated cleaning log to the
@@ -109,6 +130,17 @@ a reviewer who only filled in the rows that needed a change does not have to
 type \code{no_action} into every row they left alone. Set
 \code{default_blank_action = NULL} to restore the old behaviour, where a
 blank cell is an unknown action.
+
+\strong{Repeated entries:} rows written by
+\code{\link{validate_repeated_entries}} (back-to-back repeated countries,
+main stops and dangerous locations) are applied automatically when
+\code{apply_repeated_entries = TRUE} (the default), whatever the reviewer
+put in \strong{Action taken} and \strong{New value}. The value written is
+the one suggested in the row's \strong{Issue}: the row becomes
+\code{recoded} with that value, or \code{delete_data_point} when the
+suggestion is blank. A survey marked \code{discard} is still removed. Set
+\code{apply_repeated_entries = FALSE} to treat these rows like any other
+row and apply only what the reviewer filled in.
 
 \strong{Column-wide changes:} if \code{uuid} is \code{"all_data"} (case-
 insensitive), the change is applied to every row of \code{question} rather

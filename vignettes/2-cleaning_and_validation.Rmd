@@ -448,6 +448,73 @@ interview_location_log <- cleaningkit::validate_interview_location(
 )
 ```
 
+## Validate repeated entries
+
+Looks through the looped journey questions for an entry that repeats the one
+asked straight before it:
+
+| Question set | Questions | Counts as a repeat when |
+|---|---|---|
+| Countries transited | Q47 to Q54 | the country is the same |
+| Main stops | Q56 to Q70 (five stops) | the country **and** the place are the same |
+| Dangerous locations | Q98 to Q117 (five locations) | the country **and** the place are the same |
+
+Only entries that follow each other count. `Kenya, Kenya, Uganda` is flagged
+and becomes `Kenya, Uganda, None`; `Kenya, Uganda, Tanzania, Kenya` is left
+alone. A stop in the same country but a different place is kept. Two "Other"
+answers only match when the typed text matches.
+
+The form only opens the next entry when the one before is not None or Refused,
+so a repeat is not just blanked: the later entries move up one place - with
+their "please specify" texts, calculates and select-multiple sub-columns - and
+the list closes with None (`996`). A list that ended in Refused keeps Refused
+as its closing answer.
+
+The function only writes a log. Each row is one cell that has to change, and
+its issue names what was repeated and the suggested new value, for example:
+
+> [Main stops] Back-to-back repeat: stop 2 (Q59/Q60) is the same as stop 1
+> (Q56/Q57) '113 / 5'. Remove the repeat, move the later entries up one place
+> and close the list with None (996). Suggested new value: '220'.
+
+All rows from one record and question set share a colour on the cleaning log.
+`apply_cleaning_log()` applies these rows automatically when the data is
+cleaned - see *Apply cleaning log* in the next article.
+
+**Customise:** `sections` if your tool numbers these questions differently -
+start from `ck_repeated_entries_sections()`, edit it and pass it in, or pass a
+subset; `none_value` and `stop_values` if None, Don't know and Refused use
+other codes.
+
+```{r}
+repeated_entries_log <- cleaningkit::validate_repeated_entries(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  sections = cleaningkit::ck_repeated_entries_sections(),
+  none_value = "996",
+  stop_values = c("996", "998", "999"),
+  log_name = "repeated_entries_log",
+  skip_label_row = TRUE
+)
+```
+
+Each question set is a list of slots, one per entry, naming the columns of that
+entry. `country` (and `place`, when there is one) is compared, and so are the
+`*_other` texts; unnamed columns only move with their entry:
+
+```{r}
+sets <- cleaningkit::ck_repeated_entries_sections()
+sets$main_stops$slots[[1]]
+# country = "Q56", country_other = "Q56_1", place = "Q57",
+# place_other = "Q57_1", then "Q58" and "Q58_1" (why_stop), unnamed
+
+# run the main stops only
+repeated_entries_log <- cleaningkit::validate_repeated_entries(
+  dataset = raw_data,
+  sections = sets["main_stops"]
+)
+```
+
 ## Validate logical
 
 Logical checks are the consistency rules of the 4Mi questionnaire - the "this
@@ -578,6 +645,7 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
+  repeated_entries_log,
   similar_surveys_log,
   similar_questions_log,
   outliers_log,

@@ -99,6 +99,10 @@ review_cleaning_log <- cleaningkit::evaluate_cleaning_log(
 #----------------------------------
 # apply cleaning log
 # This function performs the actions to clean the data
+#
+# rows from validate_repeated_entries() are applied with their suggested
+# value whatever the reviewer put in the log (apply_repeated_entries = TRUE,
+# the default). set it to FALSE to apply only what the reviewer filled in
 #----------------------------------
 clean_data <- cleaningkit::apply_cleaning_log(
   raw_dataset = raw_data,
@@ -113,11 +117,19 @@ clean_data <- cleaningkit::apply_cleaning_log(
   remove_survey_values = "discard",
   no_action_values = "no_action",
   default_blank_action = "no_action",
+  # rows from validate_repeated_entries() are applied with their suggested
+  # value whatever the reviewer filled in. FALSE applies only what the
+  # reviewer filled in for them
+  apply_repeated_entries = TRUE,
   skip_label_row = TRUE,
   # restores the original column types after the edits are written back
   restore_types = TRUE,
   verbose = TRUE
 )
+
+# the log as it was applied, with the repeated-entry rows filled in - used
+# below so the final log matches the clean data
+cl <- clean_data$cleaning_log
 
 #----------------------------------
 # read other responses log

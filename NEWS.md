@@ -1,5 +1,24 @@
 # cleaningkit (development version)
 
+## New check: back-to-back repeated entries
+* **`validate_repeated_entries()`** flags looped journey questions where an
+  entry repeats the one straight before it - countries transited (Q47 to Q54)
+  on country, main stops (Q56 to Q70) and dangerous locations (Q98 to Q117)
+  on country and place. Only back-to-back repeats count. The log suggests
+  removing the repeat, moving the later entries up (their "please specify"
+  texts, calculates and select-multiple sub-columns included) and closing the
+  list with None (`996`); each row's issue names the suggested new value. The
+  data is not changed.
+* **`apply_cleaning_log()` applies the repeated-entry rows automatically.**
+  The new `apply_repeated_entries` argument (default `TRUE`) writes the
+  value suggested in each `validate_repeated_entries()` row, whatever the
+  reviewer put in **Action taken** and **New value**; a discarded survey is
+  still removed. Set it to `FALSE` to apply only the reviewer's choices.
+  `apply_cleaning_log()` now also returns `cleaning_log`, the log as it was
+  applied, to pass on to `combine_reviewed_logs()`.
+* **`ck_repeated_entries_sections()`** returns the default question sets, to
+  edit or subset for a tool with other question names.
+
 ## The other-responses drop-downs
 * **Fixed: choices such as `197` and `297` went missing from every recoding
   drop-down.** `get_other_db()` removes a question's "other" option from the

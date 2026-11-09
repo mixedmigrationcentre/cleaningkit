@@ -347,6 +347,33 @@ interview_location_log <- cleaningkit::validate_interview_location(
 )
 
 #----------------------------------
+# validate repeated entries
+# flags looped journey questions where an entry repeats the one straight
+# before it, and suggests removing the repeat, moving the later entries up
+# and closing the list with None:
+#   countries transited (Q47-Q54) - same country
+#   main stops (Q56-Q70)          - same country and place
+#   dangerous locations (Q98-Q117) - same country and place
+# only back-to-back repeats count: Kenya, Kenya, Uganda is flagged,
+# Kenya, Uganda, Tanzania, Kenya is not. the data is not changed
+#
+# CUSTOMISE: sections if your tool numbers these questions differently -
+# start from ck_repeated_entries_sections(), edit it and pass it in, or pass
+# a subset such as ck_repeated_entries_sections()["main_stops"];
+# none_value and stop_values if None / Don't know / Refused use other codes
+#----------------------------------
+
+repeated_entries_log <- cleaningkit::validate_repeated_entries(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  sections = cleaningkit::ck_repeated_entries_sections(),
+  none_value = "996",
+  stop_values = c("996", "998", "999"),
+  log_name = "repeated_entries_log",
+  skip_label_row = TRUE
+)
+
+#----------------------------------
 # validate logical
 # reads the logical excel sheets and uses that for validating the survey
 # a ready-made template of the checklist ships with the package, see:
@@ -386,6 +413,7 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
+  repeated_entries_log,
   # similar_surveys_log,
   outliers_log,
   logical_check_log

@@ -121,6 +121,19 @@ review_cleaning_log <- cleaningkit::evaluate_cleaning_log(
 
 This function performs the actions to clean the data.
 
+Rows written by `validate_repeated_entries()` - back-to-back repeated
+countries, main stops and dangerous locations - are applied automatically with
+`apply_repeated_entries = TRUE` (the default), whatever the reviewer put in
+**Action taken** and **New value**. Each row gets the value suggested in its
+**Issue**: it becomes `recoded` with that value, or `delete_data_point` when the
+suggestion is blank. A survey marked `discard` is still removed. Set
+`apply_repeated_entries = FALSE` to apply only what the reviewer filled in for
+these rows.
+
+`apply_cleaning_log()` also returns the log as it was applied
+(`clean_data$cleaning_log`), with those rows filled in. Pass that one to
+`combine_reviewed_logs()` so the final log matches the clean data.
+
 ```{r}
 clean_data <- cleaningkit::apply_cleaning_log(
   raw_dataset = raw_data,
@@ -135,11 +148,19 @@ clean_data <- cleaningkit::apply_cleaning_log(
   remove_survey_values = "discard",
   no_action_values = "no_action",
   default_blank_action = "no_action",
+  # rows from validate_repeated_entries() are applied with their suggested
+  # value whatever the reviewer filled in. FALSE applies only what the
+  # reviewer filled in for them
+  apply_repeated_entries = TRUE,
   skip_label_row = TRUE,
   # restores the original column types after the edits are written back
   restore_types = TRUE,
   verbose = TRUE
 )
+
+# the log as it was applied, with the repeated-entry rows filled in - used
+# below so the final log matches the clean data
+cl <- clean_data$cleaning_log
 ```
 
 ## Read other responses log

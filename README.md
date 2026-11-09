@@ -354,6 +354,22 @@ interview_location_log <- cleaningkit::validate_interview_location(
 )
 ```
 
+**`validate_repeated_entries()`** - flags looped journey questions where an entry repeats the one straight before it: countries transited (Q47 to Q54) on country, main stops (Q56 to Q70) and dangerous locations (Q98 to Q117) on country *and* place. Only back-to-back repeats count, so `Kenya, Kenya, Uganda` is flagged and becomes `Kenya, Uganda, None`, while `Kenya, Uganda, Tanzania, Kenya` is left alone. The log has one row per cell that has to change, and its issue says what was repeated and the suggested new value; the data itself is not changed.
+
+*Customise:* `sections` if your tool numbers these questions differently - start from `ck_repeated_entries_sections()`, edit it and pass it in (or pass a subset, e.g. `ck_repeated_entries_sections()["main_stops"]`); `none_value` and `stop_values` if None, Don't know and Refused use other codes.
+
+```r
+repeated_entries_log <- cleaningkit::validate_repeated_entries(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  sections = cleaningkit::ck_repeated_entries_sections(),
+  none_value = "996",
+  stop_values = c("996", "998", "999"),
+  log_name = "repeated_entries_log",
+  skip_label_row = TRUE
+)
+```
+
 **`validate_logical_with_list()`** - runs the checks written in the
 Excel checklist (see the next section).
 
@@ -470,6 +486,7 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
+  repeated_entries_log,
   outliers_log,
   logical_check_log
 )
@@ -609,7 +626,10 @@ workbook, normally `output/follow_ups/` — and `output_path` on
 #----------------------------------
 cleaning_log <- cleaningkit::read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
 evaluated_log <- cleaningkit::evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
-cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
+# rows from validate_repeated_entries() are applied with their suggested value;
+# apply_repeated_entries = FALSE applies only what the reviewer filled in
+cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log, apply_repeated_entries = TRUE)
+applied_log <- cleaned_data_list$cleaning_log
 
 # the same reviewed workbook - each reader finds its own sheet by name
 other_log <- cleaningkit::read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
@@ -618,7 +638,7 @@ cleaned_data_list <- cleaningkit::apply_other_responses(dataset = cleaned_data_l
 #----------------------------------
 # combine cleaning logs
 #----------------------------------
-final_log <- cleaningkit::combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
+final_log <- cleaningkit::combine_reviewed_logs(main_log = applied_log, other_log = other_log, dataset = raw_data)
 
 #----------------------------------
 # review clean dataset
