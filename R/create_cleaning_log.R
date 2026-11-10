@@ -86,7 +86,11 @@ ck_readme_df <- function(
 
   # ---- the action vocabulary ----
   add("")
-  add(paste0("ACTION TAKEN - the codes used on the ", cleaning_log_name, " sheet"))
+  add(paste0(
+    "ACTION TAKEN - the codes used on the ",
+    cleaning_log_name,
+    " sheet"
+  ))
   for (k in seq_along(action_codes)) {
     add(action_codes[k], action_descriptions[k])
   }

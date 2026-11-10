@@ -146,7 +146,10 @@ check_log_files <- function(
   # latter matters once the same folder can hold a merged review workbook and a
   # legacy single-purpose one, where the sheet of interest sits in a different
   # place in each. A list is used so names and indices can be mixed.
-  sheet_for <- rep_len(if (is.list(sheet)) sheet else as.list(sheet), length(files))
+  sheet_for <- rep_len(
+    if (is.list(sheet)) sheet else as.list(sheet),
+    length(files)
+  )
 
   header_of <- function(f, sheet) {
     ext <- tolower(tools::file_ext(f))
@@ -276,7 +279,9 @@ check_log_files <- function(
       "check_log_files: ",
       nrow(out),
       " file(s) checked",
-      if (!is.null(sheet) && any(grepl("xls", tolower(tools::file_ext(files))))) {
+      if (
+        !is.null(sheet) && any(grepl("xls", tolower(tools::file_ext(files))))
+      ) {
         paste0(" (Excel sheet: ", sheet, ")")
       } else {
         ""
@@ -326,7 +331,9 @@ check_log_files <- function(
         },
         ":"
       )
-      bad <- out[!out$matches_reference | is.na(out$matches_reference), ,
+      bad <- out[
+        !out$matches_reference | is.na(out$matches_reference),
+        ,
         drop = FALSE
       ]
       for (i in seq_len(nrow(bad))) {

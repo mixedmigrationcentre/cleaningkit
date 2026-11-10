@@ -311,7 +311,9 @@ validate_interview_location <- function(
         "' column."
       )
     }
-  } else if (isTRUE(use_location_fallback) && any(!valid_split_gps & !is_phone)) {
+  } else if (
+    isTRUE(use_location_fallback) && any(!valid_split_gps & !is_phone)
+  ) {
     message(
       "validate_interview_location: no '",
       location_column,
@@ -349,7 +351,13 @@ validate_interview_location <- function(
     ctry_txt <- if (length(ctry_tbl) > 0) {
       paste0(
         " By claimed country of interview: ",
-        paste0(names(ctry_tbl), " (", as.integer(ctry_tbl), ")", collapse = ", "),
+        paste0(
+          names(ctry_tbl),
+          " (",
+          as.integer(ctry_tbl),
+          ")",
+          collapse = ", "
+        ),
         "."
       )
     } else {

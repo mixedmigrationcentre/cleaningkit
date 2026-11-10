@@ -356,7 +356,11 @@ test_that("create_cleaning_log_vba() produces a well-formed macro-enabled packag
   wb_xml <- ck_read_part(out, "xl/workbook.xml")
   expect_true(grepl('codeName="ThisWorkbook"', wb_xml, fixed = TRUE))
 
-  sheet_parts <- grep("^xl/worksheets/sheet[0-9]+\\.xml$", entries, value = TRUE)
+  sheet_parts <- grep(
+    "^xl/worksheets/sheet[0-9]+\\.xml$",
+    entries,
+    value = TRUE
+  )
   expect_gt(length(sheet_parts), 0)
   for (p in sheet_parts) {
     expect_match(ck_read_part(out, p), 'codeName="Sheet[0-9]+"')

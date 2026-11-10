@@ -323,8 +323,12 @@ validate_repeated_entries <- function(
         "' must name its columns in the same order."
       )
     }
-    if (is.null(s$label)) s$label <- sid
-    if (is.null(s$item)) s$item <- "entry"
+    if (is.null(s$label)) {
+      s$label <- sid
+    }
+    if (is.null(s$item)) {
+      s$item <- "entry"
+    }
     sections[[sid]] <- s
   }
   sections
@@ -456,22 +460,42 @@ validate_repeated_entries <- function(
       dropped,
       function(j) {
         paste0(
-          section$item, " ", j, " (", ref(j), ") is the same as ",
-          section$item, " ", j - 1, " (", ref(j - 1), ") ", show(i, j)
+          section$item,
+          " ",
+          j,
+          " (",
+          ref(j),
+          ") is the same as ",
+          section$item,
+          " ",
+          j - 1,
+          " (",
+          ref(j - 1),
+          ") ",
+          show(i, j)
         )
       },
       character(1)
     )
-    closing <- if (has_closing && country[i, len + 1] != .ck_norm_entry(none_value)) {
-      paste0("keep the closing answer (", trimws(.ck_get_col(df, slots[[len + 1]][["country"]])[i]), ")")
+    closing <- if (
+      has_closing && country[i, len + 1] != .ck_norm_entry(none_value)
+    ) {
+      paste0(
+        "keep the closing answer (",
+        trimws(.ck_get_col(df, slots[[len + 1]][["country"]])[i]),
+        ")"
+      )
     } else {
       paste0("close the list with None (", none_value, ")")
     }
     base_issue <- paste0(
-      "[", section$label, "] Back-to-back repeat: ",
+      "[",
+      section$label,
+      "] Back-to-back repeat: ",
       paste(what, collapse = "; "),
       ". Remove the repeat, move the later entries up one place and ",
-      closing, "."
+      closing,
+      "."
     )
     binding <- paste(paste0("repeated_", section_id), uuids[i], sep = " ~/~ ")
 
@@ -482,12 +506,16 @@ validate_repeated_entries <- function(
       for (p in seq_along(slot_cols[[t]])) {
         target <- slot_cols[[t]][[p]]
         is_country <- identical(target$col, slots[[t]][["country"]])
-        cells <- c(list(list(col = target$col, sub = NULL)),
-                   lapply(names(target$subs), function(sf) {
-                     list(col = target$subs[[sf]], sub = sf)
-                   }))
+        cells <- c(
+          list(list(col = target$col, sub = NULL)),
+          lapply(names(target$subs), function(sf) {
+            list(col = target$subs[[sf]], sub = sf)
+          })
+        )
         for (cell in cells) {
-          if (!(cell$col %in% names(df))) next
+          if (!(cell$col %in% names(df))) {
+            next
+          }
           old <- .ck_get_col(df, cell$col)[i]
           new <- if (!is.na(src)) {
             value_at(i, src, p, cell$sub)
@@ -496,14 +524,21 @@ validate_repeated_entries <- function(
           } else {
             NA_character_
           }
-          if (identical(.ck_norm_entry(old), .ck_norm_entry(new))) next
+          if (identical(.ck_norm_entry(old), .ck_norm_entry(new))) {
+            next
+          }
           rows[[length(rows) + 1]] <- data.frame(
             uuid = uuids[i],
             old_value = old,
             question = cell$col,
             issue = paste0(
-              base_issue, " Suggested new value: ",
-              if (is.na(new) || !nzchar(trimws(new))) "blank" else paste0("'", new, "'"),
+              base_issue,
+              " Suggested new value: ",
+              if (is.na(new) || !nzchar(trimws(new))) {
+                "blank"
+              } else {
+                paste0("'", new, "'")
+              },
               "."
             ),
             check_binding = binding,
@@ -514,7 +549,11 @@ validate_repeated_entries <- function(
     }
   }
 
-  log <- if (length(rows) > 0) do.call(rbind, rows) else .ck_empty_repeated_log()
+  log <- if (length(rows) > 0) {
+    do.call(rbind, rows)
+  } else {
+    .ck_empty_repeated_log()
+  }
   list(flag = flag, log = log)
 }
 

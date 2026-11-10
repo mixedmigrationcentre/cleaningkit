@@ -1072,12 +1072,18 @@ read_other_responses <- function(
   saw_binary <- FALSE
   for (col in cand) {
     pos <- regexpr(sm_separator, col, fixed = TRUE)
-    if (pos < 1L) next
+    if (pos < 1L) {
+      next
+    }
     suffix <- substring(col, pos + nchar(sm_separator))
-    if (!nzchar(suffix)) next
+    if (!nzchar(suffix)) {
+      next
+    }
     vals <- as.character(ds[[col]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-    if (length(vals) == 0) next
+    if (length(vals) == 0) {
+      next
+    }
     v <- .norm_tok(vals)
     if (any(v == .norm_tok(suffix))) {
       return("suffix")
@@ -1115,7 +1121,8 @@ read_other_responses <- function(
 
   out <- "label" # a label export is the safe default: never invent codes
   if (
-    col %in% names(dataset) &&
+    col %in%
+      names(dataset) &&
       is.data.frame(tool_choices) &&
       all(c("list_name", "label", "name") %in% names(tool_choices))
   ) {
@@ -1258,11 +1265,19 @@ read_other_responses <- function(
   for (i in seq_along(sub_cols)) {
     vals <- as.character(dataset[[sub_cols[i]]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-    if (length(vals) == 0) next
+    if (length(vals) == 0) {
+      next
+    }
     v <- .norm_tok(vals)
-    if (any(v %in% c("0", "false"))) saw_zero <- TRUE
-    if (any(v %in% c("1", "true"))) saw_one <- TRUE
-    if (!all(v %in% binary_set)) saw_nonbinary <- TRUE
+    if (any(v %in% c("0", "false"))) {
+      saw_zero <- TRUE
+    }
+    if (any(v %in% c("1", "true"))) {
+      saw_one <- TRUE
+    }
+    if (!all(v %in% binary_set)) {
+      saw_nonbinary <- TRUE
+    }
     # A suffix that is itself 0/1 proves nothing — its "1" is the binary marker.
     if (
       !(.norm_tok(suffixes[i]) %in% binary_set) &&
@@ -1316,7 +1331,9 @@ read_other_responses <- function(
     suffix = function(suffix, label = NULL) suffix,
     label = function(suffix, label = NULL) {
       if (
-        !is.null(label) && length(label) > 0 && !is.na(label[1]) &&
+        !is.null(label) &&
+          length(label) > 0 &&
+          !is.na(label[1]) &&
           nzchar(label[1])
       ) {
         label[1]
@@ -1424,7 +1441,9 @@ read_other_responses <- function(
       chosen
     }
 
-    if (length(new_value) == 0 || is.na(new_value[1]) || !nzchar(new_value[1])) {
+    if (
+      length(new_value) == 0 || is.na(new_value[1]) || !nzchar(new_value[1])
+    ) {
       warning(paste0(
         "Choice '",
         chosen,

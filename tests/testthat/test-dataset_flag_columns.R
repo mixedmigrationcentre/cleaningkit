@@ -32,11 +32,19 @@ ck_flag_write_list <- function() {
     uuid = c("u1", "u2", "u2", "u3", "u4", "u5", "u1"),
     old_value = c("9.2", "41", "7", "12", "2026-09-04T08:00", "18", "204"),
     question = c(
-      "_duration", "all_columns", "all_columns", "_duration",
-      "start", "number_similar_columns", "age"
+      "_duration",
+      "all_columns",
+      "all_columns",
+      "_duration",
+      "start",
+      "number_similar_columns",
+      "age"
     ),
     issue = c(
-      "short", "few cells", "refused", "short",
+      "short",
+      "few cells",
+      "refused",
+      "short",
       paste0(
         "Back-to-back interview: started 7 min after enumerator 'enum_b' ",
         "ended the previous interview (uuid u3); below the 15 min threshold ",
@@ -127,9 +135,14 @@ test_that("the prefixes match what the validate_* functions actually write", {
 
   expect_true(all(
     c(
-      "duration_check", "completeness_check", "refused_check",
-      "back_to_back_check", "soft_duplicate", "dup_q"
-    ) %in% prefixes
+      "duration_check",
+      "completeness_check",
+      "refused_check",
+      "back_to_back_check",
+      "soft_duplicate",
+      "dup_q"
+    ) %in%
+      prefixes
   ))
 })
 
@@ -154,13 +167,13 @@ test_that("the flag columns lead the dataset sheet and carry the flagged values"
     "Flagged by: similar_surveys_log, similar_questions_log"
   )
 
-  expect_identical(sheet$duration[2], "9.2")     # u1, short interview
-  expect_true(is.na(sheet$duration[3]))          # u2, not flagged for duration
-  expect_identical(sheet$duration[4], "12")      # u3
-  expect_identical(sheet$completeness[3], "41")  # u2
-  expect_identical(sheet$refused[3], "7")        # u2
-  expect_match(sheet$`back to back`[5], "^Back-to-back interview")   # u4
-  expect_match(sheet$similarity[6], "^Similarity with surveys")     # u5
+  expect_identical(sheet$duration[2], "9.2") # u1, short interview
+  expect_true(is.na(sheet$duration[3])) # u2, not flagged for duration
+  expect_identical(sheet$duration[4], "12") # u3
+  expect_identical(sheet$completeness[3], "41") # u2
+  expect_identical(sheet$refused[3], "7") # u2
+  expect_match(sheet$`back to back`[5], "^Back-to-back interview") # u4
+  expect_match(sheet$similarity[6], "^Similarity with surveys") # u5
 })
 
 test_that("a check with no flag column of its own leaves no trace", {
@@ -202,7 +215,9 @@ test_that("the record rows line up with their uuids", {
   sheet <- ck_flag_dataset_sheet(ck_flag_write_list())
   # the value must sit on the row whose uuid the check flagged, not on the
   # row that happens to share its position in the log
-  flagged <- sheet$`_uuid`[!is.na(sheet$duration) & sheet$`_uuid` != "label uuid"]
+  flagged <- sheet$`_uuid`[
+    !is.na(sheet$duration) & sheet$`_uuid` != "label uuid"
+  ]
   expect_setequal(flagged, c("u1", "u3"))
 })
 
@@ -225,7 +240,7 @@ test_that("a custom flag column picks up its own check", {
   )
 
   expect_identical(names(sheet)[1], "outliers")
-  expect_identical(sheet$outliers[2], "204")  # u1
+  expect_identical(sheet$outliers[2], "204") # u1
   expect_true(all(is.na(sheet$outliers[3:6])))
 })
 
@@ -288,7 +303,10 @@ test_that("skip_label_row = FALSE treats every row as a record", {
 
 test_that("bad flag_columns definitions are refused clearly", {
   expect_error(
-    create_cleaning_log(ck_flag_write_list(), flag_columns = list("duration_check")),
+    create_cleaning_log(
+      ck_flag_write_list(),
+      flag_columns = list("duration_check")
+    ),
     "named"
   )
   expect_error(
@@ -347,7 +365,8 @@ test_that("the ignore list follows a renamed header", {
 
   config <- openxlsx::read.xlsx(path, sheet = "_ck_config", colNames = TRUE)
   ignored <- strsplit(
-    config$value[config$key == "ignore_columns"], ",",
+    config$value[config$key == "ignore_columns"],
+    ",",
     fixed = TRUE
   )[[1]]
 

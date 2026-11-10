@@ -401,7 +401,13 @@ add_vba_project <- function(
       fixed = TRUE
     )
   }
-  writeChar(ct, ct_path, nchars = nchar(ct, type = "bytes"), eos = NULL, useBytes = TRUE)
+  writeChar(
+    ct,
+    ct_path,
+    nchars = nchar(ct, type = "bytes"),
+    eos = NULL,
+    useBytes = TRUE
+  )
 
   # ---- 2. workbook relationship ----
   rels_path <- file.path(tmp, "xl", "_rels", "workbook.xml.rels")
@@ -416,14 +422,22 @@ add_vba_project <- function(
     rels <- sub(
       "</Relationships>",
       paste0(
-        '<Relationship Id="rId', next_id, '"',
+        '<Relationship Id="rId',
+        next_id,
+        '"',
         ' Type="http://schemas.microsoft.com/office/2006/relationships/vbaProject"',
         ' Target="vbaProject.bin"/></Relationships>'
       ),
       rels,
       fixed = TRUE
     )
-    writeChar(rels, rels_path, nchars = nchar(rels, type = "bytes"), eos = NULL, useBytes = TRUE)
+    writeChar(
+      rels,
+      rels_path,
+      nchars = nchar(rels, type = "bytes"),
+      eos = NULL,
+      useBytes = TRUE
+    )
   }
 
   # ---- 3. workbook code name ----
@@ -445,7 +459,13 @@ add_vba_project <- function(
         fixed = TRUE
       )
     }
-    writeChar(wb_xml, wb_path, nchars = nchar(wb_xml, type = "bytes"), eos = NULL, useBytes = TRUE)
+    writeChar(
+      wb_xml,
+      wb_path,
+      nchars = nchar(wb_xml, type = "bytes"),
+      eos = NULL,
+      useBytes = TRUE
+    )
   }
 
   # ---- 4. per-sheet code names, in sheet order ----
@@ -457,7 +477,11 @@ add_vba_project <- function(
   }
 
   # ---- 5. the VBA project itself ----
-  file.copy(vba_project, file.path(tmp, "xl", "vbaProject.bin"), overwrite = TRUE)
+  file.copy(
+    vba_project,
+    file.path(tmp, "xl", "vbaProject.bin"),
+    overwrite = TRUE
+  )
 
   # ---- rezip ----
   setwd(tmp)

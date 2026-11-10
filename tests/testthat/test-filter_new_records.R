@@ -150,7 +150,11 @@ test_that("use_ledger = FALSE compares the two files only", {
   make_export(file.path(dd, "prev.xlsx"), paste0("x", 1:3))
   make_export(file.path(dd, "new.xlsx"), paste0("x", 1:6))
 
-  res <- filter_new_records(data_folder = dd, use_ledger = FALSE, verbose = FALSE)
+  res <- filter_new_records(
+    data_folder = dd,
+    use_ledger = FALSE,
+    verbose = FALSE
+  )
 
   expect_false(file.exists(file.path(dd, "processed_uuids.csv")))
   expect_true(is.na(res$ledger_path))

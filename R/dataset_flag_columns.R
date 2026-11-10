@@ -388,7 +388,11 @@ ck_attach_flag_columns <- function(
 
   # The label row is not a record, so it gets a description rather than a value.
   has_label_row <- isTRUE(skip_label_row) && nrow(raw) >= 1
-  record_rows <- if (has_label_row) seq.int(2L, nrow(raw)) else seq_len(nrow(raw))
+  record_rows <- if (has_label_row) {
+    seq.int(2L, nrow(raw))
+  } else {
+    seq_len(nrow(raw))
+  }
   record_uuid <- as.character(raw[[uuid_column]])[record_rows]
 
   # `check_binding` is what ties a log row back to the check that raised it. A

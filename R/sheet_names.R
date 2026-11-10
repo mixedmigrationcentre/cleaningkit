@@ -171,7 +171,10 @@ ck_resolve_sheet <- function(file, candidates, fallback = 1) {
 #'
 #' @return \code{TRUE}, invisibly.
 #' @noRd
-ck_assert_sheet_names <- function(sheet_names, caller = "create_review_workbook") {
+ck_assert_sheet_names <- function(
+  sheet_names,
+  caller = "create_review_workbook"
+) {
   sheet_names <- as.character(sheet_names)
 
   blank <- !nzchar(trimws(sheet_names)) | is.na(sheet_names)
