@@ -508,7 +508,7 @@ create_formated_wb <- function(
 
     openxlsx::addWorksheet(wb, dataset_name)
     openxlsx::writeData(wb, sheet = i, dataset, rowNames = F)
-    openxlsx::addFilter(wb, sheet = i, row = 1, cols = 1:ncol(dataset))
+    openxlsx::addFilter(wb, sheet = i, rows = 1, cols = 1:ncol(dataset))
     openxlsx::freezePane(wb, sheet = i, firstCol = TRUE, firstRow = T)
     openxlsx::addStyle(
       wb,

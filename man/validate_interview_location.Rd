@@ -54,7 +54,7 @@ Default \code{"Q14"}.}
 \code{"interview_location_log"}.}
 
 \item{city_radius_km}{Maximum acceptable distance in kilometres between the
-GPS point and the geocoded city centre. Default \code{75} — large enough
+GPS point and the geocoded city centre. Default \code{75} - large enough
 to cover outer suburbs of most cities while still detecting GPS points
 that are clearly in the wrong location. Adjust per context: use a smaller
 value (e.g. 30) for small cities, larger (e.g. 150) for sprawling
@@ -74,14 +74,14 @@ connection and the \code{httr} and \code{jsonlite} packages.}
 
 \item{flag_missing_gps}{Logical. If \code{TRUE} (the default), surveys whose
 GPS coordinates are unusable are counted and reported as a console
-warning. They are \emph{never} written to the cleaning log — the log
+warning. They are \emph{never} written to the cleaning log - the log
 carries only surveys that a check actually ran on and failed. Set to
 \code{FALSE} to suppress the warning as well. Phone interviews are
 governed by \code{treat_blank_gps_as_phone}, not by this argument.}
 
 \item{treat_blank_gps_as_phone}{Logical. If \code{TRUE} (the default), a
-survey with \emph{all} coordinate columns empty — \code{lat_column},
-\code{lon_column} and \code{location_column} — is taken to be a phone
+survey with \emph{all} coordinate columns empty - \code{lat_column},
+\code{lon_column} and \code{location_column} - is taken to be a phone
 interview and excluded from every check and from the unusable-GPS warning
 count. Set to \code{FALSE} for a round known to be entirely in person, so
 that a completely absent geopoint is counted as unusable instead.}
@@ -110,7 +110,7 @@ A list containing:
 \code{check_binding} (shared within each check type per survey).
 Two possible \code{check_binding} prefixes:
 \code{"location_country"} and \code{"location_city"}. Surveys with
-unusable GPS never appear — they are reported as a console warning
+unusable GPS never appear - they are reported as a console warning
 instead (see \code{flag_missing_gps}).}
 }
 \description{
@@ -142,13 +142,13 @@ good enough for the country or city check to actually run and fail. Set
 \strong{Phone interviews are skipped.} A survey conducted by phone records
 no geopoint, so the coordinate columns come back empty. Those surveys are
 identified up front and excluded from every check and from the warning
-count — there is nothing to validate. Set
+count - there is nothing to validate. Set
 \code{treat_blank_gps_as_phone = FALSE} to count fully-empty coordinates
 as unusable instead, which is appropriate for a round that was entirely
 face-to-face.
 
 \strong{Rounded or corrupted coordinate columns.} Opening an ONA export in
-Excel frequently damages the split coordinate columns — the decimals are
+Excel frequently damages the split coordinate columns - the decimals are
 rounded away, the value is re-read as a date or as scientific notation, or
 the cell is emptied altogether. The raw geopoint column (\code{location} by
 default) is normally left intact because Excel treats it as text. When a
