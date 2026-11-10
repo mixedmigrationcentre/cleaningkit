@@ -4,7 +4,7 @@
 \alias{get_label_from_name}
 \title{Get Choice Label from Choice Name}
 \usage{
-get_label_from_name(list.name, name, tool_choices = NULL)
+get_label_from_name(list.name, name, tool_choices = NULL, label_column = NULL)
 }
 \arguments{
 \item{list.name}{The \code{list_name} value to filter by.}
@@ -13,6 +13,12 @@ get_label_from_name(list.name, name, tool_choices = NULL)
 
 \item{tool_choices}{Optional dataframe containing the XLSForm choices sheet.
 If \code{NULL}, looks for \code{tool_choices} in the environment.}
+
+\item{label_column}{Optional. The label column to read the label from, as
+an exact column name (e.g. \code{"label::Arabic (ar)"}) or a
+case-insensitive substring of one (e.g. \code{"Arabic"}). When the column
+is not found, or the choice has no label in it, the \code{label} column is
+used instead. If \code{NULL} (the default), only \code{label} is read.}
 }
 \value{
 The label string for the matching choice, or \code{NA} if not found.

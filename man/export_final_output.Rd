@@ -45,7 +45,7 @@ file. Default \code{"./output/final/cleaning_output.xlsx"}.}
 Default provides a generic placeholder the team can overwrite.}
 
 \item{data_collection_round}{Optional string for the data collection round /
-wave (e.g. \code{"Round 12 — Q1 2025"}). Default \code{NULL} (omitted).}
+wave (e.g. \code{"Round 12 - Q1 2025"}). Default \code{NULL} (omitted).}
 
 \item{prepared_by}{Name of the person or team who prepared the output.
 Default \code{NULL} (omitted).}
@@ -85,10 +85,10 @@ Invisibly returns \code{output_path}. The workbook is saved to disk.
 \description{
 Writes a single Excel workbook containing four sheets:
 \enumerate{
-\item \strong{readme} — project description and sheet guide, styled with MMC colours.
-\item \strong{raw_data} — the original raw dataset (ONA label row preserved as row 1).
-\item \strong{clean_data} — the cleaned dataset produced by \code{apply_cleaning_log()}.
-\item \strong{cleaning_log} — the combined cleaning log from \code{combine_reviewed_logs()}.
+\item \strong{readme} - project description and sheet guide, styled with MMC colours.
+\item \strong{raw_data} - the original raw dataset (ONA label row preserved as row 1).
+\item \strong{clean_data} - the cleaned dataset produced by \code{apply_cleaning_log()}.
+\item \strong{cleaning_log} - the combined cleaning log from \code{combine_reviewed_logs()}.
 }
 }
 \details{

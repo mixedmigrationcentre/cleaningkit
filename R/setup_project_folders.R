@@ -2,7 +2,7 @@
 #'
 #' Creates the standard folder structure used by the data cleaning pipeline and
 #' copies the packaged template files into \code{resources/}. Safe to run on an
-#' existing project — folders that already exist are skipped with an
+#' existing project - folders that already exist are skipped with an
 #' informational message rather than overwritten or errored, and existing
 #' template files are never overwritten unless \code{overwrite_templates = TRUE}.
 #'
@@ -57,7 +57,7 @@
 #'
 #' @return Invisibly returns a named logical vector: \code{TRUE} for each folder
 #'   that was newly created, \code{FALSE} for folders that already existed. The
-#'   result carries an attribute \code{"templates"} — a named logical vector,
+#'   result carries an attribute \code{"templates"} - a named logical vector,
 #'   \code{TRUE} for each template that was copied, \code{FALSE} for templates
 #'   that were skipped or could not be copied.
 #'
@@ -112,14 +112,14 @@ setup_project_folders <- function(
       full <- file.path(base_path, folder)
       if (dir.exists(full)) {
         if (verbose) {
-          message("  ✓ already exists: ", folder)
+          message(paste0("  ", intToUtf8(0x2713), " already exists: "), folder)
         }
         return(FALSE)
       }
       dir.create(full, recursive = TRUE, showWarnings = FALSE)
       if (dir.exists(full)) {
         if (verbose) {
-          message("  ✔ created:         ", folder)
+          message(paste0("  ", intToUtf8(0x2714), " created:         "), folder)
         }
         return(TRUE)
       } else {
@@ -180,7 +180,11 @@ setup_project_folders <- function(
 
         if (file.exists(dest_full) && !isTRUE(overwrite_templates)) {
           if (verbose) {
-            message("  ✓ template exists: ", dest_rel, " (not overwritten)")
+            message(
+              paste0("  ", intToUtf8(0x2713), " template exists: "),
+              dest_rel,
+              " (not overwritten)"
+            )
           }
           return(FALSE)
         }
@@ -193,7 +197,10 @@ setup_project_folders <- function(
 
         if (isTRUE(copied)) {
           if (verbose) {
-            message("  ✔ template copied: ", dest_rel)
+            message(
+              paste0("  ", intToUtf8(0x2714), " template copied: "),
+              dest_rel
+            )
           }
           return(TRUE)
         } else {

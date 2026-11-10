@@ -43,14 +43,14 @@ each template that was copied or skipped.}
 \value{
 Invisibly returns a named logical vector: \code{TRUE} for each folder
 that was newly created, \code{FALSE} for folders that already existed. The
-result carries an attribute \code{"templates"} — a named logical vector,
+result carries an attribute \code{"templates"} - a named logical vector,
 \code{TRUE} for each template that was copied, \code{FALSE} for templates
 that were skipped or could not be copied.
 }
 \description{
 Creates the standard folder structure used by the data cleaning pipeline and
 copies the packaged template files into \code{resources/}. Safe to run on an
-existing project — folders that already exist are skipped with an
+existing project - folders that already exist are skipped with an
 informational message rather than overwritten or errored, and existing
 template files are never overwritten unless \code{overwrite_templates = TRUE}.
 }

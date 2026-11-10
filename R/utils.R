@@ -153,9 +153,19 @@ get_name_from_label <- function(list_name, label, tool_choices = NULL) {
 #' @param name The choice \code{name} value to look up.
 #' @param tool_choices Optional dataframe containing the XLSForm choices sheet.
 #'   If \code{NULL}, looks for \code{tool_choices} in the environment.
+#' @param label_column Optional. The label column to read the label from, as
+#'   an exact column name (e.g. \code{"label::Arabic (ar)"}) or a
+#'   case-insensitive substring of one (e.g. \code{"Arabic"}). When the column
+#'   is not found, or the choice has no label in it, the \code{label} column is
+#'   used instead. If \code{NULL} (the default), only \code{label} is read.
 #' @return The label string for the matching choice, or \code{NA} if not found.
 #' @export
-get_label_from_name <- function(list.name, name, tool_choices = NULL) {
+get_label_from_name <- function(
+  list.name,
+  name,
+  tool_choices = NULL,
+  label_column = NULL
+) {
   # Resolve tool_choices dynamically if NULL
   if (is.null(tool_choices)) {
     if (exists("tool_choices", envir = parent.frame())) {
@@ -184,6 +194,25 @@ get_label_from_name <- function(list.name, name, tool_choices = NULL) {
   if (length(match_idx) == 0) {
     return(NA_character_)
   }
+
+  if (!is.null(label_column) && nzchar(label_column)) {
+    label_cols <- grep("^label", names(tool_choices), value = TRUE)
+    preferred <- label_cols[label_cols == label_column]
+    if (length(preferred) == 0) {
+      preferred <- label_cols[grepl(
+        tolower(label_column),
+        tolower(label_cols),
+        fixed = TRUE
+      )]
+    }
+    if (length(preferred) > 0) {
+      lab <- as.character(tool_choices[[preferred[1]]][match_idx[1]])
+      if (!is.na(lab) && nzchar(trimws(lab))) {
+        return(lab)
+      }
+    }
+  }
+
   return(tool_choices$label[match_idx[1]])
 }
 

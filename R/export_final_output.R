@@ -2,10 +2,10 @@
 #'
 #' Writes a single Excel workbook containing four sheets:
 #' \enumerate{
-#'   \item \strong{readme} — project description and sheet guide, styled with MMC colours.
-#'   \item \strong{raw_data} — the original raw dataset (ONA label row preserved as row 1).
-#'   \item \strong{clean_data} — the cleaned dataset produced by \code{apply_cleaning_log()}.
-#'   \item \strong{cleaning_log} — the combined cleaning log from \code{combine_reviewed_logs()}.
+#'   \item \strong{readme} - project description and sheet guide, styled with MMC colours.
+#'   \item \strong{raw_data} - the original raw dataset (ONA label row preserved as row 1).
+#'   \item \strong{clean_data} - the cleaned dataset produced by \code{apply_cleaning_log()}.
+#'   \item \strong{cleaning_log} - the combined cleaning log from \code{combine_reviewed_logs()}.
 #' }
 #'
 #' On the \code{cleaning_log} sheet the \code{Survey UUID} column is moved to
@@ -28,7 +28,7 @@
 #' @param project_description Longer project description written into the readme.
 #'   Default provides a generic placeholder the team can overwrite.
 #' @param data_collection_round Optional string for the data collection round /
-#'   wave (e.g. \code{"Round 12 — Q1 2025"}). Default \code{NULL} (omitted).
+#'   wave (e.g. \code{"Round 12 - Q1 2025"}). Default \code{NULL} (omitted).
 #' @param prepared_by Name of the person or team who prepared the output.
 #'   Default \code{NULL} (omitted).
 #' @param sheet_names Named character vector of length 4 giving the sheet tab
@@ -156,7 +156,7 @@ export_final_output <- function(
     n_rows <- nrow(df)
 
     if (add_filters) {
-      openxlsx::addFilter(wb, sheet_name, row = 1, cols = seq_len(n_cols))
+      openxlsx::addFilter(wb, sheet_name, rows = 1, cols = seq_len(n_cols))
     }
     if (freeze_panes) {
       # firstActiveRow/firstActiveCol = 2 freezes header row 1 and column A,
@@ -423,7 +423,11 @@ export_final_output <- function(
       desc = paste0(
         "The original raw dataset as exported from ONA (or equivalent XLSForm platform). ",
         "Row 1 contains the column variable names; row 2 contains the ONA label/description row. ",
-        "Actual survey records begin at row 3. This sheet is read-only — no changes should be made here. ",
+        paste0(
+          "Actual survey records begin at row 3. This sheet is read-only ",
+          intToUtf8(0x2014),
+          " no changes should be made here. "
+        ),
         "Contains ",
         nrow(raw_dataset),
         " rows (including label row) and ",
@@ -516,7 +520,11 @@ export_final_output <- function(
     ),
     list(
       "true_other",
-      "A genuine 'other' free-text response — New value contains the translation or corrected wording."
+      paste0(
+        "A genuine 'other' free-text response ",
+        intToUtf8(0x2014),
+        " New value contains the translation or corrected wording."
+      )
     ),
     list(
       "recode",
@@ -571,7 +579,7 @@ export_final_output <- function(
     tab_colour = "#5B9E62"
   )
 
-  # drop the check_binding helper column before writing — it is used internally
+  # drop the check_binding helper column before writing - it is used internally
   # for row colouring only and is not meaningful to the end reviewer
   log_for_output <- as.data.frame(combined_log)
   log_for_output[["check_binding"]] <- NULL

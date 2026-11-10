@@ -27,13 +27,13 @@
 #' \strong{Phone interviews are skipped.} A survey conducted by phone records
 #' no geopoint, so the coordinate columns come back empty. Those surveys are
 #' identified up front and excluded from every check and from the warning
-#' count — there is nothing to validate. Set
+#' count - there is nothing to validate. Set
 #' \code{treat_blank_gps_as_phone = FALSE} to count fully-empty coordinates
 #' as unusable instead, which is appropriate for a round that was entirely
 #' face-to-face.
 #'
 #' \strong{Rounded or corrupted coordinate columns.} Opening an ONA export in
-#' Excel frequently damages the split coordinate columns — the decimals are
+#' Excel frequently damages the split coordinate columns - the decimals are
 #' rounded away, the value is re-read as a date or as scientific notation, or
 #' the cell is emptied altogether. The raw geopoint column (\code{location} by
 #' default) is normally left intact because Excel treats it as text. When a
@@ -95,7 +95,7 @@
 #' @param log_name Name of the log element in the returned list. Default
 #'   \code{"interview_location_log"}.
 #' @param city_radius_km Maximum acceptable distance in kilometres between the
-#'   GPS point and the geocoded city centre. Default \code{75} — large enough
+#'   GPS point and the geocoded city centre. Default \code{75} - large enough
 #'   to cover outer suburbs of most cities while still detecting GPS points
 #'   that are clearly in the wrong location. Adjust per context: use a smaller
 #'   value (e.g. 30) for small cities, larger (e.g. 150) for sprawling
@@ -111,13 +111,13 @@
 #'   connection and the \code{httr} and \code{jsonlite} packages.
 #' @param flag_missing_gps Logical. If \code{TRUE} (the default), surveys whose
 #'   GPS coordinates are unusable are counted and reported as a console
-#'   warning. They are \emph{never} written to the cleaning log — the log
+#'   warning. They are \emph{never} written to the cleaning log - the log
 #'   carries only surveys that a check actually ran on and failed. Set to
 #'   \code{FALSE} to suppress the warning as well. Phone interviews are
 #'   governed by \code{treat_blank_gps_as_phone}, not by this argument.
 #' @param treat_blank_gps_as_phone Logical. If \code{TRUE} (the default), a
-#'   survey with \emph{all} coordinate columns empty — \code{lat_column},
-#'   \code{lon_column} and \code{location_column} — is taken to be a phone
+#'   survey with \emph{all} coordinate columns empty - \code{lat_column},
+#'   \code{lon_column} and \code{location_column} - is taken to be a phone
 #'   interview and excluded from every check and from the unusable-GPS warning
 #'   count. Set to \code{FALSE} for a round known to be entirely in person, so
 #'   that a completely absent geopoint is counted as unusable instead.
@@ -142,7 +142,7 @@
 #'     \code{check_binding} (shared within each check type per survey).
 #'     Two possible \code{check_binding} prefixes:
 #'     \code{"location_country"} and \code{"location_city"}. Surveys with
-#'     unusable GPS never appear — they are reported as a console warning
+#'     unusable GPS never appear - they are reported as a console warning
 #'     instead (see \code{flag_missing_gps}).}
 #' @export
 validate_interview_location <- function(
@@ -261,8 +261,8 @@ validate_interview_location <- function(
   loc_blank <- .is_blank_value(loc_raw)
 
   # ---- phone interviews: NO geopoint anywhere ----
-  # A phone interview records no geopoint at all, so both split columns — and
-  # the raw geopoint column — come back empty. That is expected, not a data
+  # A phone interview records no geopoint at all, so both split columns - and
+  # the raw geopoint column - come back empty. That is expected, not a data
   # quality problem, and the whole function has nothing to check for those
   # surveys. Judged on the raw column values (before as.numeric) so that a text
   # value such as "n/a" is treated as a bad entry rather than an empty one.
@@ -280,7 +280,11 @@ validate_interview_location <- function(
     message(
       "validate_interview_location: ",
       sum(is_phone),
-      " survey(s) have no geopoint in any coordinate column — treated as ",
+      paste0(
+        " survey(s) have no geopoint in any coordinate column ",
+        intToUtf8(0x2014),
+        " treated as "
+      ),
       "phone interviews and excluded from all location checks."
     )
   }
@@ -306,12 +310,18 @@ validate_interview_location <- function(
         lat_column,
         "' / '",
         lon_column,
-        "' values — coordinates recovered from the '",
+        paste0(
+          "' values ",
+          intToUtf8(0x2014),
+          " coordinates recovered from the '"
+        ),
         location_column,
         "' column."
       )
     }
-  } else if (isTRUE(use_location_fallback) && any(!valid_split_gps & !is_phone)) {
+  } else if (
+    isTRUE(use_location_fallback) && any(!valid_split_gps & !is_phone)
+  ) {
     message(
       "validate_interview_location: no '",
       location_column,
@@ -321,13 +331,13 @@ validate_interview_location <- function(
   }
 
   # ---- classify GPS validity ----
-  # (0,0) is in the Gulf of Guinea — almost certainly a device default.
+  # (0,0) is in the Gulf of Guinea - almost certainly a device default.
   has_valid_gps <- .is_valid_coord(lats, lons) & !is_phone
 
   log_parts <- list()
 
   # ====================================================================
-  # CHECK 1: unusable GPS — console warning only, never a log row
+  # CHECK 1: unusable GPS - console warning only, never a log row
   # ====================================================================
   # An unusable geopoint is not an answer an enumerator can correct, so there
   # is nothing actionable to put in a cleaning log; one row per affected survey
@@ -335,9 +345,9 @@ validate_interview_location <- function(
   # reported here, then dropped from the country and city checks.
   #
   # Phone interviews are excluded (nothing was ever recorded). What is counted
-  # is GPS that is present but unusable — one coordinate filled and the other
+  # is GPS that is present but unusable - one coordinate filled and the other
   # empty, non-numeric text, out-of-range values, or the (0, 0) device default
-  # — after the location_column fallback has already had its chance.
+  # - after the location_column fallback has already had its chance.
   unusable_gps_idx <- which(!has_valid_gps & !is_phone)
 
   if (flag_missing_gps && length(unusable_gps_idx) > 0) {
@@ -349,7 +359,13 @@ validate_interview_location <- function(
     ctry_txt <- if (length(ctry_tbl) > 0) {
       paste0(
         " By claimed country of interview: ",
-        paste0(names(ctry_tbl), " (", as.integer(ctry_tbl), ")", collapse = ", "),
+        paste0(
+          names(ctry_tbl),
+          " (",
+          as.integer(ctry_tbl),
+          ")",
+          collapse = ", "
+        ),
         "."
       )
     } else {
@@ -368,7 +384,11 @@ validate_interview_location <- function(
           ""
         },
         ". These surveys are excluded from the country and city checks and are ",
-        "NOT written to the cleaning log — review them separately if needed.",
+        paste0(
+          "NOT written to the cleaning log ",
+          intToUtf8(0x2014),
+          " review them separately if needed."
+        ),
         ctry_txt,
         " First affected uuid(s): ",
         paste(example_uuids, collapse = ", "),
@@ -476,7 +496,7 @@ validate_interview_location <- function(
           is.na(country_dist_km[wrong_country_pos]),
           "",
           paste0(
-            " — approximately ",
+            paste0(" ", intToUtf8(0x2014), " approximately "),
             round(country_dist_km[wrong_country_pos], 1),
             "km outside its border"
           )
@@ -521,7 +541,7 @@ validate_interview_location <- function(
 
     nominatim_delay_s <- max(nominatim_delay_s, 1) # enforce usage policy
 
-    # geocode only unique city+country pairs — not every row.
+    # geocode only unique city+country pairs - not every row.
     # Normalised keys mean case / spacing variants are geocoded once.
     survey_key <- .location_key(valid_cities, valid_countries)
 
@@ -571,7 +591,11 @@ validate_interview_location <- function(
     failed_pairs <- pairs[!(pairs$key %in% geocoded_keys), , drop = FALSE]
     if (nrow(failed_pairs) > 0) {
       warning(paste0(
-        "Could not geocode the following city+country combination(s) — ",
+        paste0(
+          "Could not geocode the following city+country combination(s) ",
+          intToUtf8(0x2014),
+          " "
+        ),
         "those surveys are excluded from the city check: ",
         paste(
           paste0(failed_pairs$city, ", ", failed_pairs$country),
@@ -855,7 +879,6 @@ validate_interview_location <- function(
     "ivory coast" = "Ivory Coast",
     "cote d'ivoire" = "Ivory Coast",
     "cote d ivoire" = "Ivory Coast",
-    "côte d'ivoire" = "Ivory Coast",
     "syria" = "Syria",
     "syrian arab republic" = "Syria",
     "iran" = "Iran",
@@ -877,7 +900,6 @@ validate_interview_location <- function(
     "the gambia" = "Gambia",
     "gambia, the" = "Gambia",
     "turkiye" = "Turkey",
-    "türkiye" = "Turkey",
     "czechia" = "Czechia",
     "czech republic" = "Czechia",
     "macedonia" = "North Macedonia",
@@ -901,6 +923,9 @@ validate_interview_location <- function(
     "somaliland" = "Somaliland",
     "somalia" = "Somalia"
   )
+  # Accented spellings, built with intToUtf8() to keep the R code ASCII.
+  map[[paste0("c", intToUtf8(0x00F4), "te d'ivoire")]] <- "Ivory Coast"
+  map[[paste0("t", intToUtf8(0x00FC), "rkiye")]] <- "Turkey"
   if (!is.null(map[[key]])) map[[key]] else NULL
 }
 
@@ -1028,7 +1053,7 @@ validate_interview_location <- function(
     return(out)
   }
 
-  # 2. free-form fallback — resolves towns, border crossings and settlements
+  # 2. free-form fallback - resolves towns, border crossings and settlements
   #    that OSM does not tag as a city
   url_free <- paste0(
     "https://nominatim.openstreetmap.org/search",

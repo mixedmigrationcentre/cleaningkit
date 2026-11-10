@@ -14,7 +14,7 @@ combine_reviewed_logs(
   cleaning_log_name = "cleaning_log",
   issue_labels = c(true_other = "Translation or correction of a genuine other response",
     recode = "Other response recoded to an existing choice", remove =
-    "Invalid other response — value removed"),
+    paste0("Invalid other response ", intToUtf8(8212), " value removed")),
   skip_label_row = TRUE
 )
 }
@@ -68,14 +68,14 @@ ready for review in Excel or for passing to \code{evaluate_cleaning_log()}.
 \details{
 \strong{Column mapping from the other-responses log:}
 \describe{
-\item{\code{uuid}}{→ \code{Survey UUID}; also used to look up
+\item{\code{uuid}}{-> \code{Survey UUID}; also used to look up
 \code{Date} and \code{Enumerator} from the dataset.}
-\item{\code{question}}{→ \code{Question number}; label looked up from the
-dataset label row → \code{Question text}.}
-\item{\code{action_taken}}{→ \code{Action taken} (kept as-is) and used to
+\item{\code{question}}{-> \code{Question number}; label looked up from the
+dataset label row -> \code{Question text}.}
+\item{\code{action_taken}}{-> \code{Action taken} (kept as-is) and used to
 generate a human-readable \code{Issue} description.}
-\item{\code{old_value}}{→ \code{Old value}.}
-\item{\code{new_value}}{→ \code{New value} (already filled by
+\item{\code{old_value}}{-> \code{Old value}.}
+\item{\code{new_value}}{-> \code{New value} (already filled by
 \code{read_other_responses()}).}
 }
 
@@ -83,7 +83,7 @@ generate a human-readable \code{Issue} description.}
 \describe{
 \item{\code{true_other}}{Translation or correction of a genuine other response}
 \item{\code{recode}}{Other response recoded to an existing choice}
-\item{\code{remove}}{Invalid other response — value removed}
+\item{\code{remove}}{Invalid other response - value removed}
 }
 
 \strong{check_binding:} rows from the same other-response action on the same
