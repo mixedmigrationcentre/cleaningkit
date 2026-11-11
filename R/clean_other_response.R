@@ -366,7 +366,10 @@ read_other_responses <- function(
     return(.empty_other_log())
   }
 
-  # ---- combine three existing_other slots into one semicolon-separated field ----
+  # ---- combine three existing_other slots into one ";;"-separated field ----
+  # ";;" and not ";": a choice label may itself contain ";", e.g.
+  # "Lack of freedom (of expression; movement; association)/repressive
+  # government"
   or <- or |>
     tidyr::unite(
       "existing_other",
@@ -375,7 +378,7 @@ read_other_responses <- function(
         "existing_other_2",
         "existing_other_3"
       )),
-      sep = ";",
+      sep = ";;",
       remove = TRUE,
       na.rm = TRUE
     ) |>
@@ -1483,13 +1486,12 @@ read_other_responses <- function(
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
-    # Split the existing_other field on ";;" or ";" to get individual labels
+    # Split the existing_other field on ";;" only: a single ";" can be part of
+    # a choice label, e.g. "Lack of freedom (of expression; movement; ...)"
     raw_existing <- trimws(x$existing_other)
-    chosen_labels <- if (grepl(";;", raw_existing, fixed = TRUE)) {
-      trimws(stringr::str_split(raw_existing, ";;")[[1]])
-    } else {
-      trimws(stringr::str_split(raw_existing, ";")[[1]])
-    }
+    chosen_labels <- trimws(
+      stringr::str_split(raw_existing, stringr::fixed(";;"))[[1]]
+    )
     chosen_labels <- chosen_labels[nzchar(chosen_labels)]
 
     old_concat <- gv(x$ref_question)
