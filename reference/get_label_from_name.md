@@ -7,7 +7,7 @@ environment if not explicitly provided.
 ## Usage
 
 ``` r
-get_label_from_name(list.name, name, tool_choices = NULL)
+get_label_from_name(list.name, name, tool_choices = NULL, label_column = NULL)
 ```
 
 ## Arguments
@@ -24,6 +24,14 @@ get_label_from_name(list.name, name, tool_choices = NULL)
 
   Optional dataframe containing the XLSForm choices sheet. If `NULL`,
   looks for `tool_choices` in the environment.
+
+- label_column:
+
+  Optional. The label column to read the label from, as an exact column
+  name (e.g. `"label::Arabic (ar)"`) or a case-insensitive substring of
+  one (e.g. `"Arabic"`). When the column is not found, or the choice has
+  no label in it, the `label` column is used instead. If `NULL` (the
+  default), only `label` is read.
 
 ## Value
 

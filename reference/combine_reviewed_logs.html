@@ -62,7 +62,7 @@ ready for review in Excel or for passing to <code><a href="evaluate_cleaning_log
 <span>  cleaning_log_name <span class="op">=</span> <span class="st">"cleaning_log"</span>,</span>
 <span>  issue_labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>true_other <span class="op">=</span> <span class="st">"Translation or correction of a genuine other response"</span>,</span>
 <span>    recode <span class="op">=</span> <span class="st">"Other response recoded to an existing choice"</span>, remove <span class="op">=</span></span>
-<span>    <span class="st">"Invalid other response — value removed"</span><span class="op">)</span>,</span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Invalid other response "</span>, <span class="fu"><a href="https://rdrr.io/r/base/utf8Conversion.html" class="external-link">intToUtf8</a></span><span class="op">(</span><span class="fl">8212</span><span class="op">)</span>, <span class="st">" value removed"</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -133,22 +133,22 @@ Columns: <code>Date</code>, <code>Survey UUID</code>, <code>Enumerator</code>,
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Column mapping from the other-responses log:</strong></p><dl><dt><code>uuid</code></dt>
-<dd><p>→ <code>Survey UUID</code>; also used to look up
+<dd><p>-&gt; <code>Survey UUID</code>; also used to look up
 <code>Date</code> and <code>Enumerator</code> from the dataset.</p></dd>
 
 <dt><code>question</code></dt>
-<dd><p>→ <code>Question number</code>; label looked up from the
-dataset label row → <code>Question text</code>.</p></dd>
+<dd><p>-&gt; <code>Question number</code>; label looked up from the
+dataset label row -&gt; <code>Question text</code>.</p></dd>
 
 <dt><code>action_taken</code></dt>
-<dd><p>→ <code>Action taken</code> (kept as-is) and used to
+<dd><p>-&gt; <code>Action taken</code> (kept as-is) and used to
 generate a human-readable <code>Issue</code> description.</p></dd>
 
 <dt><code>old_value</code></dt>
-<dd><p>→ <code>Old value</code>.</p></dd>
+<dd><p>-&gt; <code>Old value</code>.</p></dd>
 
 <dt><code>new_value</code></dt>
-<dd><p>→ <code>New value</code> (already filled by
+<dd><p>-&gt; <code>New value</code> (already filled by
 <code><a href="read_other_responses.html">read_other_responses()</a></code>).</p></dd>
 
 
@@ -159,7 +159,7 @@ generate a human-readable <code>Issue</code> description.</p></dd>
 <dd><p>Other response recoded to an existing choice</p></dd>
 
 <dt><code>remove</code></dt>
-<dd><p>Invalid other response — value removed</p></dd>
+<dd><p>Invalid other response - value removed</p></dd>
 
 
 </dl><p><strong>check_binding:</strong> rows from the same other-response action on the same

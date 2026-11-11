@@ -21,7 +21,7 @@ combine_reviewed_logs(
   cleaning_log_name = "cleaning_log",
   issue_labels = c(true_other = "Translation or correction of a genuine other response",
     recode = "Other response recoded to an existing choice", remove =
-    "Invalid other response — value removed"),
+    paste0("Invalid other response ", intToUtf8(8212), " value removed")),
   skip_label_row = TRUE
 )
 ```
@@ -91,26 +91,26 @@ other-response rows appended after the main cleaning log rows. Columns:
 
 - `uuid`:
 
-  → `Survey UUID`; also used to look up `Date` and `Enumerator` from the
-  dataset.
+  -\> `Survey UUID`; also used to look up `Date` and `Enumerator` from
+  the dataset.
 
 - `question`:
 
-  → `Question number`; label looked up from the dataset label row →
+  -\> `Question number`; label looked up from the dataset label row -\>
   `Question text`.
 
 - `action_taken`:
 
-  → `Action taken` (kept as-is) and used to generate a human-readable
+  -\> `Action taken` (kept as-is) and used to generate a human-readable
   `Issue` description.
 
 - `old_value`:
 
-  → `Old value`.
+  -\> `Old value`.
 
 - `new_value`:
 
-  → `New value` (already filled by
+  -\> `New value` (already filled by
   [`read_other_responses()`](read_other_responses.md)).
 
 **Issue descriptions generated from `action_taken`:**
@@ -125,7 +125,7 @@ other-response rows appended after the main cleaning log rows. Columns:
 
 - `remove`:
 
-  Invalid other response — value removed
+  Invalid other response - value removed
 
 **check_binding:** rows from the same other-response action on the same
 record share a `check_binding` of `"other_response ~/~ <uuid>"`, so they

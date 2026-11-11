@@ -49,7 +49,7 @@ in the environment if not explicitly provided.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_label_from_name</span><span class="op">(</span><span class="va">list.name</span>, <span class="va">name</span>, tool_choices <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_label_from_name</span><span class="op">(</span><span class="va">list.name</span>, <span class="va">name</span>, tool_choices <span class="op">=</span> <span class="cn">NULL</span>, label_column <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -67,6 +67,14 @@ in the environment if not explicitly provided.</p>
 <dt id="arg-tool-choices">tool_choices<a class="anchor" aria-label="anchor" href="#arg-tool-choices"></a></dt>
 <dd><p>Optional dataframe containing the XLSForm choices sheet.
 If <code>NULL</code>, looks for <code>tool_choices</code> in the environment.</p></dd>
+
+
+<dt id="arg-label-column">label_column<a class="anchor" aria-label="anchor" href="#arg-label-column"></a></dt>
+<dd><p>Optional. The label column to read the label from, as
+an exact column name (e.g. <code>"label::Arabic (ar)"</code>) or a
+case-insensitive substring of one (e.g. <code>"Arabic"</code>). When the column
+is not found, or the choice has no label in it, the <code>label</code> column is
+used instead. If <code>NULL</code> (the default), only <code>label</code> is read.</p></dd>
 
 </dl></div>
     <div class="section level2">

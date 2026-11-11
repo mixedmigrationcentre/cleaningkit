@@ -2,7 +2,7 @@
 
 The `list_name` recorded in `other_db` comes from whichever version of
 the tool produced the original output, and that need not be the list the
-current `tool_choices` calls by that name — a colleague's tool can name
+current `tool_choices` calls by that name - a colleague's tool can name
 the same list differently, or name a different list the same. So the
 stated list is tried first, then the rest of `tool_choices` is searched
 for the same text, so a mismatched `list_name` degrades to a slower

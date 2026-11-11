@@ -62,6 +62,9 @@ modification made.</p>
 <span>  remove_survey_values <span class="op">=</span> <span class="st">"discard"</span>,</span>
 <span>  no_action_values <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
+<span>  apply_repeated_entries <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  log_issue_col <span class="op">=</span> <span class="st">"Issue"</span>,</span>
+<span>  log_binding_col <span class="op">=</span> <span class="st">"check_binding"</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  restore_types <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -136,6 +139,25 @@ point stays as it is, so nothing is applied for it. Set to <code>NULL</code> to
 leave blank cells blank.</p></dd>
 
 
+<dt id="arg-apply-repeated-entries">apply_repeated_entries<a class="anchor" aria-label="anchor" href="#arg-apply-repeated-entries"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), the
+rows from <code><a href="validate_repeated_entries.html">validate_repeated_entries</a></code> are applied with their
+suggested value whatever the reviewer filled in. If <code>FALSE</code>, they
+are applied only as the reviewer filled them in, like any other row.</p></dd>
+
+
+<dt id="arg-log-issue-col">log_issue_col<a class="anchor" aria-label="anchor" href="#arg-log-issue-col"></a></dt>
+<dd><p>Name of the issue column in <code>cleaning_log</code>, used
+to find the repeated-entry rows and their suggested value. Default
+<code>"Issue"</code>.</p></dd>
+
+
+<dt id="arg-log-binding-col">log_binding_col<a class="anchor" aria-label="anchor" href="#arg-log-binding-col"></a></dt>
+<dd><p>Name of the hidden check-binding column in
+<code>cleaning_log</code>. Default <code>"check_binding"</code>. When it is missing
+the rows are found from <code>log_issue_col</code> alone.</p></dd>
+
+
 <dt id="arg-skip-label-row">skip_label_row<a class="anchor" aria-label="anchor" href="#arg-skip-label-row"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), the first row
 of <code>raw_dataset</code> is preserved as the ONA label/description row and
@@ -155,7 +177,7 @@ printed on completion.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with two elements:</p>
+    <p>A list with three elements:</p>
 <dl><dt>clean_dataset</dt>
 <dd><p>The cleaned dataframe.</p></dd>
 
@@ -163,6 +185,13 @@ printed on completion.</p></dd>
 <dd><p>A dataframe recording every change applied, with columns
 <code>uuid</code>, <code>question</code>, <code>action</code>, <code>value_before</code>, and
 <code>value_after</code>.</p></dd>
+
+<dt>cleaning_log</dt>
+<dd><p>The cleaning log that was applied: <code>cleaning_log</code>
+as passed in, with the repeated-entry rows' <strong>Action taken</strong> and
+<strong>New value</strong> filled in when <code>apply_repeated_entries = TRUE</code>.
+Pass this one on to <code><a href="combine_reviewed_logs.html">combine_reviewed_logs()</a></code> so the final log
+matches the clean data.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -198,6 +227,20 @@ a reviewer who only filled in the rows that needed a change does not have to
 type <code>no_action</code> into every row they left alone. Set
 <code>default_blank_action = NULL</code> to restore the old behaviour, where a
 blank cell is an unknown action.</p>
+<p><strong>Repeated entries:</strong> rows written by
+<code><a href="validate_repeated_entries.html">validate_repeated_entries</a></code> (back-to-back repeated countries,
+main stops and dangerous locations) are applied automatically when
+<code>apply_repeated_entries = TRUE</code> (the default), whatever the reviewer
+put in <strong>Action taken</strong> and <strong>New value</strong>. The value written is
+the one suggested in the row's <strong>Issue</strong>: the row becomes
+<code>recoded</code> with that value, or <code>delete_data_point</code> when the
+suggestion is blank. A survey marked <code>discard</code> is still removed.
+"Possible repeat" rows (not next to each other, or matched through a typed
+"Other" answer) are only applied for a record the reviewer accepted, by
+giving any one of its rows an action in <code>change_response_values</code>;
+otherwise they are kept as they are. Set
+<code>apply_repeated_entries = FALSE</code> to treat these rows like any other
+row and apply only what the reviewer filled in.</p>
 <p><strong>Column-wide changes:</strong> if <code>uuid</code> is <code>"all_data"</code> (case-
 insensitive), the change is applied to every row of <code>question</code> rather
 than one specific survey. This mirrors the original behaviour for bulk

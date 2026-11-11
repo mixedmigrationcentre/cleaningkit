@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>/404.html</loc></url>
+<url><loc>/CLAUDE.html</loc></url>
 <url><loc>/LICENSE-text.html</loc></url>
 <url><loc>/LICENSE.html</loc></url>
 <url><loc>/articles/1-introduction.html</loc></url>
@@ -17,8 +18,10 @@
 <url><loc>/reference/check_answer_in_list.html</loc></url>
 <url><loc>/reference/check_constraints.html</loc></url>
 <url><loc>/reference/check_log_files.html</loc></url>
+<url><loc>/reference/ck_country_aliases.html</loc></url>
 <url><loc>/reference/ck_flag_column_defaults.html</loc></url>
 <url><loc>/reference/ck_flag_column_names.html</loc></url>
+<url><loc>/reference/ck_repeated_entries_sections.html</loc></url>
 <url><loc>/reference/ck_vba_project_path.html</loc></url>
 <url><loc>/reference/cleaningkit-package.html</loc></url>
 <url><loc>/reference/combine_reviewed_logs.html</loc></url>
@@ -88,6 +91,7 @@
 <url><loc>/reference/validate_logical_with_list.html</loc></url>
 <url><loc>/reference/validate_outliers.html</loc></url>
 <url><loc>/reference/validate_refused.html</loc></url>
+<url><loc>/reference/validate_repeated_entries.html</loc></url>
 <url><loc>/reference/validate_similar_questions.html</loc></url>
 <url><loc>/reference/validate_similar_surveys.html</loc></url>
 <url><loc>/reference/validate_spatial_proximity.html</loc></url>

@@ -188,12 +188,12 @@ whose <code>question</code> is not a column in the raw dataset are silently drop
 <p><strong>Deduplication:</strong> when the same <code>uuid + question</code> pair appears in
 more than one row (e.g. the same cell was reviewed in two separate log files
 or two reviewers completed the same row), the most decisive action is kept
-using the following priority:</p><ol><li><p><code>recoded</code> — a specific new value was chosen</p></li>
-<li><p><code>addition</code> — a blank was filled in</p></li>
-<li><p><code>other</code> — a change was made that doesn't fit a standard category</p></li>
-<li><p><code>delete_data_point</code> — the cell was blanked</p></li>
-<li><p><code>no_action</code> — reviewer confirmed no change needed</p></li>
-<li><p><code>NA</code> or anything else — lowest priority</p></li>
+using the following priority:</p><ol><li><p><code>recoded</code> - a specific new value was chosen</p></li>
+<li><p><code>addition</code> - a blank was filled in</p></li>
+<li><p><code>other</code> - a change was made that doesn't fit a standard category</p></li>
+<li><p><code>delete_data_point</code> - the cell was blanked</p></li>
+<li><p><code>no_action</code> - reviewer confirmed no change needed</p></li>
+<li><p><code>NA</code> or anything else - lowest priority</p></li>
 </ol><p><code>discard</code> rows are handled separately: only one <code>discard</code> row is
 kept per uuid.</p>
 <p><strong>Duplicate check:</strong> after deduplication, if any <code>uuid + question</code>

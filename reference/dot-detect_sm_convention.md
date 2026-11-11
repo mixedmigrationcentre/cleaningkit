@@ -3,11 +3,11 @@
 Two independent things have to be detected, and getting either wrong
 writes values the export never uses:
 
-1.  **Header tokens** — are sub-columns named with the choice *label*
+1.  **Header tokens** - are sub-columns named with the choice *label*
     (`Q83/Insufficient access to basic goods`) or the choice *code*
     (`Q83/2`)?
 
-2.  **Selected marker** — what does a selected cell contain? Either
+2.  **Selected marker** - what does a selected cell contain? Either
     `"1"` (binary export) or the choice text itself (label export, where
     an unselected cell is simply blank).
 

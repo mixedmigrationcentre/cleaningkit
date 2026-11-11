@@ -73,7 +73,7 @@ validate_interview_location(
 - city_radius_km:
 
   Maximum acceptable distance in kilometres between the GPS point and
-  the geocoded city centre. Default `75` — large enough to cover outer
+  the geocoded city centre. Default `75` - large enough to cover outer
   suburbs of most cities while still detecting GPS points that are
   clearly in the wrong location. Adjust per context: use a smaller value
   (e.g. 30) for small cities, larger (e.g. 150) for sprawling
@@ -100,7 +100,7 @@ validate_interview_location(
 
   Logical. If `TRUE` (the default), surveys whose GPS coordinates are
   unusable are counted and reported as a console warning. They are
-  *never* written to the cleaning log — the log carries only surveys
+  *never* written to the cleaning log - the log carries only surveys
   that a check actually ran on and failed. Set to `FALSE` to suppress
   the warning as well. Phone interviews are governed by
   `treat_blank_gps_as_phone`, not by this argument.
@@ -108,7 +108,7 @@ validate_interview_location(
 - treat_blank_gps_as_phone:
 
   Logical. If `TRUE` (the default), a survey with *all* coordinate
-  columns empty — `lat_column`, `lon_column` and `location_column` — is
+  columns empty - `lat_column`, `lon_column` and `location_column` - is
   taken to be a phone interview and excluded from every check and from
   the unusable-GPS warning count. Set to `FALSE` for a round known to be
   entirely in person, so that a completely absent geopoint is counted as
@@ -146,7 +146,7 @@ A list containing:
   "NA"), `question` (the relevant column), `issue` (description of the
   problem), `check_binding` (shared within each check type per survey).
   Two possible `check_binding` prefixes: `"location_country"` and
-  `"location_city"`. Surveys with unusable GPS never appear — they are
+  `"location_city"`. Surveys with unusable GPS never appear - they are
   reported as a console warning instead (see `flag_missing_gps`).
 
 ## Details
@@ -173,13 +173,13 @@ run and fail. Set `flag_missing_gps = FALSE` to silence the warning too.
 **Phone interviews are skipped.** A survey conducted by phone records no
 geopoint, so the coordinate columns come back empty. Those surveys are
 identified up front and excluded from every check and from the warning
-count — there is nothing to validate. Set
+count - there is nothing to validate. Set
 `treat_blank_gps_as_phone = FALSE` to count fully-empty coordinates as
 unusable instead, which is appropriate for a round that was entirely
 face-to-face.
 
 **Rounded or corrupted coordinate columns.** Opening an ONA export in
-Excel frequently damages the split coordinate columns — the decimals are
+Excel frequently damages the split coordinate columns - the decimals are
 rounded away, the value is re-read as a date or as scientific notation,
 or the cell is emptied altogether. The raw geopoint column (`location`
 by default) is normally left intact because Excel treats it as text.

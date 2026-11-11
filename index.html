@@ -337,9 +337,20 @@
 <span>  nominatim_delay_s <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p><strong><code><a href="reference/validate_repeated_entries.html">validate_repeated_entries()</a></code></strong> - flags looped journey questions where an entry repeats an earlier one: countries transited (Q47 to Q54) on country and main stops (Q56 to Q70) on country <em>and</em> place, next to each other only, so <code>Kenya, Kenya, Uganda</code> is flagged and becomes <code>Kenya, Uganda, None</code> while <code>Kenya, Uganda, Tanzania, Kenya</code> is left alone; dangerous locations (Q98 to Q117) on country and place across the whole loop. A repeat that is not next to each other, or that only matches through a typed “Other” answer (with <code>tool_choices</code>: any language of the form, <code><a href="reference/ck_country_aliases.html">ck_country_aliases()</a></code>, small typos), is a <em>possible</em> repeat the reviewer accepts on the cleaning log. Works on coded and labelled exports. The log has one row per cell that has to change, and its issue says what was repeated and the suggested new value; the data itself is not changed.</p>
+<p><em>Customise:</em> <code>sections</code> if your tool numbers these questions differently - start from <code><a href="reference/ck_repeated_entries_sections.html">ck_repeated_entries_sections()</a></code>, edit it and pass it in (or pass a subset, e.g. <code>ck_repeated_entries_sections()["main_stops"]</code>); <code>aliases</code> and <code>similarity</code> for typed answers; <code>none_value</code>, <code>stop_values</code> and <code>other_values</code> if None, Don’t know, Refused and Other use other codes or labels.</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">repeated_entries_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/validate_repeated_entries.html">validate_repeated_entries</a></span><span class="op">(</span></span>
+<span>  dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
+<span>  uuid_column <span class="op">=</span> <span class="st">"_uuid"</span>,</span>
+<span>  sections <span class="op">=</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/ck_repeated_entries_sections.html">ck_repeated_entries_sections</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  tool_choices <span class="op">=</span> <span class="va">tool_choices</span>,</span>
+<span>  log_name <span class="op">=</span> <span class="st">"repeated_entries_log"</span>,</span>
+<span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p><strong><code><a href="reference/validate_logical_with_list.html">validate_logical_with_list()</a></code></strong> - runs the checks written in the Excel checklist (see the next section).</p>
 <p><em>Customise:</em> nothing in this call — the checks themselves are the thing you edit, and they live in <code>resources/logical_checklist.xlsx</code> (see the next section). Only change the path here if you renamed the checklist, and the four <code>*_column</code> arguments if you renamed its columns.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span><span class="st">"./resources/logical_checklist_example.xlsx"</span>, sheet <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">|&gt;</span></span>
@@ -412,7 +423,7 @@
 </tr></tbody>
 </table>
 <p><strong>Writing <code>check_to_perform</code>.</strong> The expression is evaluated inside <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">dplyr::filter()</a></code>, so column names are written bare (no quotes, no <code>df$</code>) and any <code>dplyr</code> or <code>stringr</code> verb can be used:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># straightforward comparison of two questions</span></span>
 <span><span class="va">Q13</span> <span class="op">==</span> <span class="va">Q31</span></span>
 <span></span>
@@ -423,7 +434,7 @@
 <span><span class="co"># so test them with str_detect() + fixed(), never with ==</span></span>
 <span><span class="fu">str_detect</span><span class="op">(</span><span class="va">Q78</span>, <span class="fu">fixed</span><span class="op">(</span><span class="st">"Natural disaster or environmental factors"</span><span class="op">)</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">Q86_a</span> <span class="op">==</span> <span class="st">"No"</span></span></code></pre></div>
 <p><strong>Running the checks.</strong></p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">logical_list</span> <span class="op">&lt;-</span> <span class="fu">openxlsx</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html" class="external-link">read.xlsx</a></span><span class="op">(</span><span class="st">"./resources/logical_checklist.xlsx"</span>, sheet <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">logical_check_log</span> <span class="op">&lt;-</span> <span class="va">raw_data</span> <span class="op">|&gt;</span></span>
@@ -446,7 +457,7 @@
 </h3>
 <p>After running the validation checks, you can combine all the individual logs and save them into an Excel file for review and follow-up:</p>
 <p><em>Customise:</em> <code>list_of_log_all</code> — drop any log you did not run and add any you did. On the workbook: <code>vba = TRUE</code> writes a macro-enabled <code>.xlsm</code> that appends edits to the cleaning log, <code>color_mode</code> and <code>color_columns</code> control the highlighting, <code>group_by</code> sets the column the log is sorted by, and <code>output_path</code> sets the file name. Leave out <code>other_responses</code> and <code>other_db</code> to produce the cleaning log on its own.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># combine logs</span></span>
 <span><span class="co">#----------------------------------</span></span>
@@ -458,6 +469,7 @@
 <span>  <span class="va">country_of_interview_log</span>,</span>
 <span>  <span class="va">interview_time_log</span>,</span>
 <span>  <span class="va">interview_location_log</span>,</span>
+<span>  <span class="va">repeated_entries_log</span>,</span>
 <span>  <span class="va">outliers_log</span>,</span>
 <span>  <span class="va">logical_check_log</span></span>
 <span><span class="op">)</span></span>
@@ -493,7 +505,7 @@
 <div class="section level3">
 <h3 id="reviewing-the-follow-up-workbook">Reviewing the Follow-up Workbook<a class="anchor" aria-label="anchor" href="#reviewing-the-follow-up-workbook"></a>
 </h3>
-<p><code><a href="reference/create_review_workbook.html">cleaningkit::create_review_workbook()</a></code> leaves one file in The tabs are in the order you work through them: <code>dataset</code>, <code>cleaning_log</code>, <code>other_responses</code>, <code>readme</code>, <code>Dropdown_values</code>. <code>output/follow_ups/</code>, named <code>&lt;date&gt;_follow-ups.xlsm</code>. That file is what goes to the reviewer, and everything the next stage reads comes back in the same file — so work in it directly, keep the sheet names as they are, and save it under a name ending in <code>_follow-ups_edited.xlsm</code> when you are done. Its <code>readme</code> sheet repeats the essentials below, so a reviewer who did not read this guide still has the codes to hand.</p>
+<p><code><a href="reference/create_review_workbook.html">cleaningkit::create_review_workbook()</a></code> leaves one file in <code>output/follow_ups/</code>, named <code>&lt;date&gt;_follow-ups.xlsm</code>. That file is what goes to the reviewer, and everything the next stage reads comes back in the same file — so work in it directly, keep the sheet names as they are, and save it under a name ending in <code>_follow-ups_edited.xlsm</code> when you are done. Its <code>readme</code> sheet repeats the essentials below, so a reviewer who did not read this guide still has the codes to hand. The tabs are in the order you work through them: <code>dataset</code>, <code>cleaning_log</code>, <code>other_responses</code>, <code>readme</code>, <code>Dropdown_values</code>.</p>
 <div class="section level4">
 <h4 id="before-you-start-enable-the-macros">Before you start: enable the macros<a class="anchor" aria-label="anchor" href="#before-you-start-enable-the-macros"></a>
 </h4>
@@ -605,13 +617,16 @@
 </h3>
 <p>Once the cleaning logs and other responses have been reviewed and edited, you can apply these changes to produce the final clean dataset.</p>
 <p><em>Customise:</em> <code>path</code> on <code><a href="reference/read_cleaning_log.html">read_cleaning_log()</a></code> and <code><a href="reference/read_other_responses.html">read_other_responses()</a></code> — both point at the folder holding the reviewed workbook, normally <code>output/follow_ups/</code> — and <code>output_path</code> on <code><a href="reference/export_final_output.html">export_final_output()</a></code> for the final file name.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># apply cleaning</span></span>
 <span><span class="co">#----------------------------------</span></span>
 <span><span class="va">cleaning_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/read_cleaning_log.html">read_cleaning_log</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/output/"</span>, raw_dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
 <span><span class="va">evaluated_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/evaluate_cleaning_log.html">evaluate_cleaning_log</a></span><span class="op">(</span>cleaning_log <span class="op">=</span> <span class="va">cleaning_log</span>, raw_dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
-<span><span class="va">cleaned_data_list</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/apply_cleaning_log.html">apply_cleaning_log</a></span><span class="op">(</span>raw_dataset <span class="op">=</span> <span class="va">raw_data</span>, cleaning_log <span class="op">=</span> <span class="va">evaluated_log</span><span class="op">$</span><span class="va">cleaning_log</span><span class="op">)</span></span>
+<span><span class="co"># rows from validate_repeated_entries() are applied with their suggested value;</span></span>
+<span><span class="co"># apply_repeated_entries = FALSE applies only what the reviewer filled in</span></span>
+<span><span class="va">cleaned_data_list</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/apply_cleaning_log.html">apply_cleaning_log</a></span><span class="op">(</span>raw_dataset <span class="op">=</span> <span class="va">raw_data</span>, cleaning_log <span class="op">=</span> <span class="va">evaluated_log</span><span class="op">$</span><span class="va">cleaning_log</span>, apply_repeated_entries <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">applied_log</span> <span class="op">&lt;-</span> <span class="va">cleaned_data_list</span><span class="op">$</span><span class="va">cleaning_log</span></span>
 <span></span>
 <span><span class="co"># the same reviewed workbook - each reader finds its own sheet by name</span></span>
 <span><span class="va">other_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/read_other_responses.html">read_other_responses</a></span><span class="op">(</span>path <span class="op">=</span> <span class="st">"path/to/output/"</span>, dataset <span class="op">=</span> <span class="va">raw_data</span>, other_db <span class="op">=</span> <span class="va">other_db</span>, tool_choices <span class="op">=</span> <span class="va">choices_sheet</span><span class="op">)</span></span>
@@ -620,7 +635,7 @@
 <span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># combine cleaning logs</span></span>
 <span><span class="co">#----------------------------------</span></span>
-<span><span class="va">final_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/combine_reviewed_logs.html">combine_reviewed_logs</a></span><span class="op">(</span>main_log <span class="op">=</span> <span class="va">evaluated_log</span><span class="op">$</span><span class="va">cleaning_log</span>, other_log <span class="op">=</span> <span class="va">other_log</span>, dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
+<span><span class="va">final_log</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="reference/combine_reviewed_logs.html">combine_reviewed_logs</a></span><span class="op">(</span>main_log <span class="op">=</span> <span class="va">applied_log</span>, other_log <span class="op">=</span> <span class="va">other_log</span>, dataset <span class="op">=</span> <span class="va">raw_data</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">#----------------------------------</span></span>
 <span><span class="co"># review clean dataset</span></span>

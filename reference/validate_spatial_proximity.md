@@ -83,7 +83,7 @@ A list containing:
 
 **Why clusters instead of pairs?** A naive pairwise approach flags every
 combination of nearby surveys: a camp with 20 surveys within 50 m of
-each other produces 20×19/2 = 190 pairs and 380 log rows. The cluster
+each other produces 20x19/2 = 190 pairs and 380 log rows. The cluster
 approach groups all transitively connected surveys (connected components
 in the proximity graph) and emits exactly one row per survey in a
 cluster, so the same 20 surveys produce 20 rows. The output size is

@@ -187,20 +187,20 @@ means the clean dataset perfectly matches the cleaning log.</p>
 
 <dt>uuid in discard log not in raw data</dt>
 <dd><p>The discard log references a
-uuid that doesn't exist in the raw dataset — probably a typo.</p></dd>
+uuid that doesn't exist in the raw dataset - probably a typo.</p></dd>
 
 <dt>uuid in cleaning log also in discard log</dt>
 <dd><p>A cell-level change was
-logged for a survey that is also marked for discard — contradictory.</p></dd>
+logged for a survey that is also marked for discard - contradictory.</p></dd>
 
 <dt>no_action with mismatched new/old value</dt>
 <dd><p>A <code>no_action</code> row has
-a <code>New value</code> that differs from <code>Old value</code> — the reviewer
+a <code>New value</code> that differs from <code>Old value</code> - the reviewer
 may have accidentally changed something.</p></dd>
 
 <dt>change not applied</dt>
 <dd><p>The <code>New value</code> in the cleaning log does
-not match the actual value in the clean dataset — the cleaning step
+not match the actual value in the clean dataset - the cleaning step
 missed this row.</p></dd>
 
 <dt>undocumented change</dt>
@@ -213,7 +213,7 @@ but the clean dataset has Y.</p></dd>
 
 <dt>duplicate uuid+question</dt>
 <dd><p>The same <code>uuid + question</code> appears
-more than once in the cleaning log with different <code>New value</code>s —
+more than once in the cleaning log with different <code>New value</code>s -
 ambiguous.</p></dd>
 
 <dt>uuid missing from raw data</dt>
@@ -225,9 +225,9 @@ does not exist in the raw dataset.</p></dd>
 that does not exist in the raw dataset.</p></dd>
 
 
-</dl><p><strong>Action type mapping (your log → internal):</strong></p><dl><dt><code>recoded</code>, <code>addition</code>, <code>other</code></dt>
+</dl><p><strong>Action type mapping (your log -&gt; internal):</strong></p><dl><dt><code>recoded</code>, <code>addition</code>, <code>other</code></dt>
 <dd><p>Cell changed to
-<code>New value</code> — verified against the clean dataset.</p></dd>
+<code>New value</code> - verified against the clean dataset.</p></dd>
 
 <dt><code>delete_data_point</code></dt>
 <dd><p>Cell set to <code>NA</code>/blank.</p></dd>
@@ -236,7 +236,7 @@ that does not exist in the raw dataset.</p></dd>
 <dd><p>Entire survey removed.</p></dd>
 
 <dt><code>no_action</code></dt>
-<dd><p>No change — <code>New value</code> should equal
+<dd><p>No change - <code>New value</code> should equal
 <code>Old value</code>.</p></dd>
 
 

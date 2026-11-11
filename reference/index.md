@@ -22,6 +22,9 @@
 - [`check_log_files()`](check_log_files.md) : Check Column Consistency
   Across Log Files Before Reading Them
 
+- [`ck_country_aliases()`](ck_country_aliases.md) : Other spellings of
+  country names
+
 - [`ck_flag_column_defaults()`](ck_flag_column_defaults.md) :
 
   Default flag columns added to the `dataset` sheet
@@ -29,6 +32,9 @@
 - [`ck_flag_column_names()`](ck_flag_column_names.md) :
 
   Headers of the flag columns, as written to the `dataset` sheet
+
+- [`ck_repeated_entries_sections()`](ck_repeated_entries_sections.md) :
+  Default question sets for validate_repeated_entries()
 
 - [`ck_vba_project_path()`](ck_vba_project_path.md) : Path to the
   compiled VBA project
@@ -145,6 +151,9 @@
 
 - [`validate_refused()`](validate_refused.md) : Validate Refused
   Responses
+
+- [`validate_repeated_entries()`](validate_repeated_entries.md) :
+  Validate Repeated Entries in Looped Questions
 
 - [`validate_similar_questions()`](validate_similar_questions.md) :
   Validate Similar Answers for Specific Questions Per Enumerator

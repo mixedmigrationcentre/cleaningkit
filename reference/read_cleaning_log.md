@@ -150,17 +150,17 @@ than one row (e.g. the same cell was reviewed in two separate log files
 or two reviewers completed the same row), the most decisive action is
 kept using the following priority:
 
-1.  `recoded` — a specific new value was chosen
+1.  `recoded` - a specific new value was chosen
 
-2.  `addition` — a blank was filled in
+2.  `addition` - a blank was filled in
 
-3.  `other` — a change was made that doesn't fit a standard category
+3.  `other` - a change was made that doesn't fit a standard category
 
-4.  `delete_data_point` — the cell was blanked
+4.  `delete_data_point` - the cell was blanked
 
-5.  `no_action` — reviewer confirmed no change needed
+5.  `no_action` - reviewer confirmed no change needed
 
-6.  `NA` or anything else — lowest priority
+6.  `NA` or anything else - lowest priority
 
 `discard` rows are handled separately: only one `discard` row is kept
 per uuid.

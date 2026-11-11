@@ -20,6 +20,9 @@ apply_cleaning_log(
   remove_survey_values = "discard",
   no_action_values = "no_action",
   default_blank_action = "no_action",
+  apply_repeated_entries = TRUE,
+  log_issue_col = "Issue",
+  log_binding_col = "check_binding",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -88,6 +91,25 @@ apply_cleaning_log(
   `"no_action"`: an unfilled row means the data point stays as it is, so
   nothing is applied for it. Set to `NULL` to leave blank cells blank.
 
+- apply_repeated_entries:
+
+  Logical. If `TRUE` (the default), the rows from
+  [`validate_repeated_entries`](validate_repeated_entries.md) are
+  applied with their suggested value whatever the reviewer filled in. If
+  `FALSE`, they are applied only as the reviewer filled them in, like
+  any other row.
+
+- log_issue_col:
+
+  Name of the issue column in `cleaning_log`, used to find the
+  repeated-entry rows and their suggested value. Default `"Issue"`.
+
+- log_binding_col:
+
+  Name of the hidden check-binding column in `cleaning_log`. Default
+  `"check_binding"`. When it is missing the rows are found from
+  `log_issue_col` alone.
+
 - skip_label_row:
 
   Logical. If `TRUE` (the default), the first row of `raw_dataset` is
@@ -108,7 +130,7 @@ apply_cleaning_log(
 
 ## Value
 
-A list with two elements:
+A list with three elements:
 
 - clean_dataset:
 
@@ -118,6 +140,14 @@ A list with two elements:
 
   A dataframe recording every change applied, with columns `uuid`,
   `question`, `action`, `value_before`, and `value_after`.
+
+- cleaning_log:
+
+  The cleaning log that was applied: `cleaning_log` as passed in, with
+  the repeated-entry rows' **Action taken** and **New value** filled in
+  when `apply_repeated_entries = TRUE`. Pass this one on to
+  [`combine_reviewed_logs()`](combine_reviewed_logs.md) so the final log
+  matches the clean data.
 
 ## Details
 
@@ -157,6 +187,21 @@ only filled in the rows that needed a change does not have to type
 `no_action` into every row they left alone. Set
 `default_blank_action = NULL` to restore the old behaviour, where a
 blank cell is an unknown action.
+
+**Repeated entries:** rows written by
+[`validate_repeated_entries`](validate_repeated_entries.md)
+(back-to-back repeated countries, main stops and dangerous locations)
+are applied automatically when `apply_repeated_entries = TRUE` (the
+default), whatever the reviewer put in **Action taken** and **New
+value**. The value written is the one suggested in the row's **Issue**:
+the row becomes `recoded` with that value, or `delete_data_point` when
+the suggestion is blank. A survey marked `discard` is still removed.
+"Possible repeat" rows (not next to each other, or matched through a
+typed "Other" answer) are only applied for a record the reviewer
+accepted, by giving any one of its rows an action in
+`change_response_values`; otherwise they are kept as they are. Set
+`apply_repeated_entries = FALSE` to treat these rows like any other row
+and apply only what the reviewer filled in.
 
 **Column-wide changes:** if `uuid` is `"all_data"` (case- insensitive),
 the change is applied to every row of `question` rather than one

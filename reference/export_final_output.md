@@ -2,16 +2,16 @@
 
 Writes a single Excel workbook containing four sheets:
 
-1.  **readme** — project description and sheet guide, styled with MMC
+1.  **readme** - project description and sheet guide, styled with MMC
     colours.
 
-2.  **raw_data** — the original raw dataset (ONA label row preserved as
+2.  **raw_data** - the original raw dataset (ONA label row preserved as
     row 1).
 
-3.  **clean_data** — the cleaned dataset produced by
+3.  **clean_data** - the cleaned dataset produced by
     [`apply_cleaning_log()`](apply_cleaning_log.md).
 
-4.  **cleaning_log** — the combined cleaning log from
+4.  **cleaning_log** - the combined cleaning log from
     [`combine_reviewed_logs()`](combine_reviewed_logs.md).
 
 ## Usage
@@ -76,7 +76,7 @@ export_final_output(
 - data_collection_round:
 
   Optional string for the data collection round / wave (e.g.
-  `"Round 12 — Q1 2025"`). Default `NULL` (omitted).
+  `"Round 12 - Q1 2025"`). Default `NULL` (omitted).
 
 - prepared_by:
 

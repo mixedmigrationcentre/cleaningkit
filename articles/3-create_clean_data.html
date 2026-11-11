@@ -177,6 +177,26 @@ blank.</p>
 <h2 id="apply-cleaning-log">Apply cleaning log<a class="anchor" aria-label="anchor" href="#apply-cleaning-log"></a>
 </h2>
 <p>This function performs the actions to clean the data.</p>
+<p>Rows written by <code><a href="../reference/validate_repeated_entries.html">validate_repeated_entries()</a></code> -
+back-to-back repeated countries, main stops and dangerous locations -
+are applied automatically with
+<code>apply_repeated_entries = TRUE</code> (the default), whatever the
+reviewer put in <strong>Action taken</strong> and <strong>New
+value</strong>. Each row gets the value suggested in its
+<strong>Issue</strong>: it becomes <code>recoded</code> with that value,
+or <code>delete_data_point</code> when the suggestion is blank. A survey
+marked <code>discard</code> is still removed. “Possible repeat” rows -
+dangerous locations that are not next to each other, or entries that
+only match through a typed “Other” answer - are only applied for a
+record the reviewer accepted, by setting <strong>Action taken</strong>
+to <code>recoded</code> on any one of its rows (with its suggested value
+in <strong>New value</strong>); the rest are kept as they are. Set
+<code>apply_repeated_entries = FALSE</code> to apply only what the
+reviewer filled in for these rows.</p>
+<p><code><a href="../reference/apply_cleaning_log.html">apply_cleaning_log()</a></code> also returns the log as it was
+applied (<code>clean_data$cleaning_log</code>), with those rows filled
+in. Pass that one to <code><a href="../reference/combine_reviewed_logs.html">combine_reviewed_logs()</a></code> so the final
+log matches the clean data.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">clean_data</span> <span class="op">&lt;-</span> <span class="fu">cleaningkit</span><span class="fu">::</span><span class="fu"><a href="../reference/apply_cleaning_log.html">apply_cleaning_log</a></span><span class="op">(</span></span>
 <span>  raw_dataset <span class="op">=</span> <span class="va">raw_data</span>,</span>
@@ -191,11 +211,19 @@ blank.</p>
 <span>  remove_survey_values <span class="op">=</span> <span class="st">"discard"</span>,</span>
 <span>  no_action_values <span class="op">=</span> <span class="st">"no_action"</span>,</span>
 <span>  default_blank_action <span class="op">=</span> <span class="st">"no_action"</span>,</span>
+<span>  <span class="co"># rows from validate_repeated_entries() are applied with their suggested</span></span>
+<span>  <span class="co"># value whatever the reviewer filled in. FALSE applies only what the</span></span>
+<span>  <span class="co"># reviewer filled in for them</span></span>
+<span>  apply_repeated_entries <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="co"># restores the original column types after the edits are written back</span></span>
 <span>  restore_types <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># the log as it was applied, with the repeated-entry rows filled in - used</span></span>
+<span><span class="co"># below so the final log matches the clean data</span></span>
+<span><span class="va">cl</span> <span class="op">&lt;-</span> <span class="va">clean_data</span><span class="op">$</span><span class="va">cleaning_log</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="read-other-responses-log">Read other responses log<a class="anchor" aria-label="anchor" href="#read-other-responses-log"></a>

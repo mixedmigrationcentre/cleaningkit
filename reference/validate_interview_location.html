@@ -120,7 +120,7 @@ Default <code>"Q14"</code>.</p></dd>
 
 <dt id="arg-city-radius-km">city_radius_km<a class="anchor" aria-label="anchor" href="#arg-city-radius-km"></a></dt>
 <dd><p>Maximum acceptable distance in kilometres between the
-GPS point and the geocoded city centre. Default <code>75</code> — large enough
+GPS point and the geocoded city centre. Default <code>75</code> - large enough
 to cover outer suburbs of most cities while still detecting GPS points
 that are clearly in the wrong location. Adjust per context: use a smaller
 value (e.g. 30) for small cities, larger (e.g. 150) for sprawling
@@ -148,7 +148,7 @@ connection and the <code>httr</code> and <code>jsonlite</code> packages.</p></dd
 <dt id="arg-flag-missing-gps">flag_missing_gps<a class="anchor" aria-label="anchor" href="#arg-flag-missing-gps"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), surveys whose
 GPS coordinates are unusable are counted and reported as a console
-warning. They are <em>never</em> written to the cleaning log — the log
+warning. They are <em>never</em> written to the cleaning log - the log
 carries only surveys that a check actually ran on and failed. Set to
 <code>FALSE</code> to suppress the warning as well. Phone interviews are
 governed by <code>treat_blank_gps_as_phone</code>, not by this argument.</p></dd>
@@ -156,8 +156,8 @@ governed by <code>treat_blank_gps_as_phone</code>, not by this argument.</p></dd
 
 <dt id="arg-treat-blank-gps-as-phone">treat_blank_gps_as_phone<a class="anchor" aria-label="anchor" href="#arg-treat-blank-gps-as-phone"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (the default), a
-survey with <em>all</em> coordinate columns empty — <code>lat_column</code>,
-<code>lon_column</code> and <code>location_column</code> — is taken to be a phone
+survey with <em>all</em> coordinate columns empty - <code>lat_column</code>,
+<code>lon_column</code> and <code>location_column</code> - is taken to be a phone
 interview and excluded from every check and from the unusable-GPS warning
 count. Set to <code>FALSE</code> for a round known to be entirely in person, so
 that a completely absent geopoint is counted as unusable instead.</p></dd>
@@ -197,7 +197,7 @@ from all checks.</p></dd>
 <code>check_binding</code> (shared within each check type per survey).
 Two possible <code>check_binding</code> prefixes:
 <code>"location_country"</code> and <code>"location_city"</code>. Surveys with
-unusable GPS never appear — they are reported as a console warning
+unusable GPS never appear - they are reported as a console warning
 instead (see <code>flag_missing_gps</code>).</p></dd>
 
 </dl></div>
@@ -223,12 +223,12 @@ good enough for the country or city check to actually run and fail. Set
 <p><strong>Phone interviews are skipped.</strong> A survey conducted by phone records
 no geopoint, so the coordinate columns come back empty. Those surveys are
 identified up front and excluded from every check and from the warning
-count — there is nothing to validate. Set
+count - there is nothing to validate. Set
 <code>treat_blank_gps_as_phone = FALSE</code> to count fully-empty coordinates
 as unusable instead, which is appropriate for a round that was entirely
 face-to-face.</p>
 <p><strong>Rounded or corrupted coordinate columns.</strong> Opening an ONA export in
-Excel frequently damages the split coordinate columns — the decimals are
+Excel frequently damages the split coordinate columns - the decimals are
 rounded away, the value is re-read as a date or as scientific notation, or
 the cell is emptied altogether. The raw geopoint column (<code>location</code> by
 default) is normally left intact because Excel treats it as text. When a

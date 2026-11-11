@@ -137,22 +137,22 @@ cleaning log.
 - uuid in discard log not in raw data:
 
   The discard log references a uuid that doesn't exist in the raw
-  dataset — probably a typo.
+  dataset - probably a typo.
 
 - uuid in cleaning log also in discard log:
 
   A cell-level change was logged for a survey that is also marked for
-  discard — contradictory.
+  discard - contradictory.
 
 - no_action with mismatched new/old value:
 
-  A `no_action` row has a `New value` that differs from `Old value` —
+  A `no_action` row has a `New value` that differs from `Old value` -
   the reviewer may have accidentally changed something.
 
 - change not applied:
 
   The `New value` in the cleaning log does not match the actual value in
-  the clean dataset — the cleaning step missed this row.
+  the clean dataset - the cleaning step missed this row.
 
 - undocumented change:
 
@@ -167,7 +167,7 @@ cleaning log.
 - duplicate uuid+question:
 
   The same `uuid + question` appears more than once in the cleaning log
-  with different `New value`s — ambiguous.
+  with different `New value`s - ambiguous.
 
 - uuid missing from raw data:
 
@@ -179,11 +179,11 @@ cleaning log.
   The cleaning log references a column that does not exist in the raw
   dataset.
 
-**Action type mapping (your log → internal):**
+**Action type mapping (your log -\> internal):**
 
 - `recoded`, `addition`, `other`:
 
-  Cell changed to `New value` — verified against the clean dataset.
+  Cell changed to `New value` - verified against the clean dataset.
 
 - `delete_data_point`:
 
@@ -195,4 +195,4 @@ cleaning log.
 
 - `no_action`:
 
-  No change — `New value` should equal `Old value`.
+  No change - `New value` should equal `Old value`.

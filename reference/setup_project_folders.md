@@ -2,7 +2,7 @@
 
 Creates the standard folder structure used by the data cleaning pipeline
 and copies the packaged template files into `resources/`. Safe to run on
-an existing project — folders that already exist are skipped with an
+an existing project - folders that already exist are skipped with an
 informational message rather than overwritten or errored, and existing
 template files are never overwritten unless
 `overwrite_templates = TRUE`.
@@ -64,7 +64,7 @@ setup_project_folders(
 
 Invisibly returns a named logical vector: `TRUE` for each folder that
 was newly created, `FALSE` for folders that already existed. The result
-carries an attribute `"templates"` — a named logical vector, `TRUE` for
+carries an attribute `"templates"` - a named logical vector, `TRUE` for
 each template that was copied, `FALSE` for templates that were skipped
 or could not be copied.
 
