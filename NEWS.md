@@ -41,6 +41,13 @@
   matched against.
 
 ## The other-responses drop-downs
+* **Fixed: a choice label containing ";" was split into several choices.**
+  `read_other_responses()` joined the three "correct to existing" columns
+  with ";" and, when there was no ";;", split them again on ";". A label
+  such as "Lack of freedom (of expression; movement; association)/repressive
+  government" was broken into three unknown choices and skipped with a
+  warning. The columns are now joined and split on ";;" only, the separator
+  `other_db` already uses between choices.
 * **Fixed: choices such as `197` and `297` went missing from every recoding
   drop-down.** `get_other_db()` removes a question's "other" option from the
   choices offered for recoding. It matched the pair
