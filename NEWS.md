@@ -1,23 +1,44 @@
 # cleaningkit (development version)
 
-## New check: back-to-back repeated entries
+## New check: repeated entries in looped questions
 * **`validate_repeated_entries()`** flags looped journey questions where an
-  entry repeats the one straight before it - countries transited (Q47 to Q54)
-  on country, main stops (Q56 to Q70) and dangerous locations (Q98 to Q117)
-  on country and place. Only back-to-back repeats count. The log suggests
-  removing the repeat, moving the later entries up (their "please specify"
-  texts, calculates and select-multiple sub-columns included) and closing the
-  list with None (`996`); each row's issue names the suggested new value. The
-  data is not changed.
+  entry repeats an earlier one. Countries transited (Q47 to Q54) are compared
+  on country and main stops (Q56 to Q70) on country and place, next to each
+  other only, because a journey can pass through the same place twice.
+  Dangerous locations (Q98 to Q117) are compared on country and place across
+  the whole loop, because a location should only be listed once. The log
+  suggests removing the repeat, moving the later entries up (their "please
+  specify" texts, calculates and select-multiple sub-columns included) and
+  closing the list with None; each row's issue names the suggested new value.
+  The data is not changed.
+* **`validate_repeated_entries()` understands labelled exports.** None, Don't
+  know and Refused are recognised as codes (`996`, `998`, `999`) or labels,
+  and the freed slot gets `None` in a labelled export and `996` in a coded
+  one (`none_value = NULL` picks it from the data). Before this a labelled
+  "None" counted as a location, and the slot after it was set to `996`.
+* **`validate_repeated_entries()` separates certain from possible repeats.**
+  The same answer twice in a row is a "Back-to-back repeat", applied
+  automatically. A "Possible repeat" is a dangerous location repeated further
+  down the loop - its risks and perpetrators go with it - or two entries that
+  only match through a typed "Other" answer. With the new `tool_choices`
+  argument a typed answer is matched against the form's labels in every
+  language, the spellings in the new **`ck_country_aliases()`** and small
+  typos, so "Turkey", "Turkiy" or the Persian name match a picked Türkiye;
+  two typed texts at least `similarity` alike (default `0.85`) match too.
+  `other_values` says which answers mean Other.
 * **`apply_cleaning_log()` applies the repeated-entry rows automatically.**
   The new `apply_repeated_entries` argument (default `TRUE`) writes the
-  value suggested in each `validate_repeated_entries()` row, whatever the
-  reviewer put in **Action taken** and **New value**; a discarded survey is
-  still removed. Set it to `FALSE` to apply only the reviewer's choices.
+  value suggested in each "Back-to-back repeat" row, whatever the reviewer put
+  in **Action taken** and **New value**; a discarded survey is still removed.
+  "Possible repeat" rows are applied only for a record the reviewer accepted
+  by giving any one of its rows a change action (`recoded`) - the rest are
+  kept as they are. Set it to `FALSE` to apply only the reviewer's choices.
   `apply_cleaning_log()` now also returns `cleaning_log`, the log as it was
   applied, to pass on to `combine_reviewed_logs()`.
 * **`ck_repeated_entries_sections()`** returns the default question sets, to
-  edit or subset for a tool with other question names.
+  edit or subset for a tool with other question names. Each set now also has
+  a `scope` (`"adjacent"` or `"any"`) and the choice lists typed answers are
+  matched against.
 
 ## The other-responses drop-downs
 * **Fixed: choices such as `197` and `297` went missing from every recoding

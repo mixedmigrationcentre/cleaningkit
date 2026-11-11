@@ -138,7 +138,11 @@ main stops and dangerous locations) are applied automatically when
 put in \strong{Action taken} and \strong{New value}. The value written is
 the one suggested in the row's \strong{Issue}: the row becomes
 \code{recoded} with that value, or \code{delete_data_point} when the
-suggestion is blank. A survey marked \code{discard} is still removed. Set
+suggestion is blank. A survey marked \code{discard} is still removed.
+"Possible repeat" rows (not next to each other, or matched through a typed
+"Other" answer) are only applied for a record the reviewer accepted, by
+giving any one of its rows an action in \code{change_response_values};
+otherwise they are kept as they are. Set
 \code{apply_repeated_entries = FALSE} to treat these rows like any other
 row and apply only what the reviewer filled in.
 

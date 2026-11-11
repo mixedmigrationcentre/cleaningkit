@@ -476,3 +476,289 @@ test_that("rows from other checks are not touched", {
   out <- ck_rep_apply(df, cl)
   expect_equal(nrow(out$audit_log), 0)
 })
+
+# --------------------------------------------------------------------------
+# labelled exports
+# --------------------------------------------------------------------------
+
+test_that("a labelled None closes the list and no 996 is written", {
+  df <- ck_rep_dataset("u1")
+  df <- ck_rep_set(
+    df,
+    "u1",
+    list(
+      Q98 = "Afghanistan",
+      Q99 = "Bamyan (city)",
+      Q102 = "Afghanistan",
+      Q103 = "Bamyan (city)",
+      Q106 = "None"
+    )
+  )
+
+  log <- ck_rep_run(df)$repeated_entries_log
+  # None moves up into location 2 and location 3 is blanked, not set to 996
+  expect_equal(ck_rep_new(log, "u1", "Q102"), "None")
+  expect_equal(ck_rep_new(log, "u1", "Q106"), "blank")
+  expect_false(any(grepl("'996'", log$issue)))
+})
+
+test_that("a full labelled list gets the None label in the freed slot", {
+  df <- ck_rep_dataset("u1")
+  vals <- stats::setNames(
+    as.list(c(
+      "Iran",
+      "Iran",
+      "Iraq",
+      "Syria",
+      "Jordan",
+      "Egypt",
+      "Libya",
+      "Mali"
+    )),
+    paste0("Q", 47:54)
+  )
+  df <- ck_rep_set(df, "u1", vals)
+
+  log <- ck_rep_run(df)$repeated_entries_log
+  expect_equal(ck_rep_new(log, "u1", "Q54"), "None")
+})
+
+# --------------------------------------------------------------------------
+# dangerous locations across the whole loop
+# --------------------------------------------------------------------------
+
+test_that("a dangerous location repeated later in the loop is a possible repeat", {
+  df <- ck_rep_dataset("u1")
+  df <- ck_rep_set(
+    df,
+    "u1",
+    list(
+      Q98 = "Turkiye",
+      Q99 = "Adana (city)",
+      Q102 = "Egypt",
+      Q103 = "Border",
+      Q106 = "Turkiye",
+      Q107 = "Adana (city)",
+      Q110 = "None"
+    )
+  )
+
+  out <- ck_rep_run(df)
+  log <- out$repeated_entries_log
+  expect_true(all(grepl("Possible repeat: location 3", log$issue)))
+  expect_true(all(grepl("not next to each other", log$issue)))
+  expect_equal(ck_rep_new(log, "u1", "Q106"), "None")
+  expect_true(out$checked_dataset$repeated_dangerous_locations[2])
+})
+
+test_that("countries and stops repeated later in the loop are left alone", {
+  df <- ck_rep_dataset("u1")
+  df <- ck_rep_set(
+    df,
+    "u1",
+    list(
+      Q47 = "Iran",
+      Q48 = "Afghanistan",
+      Q49 = "Iran",
+      Q50 = "None",
+      Q56 = "Iran",
+      Q57 = "Tehran",
+      Q59 = "Iraq",
+      Q60 = "Erbil",
+      Q62 = "Iran",
+      Q63 = "Tehran",
+      Q65 = "None"
+    )
+  )
+  expect_equal(nrow(ck_rep_run(df)$repeated_entries_log), 0)
+})
+
+# --------------------------------------------------------------------------
+# typed "Other" answers
+# --------------------------------------------------------------------------
+
+ck_rep_choices <- function() {
+  turkiye <- intToUtf8(c(84, 252, 114, 107, 105, 121, 101))
+  turkiye_fa <- intToUtf8(c(0x062a, 0x0631, 0x06a9, 0x06cc, 0x0647))
+  data.frame(
+    list_name = c(
+      rep("country_transited_3", 4),
+      rep("places_stop", 3)
+    ),
+    name = c("181", "78", "997", "996", "TR0001", "TR0035", "9997"),
+    label = c(
+      turkiye,
+      "Iran",
+      "Other",
+      "None",
+      "Adana (city)",
+      "Van (city)",
+      "Other"
+    ),
+    `label::persian (fa)` = c(
+      turkiye_fa,
+      "Iran",
+      "Other",
+      "None",
+      "Adana",
+      "Van",
+      "Other"
+    ),
+    cf = c(NA, NA, NA, NA, "181", "181", NA),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("a typed country in another spelling or language matches the picked one", {
+  turkiye <- intToUtf8(c(84, 252, 114, 107, 105, 121, 101))
+  turkiye_fa <- intToUtf8(c(0x062a, 0x0631, 0x06a9, 0x06cc, 0x0647))
+  df <- ck_rep_dataset(c("alias", "persian", "typo", "other_country"))
+  base <- list(Q56 = turkiye, Q57 = "Van (city)", Q59 = "Other country")
+  df <- ck_rep_set(
+    df,
+    "alias",
+    c(base, Q59_1 = "Turkey", Q60_1 = "Van", Q62 = "None")
+  )
+  df <- ck_rep_set(
+    df,
+    "persian",
+    c(base, Q59_1 = turkiye_fa, Q60_1 = "van", Q62 = "None")
+  )
+  df <- ck_rep_set(
+    df,
+    "typo",
+    c(base, Q59_1 = "Turkiy", Q60_1 = "Van", Q62 = "None")
+  )
+  df <- ck_rep_set(
+    df,
+    "other_country",
+    c(base, Q59_1 = "Iran", Q60_1 = "Van", Q62 = "None")
+  )
+
+  log <- ck_rep_run(
+    df,
+    tool_choices = ck_rep_choices(),
+    sections = ck_repeated_entries_sections()["main_stops"]
+  )$repeated_entries_log
+
+  expect_setequal(unique(log$uuid), c("alias", "persian", "typo"))
+  expect_true(all(grepl(
+    "Possible repeat: .*through the typed answer",
+    log$issue
+  )))
+})
+
+test_that("typed answers are not matched to choices without tool_choices", {
+  df <- ck_rep_dataset("u1")
+  df <- ck_rep_set(
+    df,
+    "u1",
+    list(
+      Q56 = "Turkiye",
+      Q57 = "Van (city)",
+      Q59 = "Other country",
+      Q59_1 = "Turkey",
+      Q60_1 = "Van",
+      Q62 = "None"
+    )
+  )
+  log <- ck_rep_run(df)$repeated_entries_log
+  expect_equal(nrow(log), 0)
+})
+
+test_that("two nearly identical typed places are a possible repeat", {
+  df <- ck_rep_dataset(c("near", "far"))
+  df <- ck_rep_set(
+    df,
+    "near",
+    list(
+      Q98 = "Other",
+      Q99_1 = "border between Iran and Turkey",
+      Q102 = "Other",
+      Q103_1 = "border between Iran and Turkey.",
+      Q106 = "Other",
+      Q107_1 = "the border between Iran and Turkiye",
+      Q110 = "None"
+    )
+  )
+  df <- ck_rep_set(
+    df,
+    "far",
+    list(
+      Q98 = "Other",
+      Q99_1 = "border between Iran and Turkey",
+      Q102 = "Other",
+      Q103_1 = "the mountains near Van",
+      Q106 = "None"
+    )
+  )
+
+  log <- ck_rep_run(df)$repeated_entries_log
+  expect_equal(unique(log$uuid), "near")
+  # identical once punctuation is ignored is still only "possible": the key
+  # compares the raw text
+  expect_true(all(grepl("Possible repeat", log$issue)))
+
+  log1 <- ck_rep_run(df, similarity = 1)$repeated_entries_log
+  expect_true(all(grepl("location 2 ", log1$issue)))
+  expect_false(any(grepl("location 3 (Q106", log1$issue, fixed = TRUE)))
+})
+
+test_that("similarity must be between 0 and 1", {
+  df <- ck_rep_dataset("u1")
+  expect_error(ck_rep_run(df, similarity = 0), "similarity")
+  expect_error(ck_rep_run(df, similarity = 1.5), "similarity")
+})
+
+# --------------------------------------------------------------------------
+# applying possible repeats
+# --------------------------------------------------------------------------
+
+ck_rep_possible_data <- function() {
+  df <- ck_rep_dataset(c("u1", "u2"))
+  for (u in c("u1", "u2")) {
+    df <- ck_rep_set(
+      df,
+      u,
+      list(
+        Q98 = "Iran",
+        Q99 = "Zahedan",
+        Q102 = "Iraq",
+        Q103 = "Erbil",
+        Q106 = "Iran",
+        Q107 = "Zahedan",
+        Q110 = "None"
+      )
+    )
+  }
+  df
+}
+
+test_that("possible repeats are kept unless the reviewer accepts them", {
+  df <- ck_rep_possible_data()
+  log <- ck_rep_run(df)$repeated_entries_log
+  cl <- ck_rep_reviewed_log(log)
+  out <- ck_rep_apply(df, cl)
+  expect_equal(nrow(out$audit_log), 0)
+  expect_equal(out$clean_dataset$Q106[2], "Iran")
+})
+
+test_that("accepting one row of a possible repeat applies the whole record", {
+  df <- ck_rep_possible_data()
+  log <- ck_rep_run(df)$repeated_entries_log
+  cl <- ck_rep_reviewed_log(log)
+  i <- which(cl$`Survey UUID` == "u1" & cl$`Question number` == "Q106")
+  cl$`Action taken`[i] <- "recoded"
+  cl$`New value`[i] <- "None"
+
+  out <- ck_rep_apply(df, cl)
+  clean <- out$clean_dataset
+  u1 <- clean[clean[["_uuid"]] == "u1", ]
+  u2 <- clean[clean[["_uuid"]] == "u2", ]
+  expect_equal(u1$Q106, "None")
+  expect_true(is.na(u1$Q107))
+  expect_true(is.na(u1$Q110))
+  # u2 was not accepted
+  expect_equal(u2$Q106, "Iran")
+})

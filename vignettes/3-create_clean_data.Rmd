@@ -126,9 +126,13 @@ countries, main stops and dangerous locations - are applied automatically with
 `apply_repeated_entries = TRUE` (the default), whatever the reviewer put in
 **Action taken** and **New value**. Each row gets the value suggested in its
 **Issue**: it becomes `recoded` with that value, or `delete_data_point` when the
-suggestion is blank. A survey marked `discard` is still removed. Set
-`apply_repeated_entries = FALSE` to apply only what the reviewer filled in for
-these rows.
+suggestion is blank. A survey marked `discard` is still removed.
+"Possible repeat" rows - dangerous locations that are not next to each other,
+or entries that only match through a typed "Other" answer - are only applied
+for a record the reviewer accepted, by setting **Action taken** to `recoded`
+on any one of its rows (with its suggested value in **New value**); the rest
+are kept as they are. Set `apply_repeated_entries = FALSE` to apply only what
+the reviewer filled in for these rows.
 
 `apply_cleaning_log()` also returns the log as it was applied
 (`clean_data$cleaning_log`), with those rows filled in. Pass that one to

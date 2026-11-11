@@ -450,49 +450,67 @@ interview_location_log <- cleaningkit::validate_interview_location(
 
 ## Validate repeated entries
 
-Looks through the looped journey questions for an entry that repeats the one
-asked straight before it:
+Looks through the looped journey questions for an entry that repeats an
+earlier one:
 
 | Question set | Questions | Counts as a repeat when |
 |---|---|---|
-| Countries transited | Q47 to Q54 | the country is the same |
-| Main stops | Q56 to Q70 (five stops) | the country **and** the place are the same |
-| Dangerous locations | Q98 to Q117 (five locations) | the country **and** the place are the same |
+| Countries transited | Q47 to Q54 | the country is the same as the one before |
+| Main stops | Q56 to Q70 (five stops) | the country **and** the place are the same as the one before |
+| Dangerous locations | Q98 to Q117 (five locations) | the country **and** the place are the same as any earlier location |
 
-Only entries that follow each other count. `Kenya, Kenya, Uganda` is flagged
-and becomes `Kenya, Uganda, None`; `Kenya, Uganda, Tanzania, Kenya` is left
-alone. A stop in the same country but a different place is kept. Two "Other"
-answers only match when the typed text matches.
+A journey can pass through the same country or stop twice, so for countries
+and stops only entries that follow each other count. `Kenya, Kenya, Uganda` is
+flagged and becomes `Kenya, Uganda, None`; `Kenya, Uganda, Tanzania, Kenya` is
+left alone. A stop in the same country but a different place is kept. A
+dangerous location should only be listed once, so it is checked across the
+whole loop.
 
 The form only opens the next entry when the one before is not None or Refused,
 so a repeat is not just blanked: the later entries move up one place - with
 their "please specify" texts, calculates and select-multiple sub-columns - and
-the list closes with None (`996`). A list that ended in Refused keeps Refused
-as its closing answer.
+the list closes with None. A list that ended in Refused keeps Refused as its
+closing answer. Codes (`996`) and labels (`None`) are both understood; for a
+labelled export the freed slot gets `None`, for a coded one `996`.
+
+**Certain and possible repeats.** The same answer twice in a row is a
+*certain* repeat ("Back-to-back repeat"), applied automatically. A repeat is
+only *possible* ("Possible repeat") when the two locations are not next to each
+other - the removed location's risks and perpetrators go with it - or when they
+only match through a typed "Other" answer. With `tool_choices`, a typed answer
+is matched against the form's labels in every language, the spellings in
+`ck_country_aliases()` and small typos, so "Turkey", "Turkiy" or the Persian
+name match a picked Türkiye. Two typed texts that are nearly the same
+(`similarity`) match too. The reviewer accepts a possible repeat by setting
+**Action taken** to `recoded` on any one row of that record and copying its
+suggested value into **New value**; the other rows follow.
 
 The function only writes a log. Each row is one cell that has to change, and
 its issue names what was repeated and the suggested new value, for example:
 
 > [Main stops] Back-to-back repeat: stop 2 (Q59/Q60) is the same as stop 1
-> (Q56/Q57) '113 / 5'. Remove the repeat, move the later entries up one place
-> and close the list with None (996). Suggested new value: '220'.
+> (Q56/Q57) 'Iran / Tehran'. Remove the repeat, move the later entries up one
+> place and close the list with None. Suggested new value: 'Iraq'.
 
 All rows from one record and question set share a colour on the cleaning log.
-`apply_cleaning_log()` applies these rows automatically when the data is
-cleaned - see *Apply cleaning log* in the next article.
+`apply_cleaning_log()` applies these rows when the data is cleaned - see
+*Apply cleaning log* in the next article.
 
 **Customise:** `sections` if your tool numbers these questions differently -
 start from `ck_repeated_entries_sections()`, edit it and pass it in, or pass a
-subset; `none_value` and `stop_values` if None, Don't know and Refused use
-other codes.
+subset; `aliases` to add spellings of country names; `similarity` to match
+typed texts more or less strictly; `none_value`, `stop_values` and
+`other_values` if None, Don't know, Refused and Other use other codes or
+labels.
 
 ```{r}
 repeated_entries_log <- cleaningkit::validate_repeated_entries(
   dataset = raw_data,
   uuid_column = "_uuid",
   sections = cleaningkit::ck_repeated_entries_sections(),
-  none_value = "996",
-  stop_values = c("996", "998", "999"),
+  tool_choices = tool_choices,
+  aliases = cleaningkit::ck_country_aliases(),
+  similarity = 0.85,
   log_name = "repeated_entries_log",
   skip_label_row = TRUE
 )
@@ -500,7 +518,9 @@ repeated_entries_log <- cleaningkit::validate_repeated_entries(
 
 Each question set is a list of slots, one per entry, naming the columns of that
 entry. `country` (and `place`, when there is one) is compared, and so are the
-`*_other` texts; unnamed columns only move with their entry:
+`*_other` texts; unnamed columns only move with their entry. `scope` is
+`"adjacent"` or `"any"`, and `country_lists` / `place_lists` name the choice
+lists typed answers are matched against:
 
 ```{r}
 sets <- cleaningkit::ck_repeated_entries_sections()

@@ -9,3 +9,5 @@ inst/doc
 docs
 /Claude outputs
 .claude/settings.local.json
+# survey exports, outputs and forms dropped in the repo root (personal data)
+/*.xlsx

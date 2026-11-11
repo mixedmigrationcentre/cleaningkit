@@ -2,14 +2,18 @@
 % Please edit documentation in R/validate_repeated_entries.R
 \name{validate_repeated_entries}
 \alias{validate_repeated_entries}
-\title{Validate Back-to-Back Repeated Entries in Looped Questions}
+\title{Validate Repeated Entries in Looped Questions}
 \usage{
 validate_repeated_entries(
   dataset,
   uuid_column = "_uuid",
   sections = ck_repeated_entries_sections(),
-  none_value = "996",
-  stop_values = c("996", "998", "999"),
+  tool_choices = NULL,
+  none_value = NULL,
+  stop_values = c("996", "998", "999", "None", "Don't know", "Refused"),
+  other_values = c("997", "9997", "Other", "Other country"),
+  aliases = ck_country_aliases(),
+  similarity = 0.85,
   sm_separator = "/",
   log_name = "repeated_entries_log",
   skip_label_row = TRUE
@@ -26,12 +30,31 @@ validate_repeated_entries(
 to run fewer sets, or your own list for a tool with other question
 names.}
 
-\item{none_value}{The value that means None. Written into the freed slot
-when the list had no closing answer. Default \code{"996"}.}
+\item{tool_choices}{Optional. The XLSForm choices, as returned by
+\code{read_tool_choices()}. Used to match typed "Other" answers to the
+form's countries and places. Default \code{NULL}.}
 
-\item{stop_values}{Values that end the list (None, Don't know, Refused).
-They are never treated as repeats. \code{none_value} is always included.
-Default \code{c("996", "998", "999")}.}
+\item{none_value}{The value that means None, written into the freed slot
+when the list had no closing answer. \code{NULL} (the default) uses
+\code{"None"} for a labelled export and \code{"996"} for a coded one,
+judged from the country columns.}
+
+\item{stop_values}{Values that end the list (None, Don't know, Refused),
+as codes or labels. They are never treated as repeats.
+\code{none_value} is always included. Default
+\code{c("996", "998", "999", "None", "Don't know", "Refused")}.}
+
+\item{other_values}{Values of the country or place question that mean
+"Other", as codes or labels. Default
+\code{c("997", "9997", "Other", "Other country")}.}
+
+\item{aliases}{Other spellings of country names, see
+\code{\link{ck_country_aliases}}. Only used with \code{tool_choices}.}
+
+\item{similarity}{A number above 0 and up to 1. Two typed texts that are at
+least this similar (1 minus the edit distance over the longer length)
+count as a possible repeat. Default \code{0.85}. With \code{1}, only
+texts that differ in case, spacing or punctuation match.}
 
 \item{sm_separator}{The separator between a select-multiple question and
 its choice in the sub-column names. Default \code{"/"}.}
@@ -52,9 +75,9 @@ per question set (\code{repeated_<set name>}, \code{TRUE} = flagged).}
 \code{question}, \code{issue} and \code{check_binding}.}
 }
 \description{
-Flags looped journey questions where an entry repeats the one asked just
-before it, and writes the fix to the log: remove the repeat, move the later
-entries up one place and close the list with None.
+Flags looped journey questions where an entry repeats an earlier one, and
+writes the fix to the log: remove the repeat, move the later entries up one
+place and close the list with None.
 }
 \details{
 By default three question sets are checked (see
@@ -65,13 +88,14 @@ same as the one before.
 \item \strong{Main stops} (Q56 to Q70): the next stop has the same
 country \emph{and} place as the one before. Same country with a
 different place is kept.
-\item \strong{Dangerous locations} (Q98 to Q117): same rule as main stops.
+\item \strong{Dangerous locations} (Q98 to Q117): any location with the
+same country and place as an earlier one, wherever it is in the loop.
 }
 
-Only entries that follow each other count. \code{Kenya, Kenya, Uganda}
-becomes \code{Kenya, Uganda, None}; \code{Kenya, Uganda, Tanzania, Kenya}
-is left as it is. A run such as \code{Kenya, Kenya, Kenya} collapses to one
-\code{Kenya}.
+For countries and stops only entries that follow each other count.
+\code{Kenya, Kenya, Uganda} becomes \code{Kenya, Uganda, None};
+\code{Kenya, Uganda, Tanzania, Kenya} is left as it is. A run such as
+\code{Kenya, Kenya, Kenya} collapses to one \code{Kenya}.
 
 The form only opens the next entry when the one before is not None or
 Refused, so blanking a repeat in the middle would leave the record breaking
@@ -81,13 +105,36 @@ sub-columns included. If the list ended in a closing answer (None, Refused)
 that answer moves up too; if every slot was filled, the freed slot gets
 \code{none_value} and its other columns become blank.
 
-Blank values and \code{stop_values} are never treated as repeats.
+Blank values and \code{stop_values} are never treated as repeats. Both the
+codes (\code{996}) and the labels (\code{None}) of the closing answers are
+recognised, so the check works on coded and labelled exports.
+
+\strong{Certain and possible repeats.} A repeat is \emph{certain} when the
+same answer is given twice in a row. Its log rows start with
+"Back-to-back repeat" and \code{apply_cleaning_log()} applies them
+whatever the reviewer filled in. A repeat is only \emph{possible} when
+\itemize{
+\item the two entries are not next to each other (dangerous locations),
+because the removed entry's own answers, such as its risks, go with it;
+or
+\item they only match through a typed "Other" answer: the text names the
+same country or place as the other entry (in any language of the form,
+through \code{aliases}, or with a small typo), or two typed texts are
+nearly the same (\code{similarity}).
+}
+Possible repeats start with "Possible repeat" and are only applied when the
+reviewer accepts them: set \strong{Action taken} to \code{recoded} on any
+one row of the record and copy its suggested value into \strong{New value};
+\code{apply_cleaning_log()} then applies all of that record's rows. Rows
+left as \code{no_action} keep the answers as they are.
+
+Typed answers are only matched to the form's choices when
+\code{tool_choices} is given; without it, two typed texts are still
+compared with each other.
 
 The function only writes a log - the data is not changed. Each log row is
 one cell that has to change, and its issue says what was repeated and the
-suggested new value, so the reviewer can fill in \code{New value} and
-\code{Action taken} on the cleaning log and \code{apply_cleaning_log()}
-applies it. All rows from one record and question set share a
+suggested new value. All rows from one record and question set share a
 \code{check_binding}, so they get one colour on the cleaning log.
 }
 \examples{
@@ -95,6 +142,7 @@ applies it. All rows from one record and question set share a
 repeated_entries_log <- cleaningkit::validate_repeated_entries(
   dataset = raw_data,
   uuid_column = "_uuid",
+  tool_choices = tool_choices,
   log_name = "repeated_entries_log",
   skip_label_row = TRUE
 )

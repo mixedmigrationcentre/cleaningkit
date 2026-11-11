@@ -9,3 +9,4 @@
 ^\.github$
 ^CLAUDE\.md$
 ^\.claude$
+^[^/]*\.xlsx$

@@ -35,7 +35,11 @@
 #' put in \strong{Action taken} and \strong{New value}. The value written is
 #' the one suggested in the row's \strong{Issue}: the row becomes
 #' \code{recoded} with that value, or \code{delete_data_point} when the
-#' suggestion is blank. A survey marked \code{discard} is still removed. Set
+#' suggestion is blank. A survey marked \code{discard} is still removed.
+#' "Possible repeat" rows (not next to each other, or matched through a typed
+#' "Other" answer) are only applied for a record the reviewer accepted, by
+#' giving any one of its rows an action in \code{change_response_values};
+#' otherwise they are kept as they are. Set
 #' \code{apply_repeated_entries = FALSE} to treat these rows like any other
 #' row and apply only what the reviewer filled in.
 #'
@@ -172,8 +176,20 @@ apply_cleaning_log <- function(
       binding_col = log_binding_col,
       change_action = change_response_values[1],
       blank_action = blank_response_values[1],
-      keep_actions = remove_survey_values
+      keep_actions = remove_survey_values,
+      uuid_col = log_uuid_col,
+      accept_actions = change_response_values
     )
+    if (verbose && forced$n_possible > 0) {
+      message(
+        "apply_cleaning_log: ",
+        forced$n_accepted,
+        " of ",
+        forced$n_possible,
+        " possible repeated-entry record(s) accepted by the reviewer and ",
+        "applied; the rest are kept as they are."
+      )
+    }
     cleaning_log <- forced$cleaning_log
     if (verbose && forced$n > 0) {
       message(

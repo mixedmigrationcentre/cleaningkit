@@ -348,27 +348,37 @@ interview_location_log <- cleaningkit::validate_interview_location(
 
 #----------------------------------
 # validate repeated entries
-# flags looped journey questions where an entry repeats the one straight
-# before it, and suggests removing the repeat, moving the later entries up
-# and closing the list with None:
-#   countries transited (Q47-Q54) - same country
-#   main stops (Q56-Q70)          - same country and place
-#   dangerous locations (Q98-Q117) - same country and place
-# only back-to-back repeats count: Kenya, Kenya, Uganda is flagged,
-# Kenya, Uganda, Tanzania, Kenya is not. the data is not changed
+# flags looped journey questions where an entry repeats an earlier one, and
+# suggests removing the repeat, moving the later entries up and closing the
+# list with None:
+#   countries transited (Q47-Q54) - same country, next to each other
+#   main stops (Q56-Q70)          - same country and place, next to each other
+#   dangerous locations (Q98-Q117) - same country and place, anywhere in the loop
+# Kenya, Kenya, Uganda is flagged; Kenya, Uganda, Tanzania, Kenya is not
+# (except for dangerous locations). the data is not changed
+#
+# a repeat that is not next to each other, or that only matches through a
+# typed "Other" answer ("Turkey", "Turkiy", the Persian name...), is a
+# "Possible repeat": the reviewer accepts it by setting Action taken to
+# recoded on one row of the record and copying its suggested value into
+# New value
 #
 # CUSTOMISE: sections if your tool numbers these questions differently -
 # start from ck_repeated_entries_sections(), edit it and pass it in, or pass
 # a subset such as ck_repeated_entries_sections()["main_stops"];
-# none_value and stop_values if None / Don't know / Refused use other codes
+# aliases (start from ck_country_aliases()) to add spellings of countries;
+# similarity (0-1) for how close two typed texts must be;
+# none_value / stop_values / other_values if None, Don't know, Refused and
+# Other use other codes or labels (codes and labels both work by default)
 #----------------------------------
 
 repeated_entries_log <- cleaningkit::validate_repeated_entries(
   dataset = raw_data,
   uuid_column = "_uuid",
   sections = cleaningkit::ck_repeated_entries_sections(),
-  none_value = "996",
-  stop_values = c("996", "998", "999"),
+  tool_choices = tool_choices,
+  aliases = cleaningkit::ck_country_aliases(),
+  similarity = 0.85,
   log_name = "repeated_entries_log",
   skip_label_row = TRUE
 )

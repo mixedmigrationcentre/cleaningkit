@@ -26,6 +26,16 @@ Each set is a list with:
 the order they are asked. Every slot of a set must have the same length
 and its columns in the same order, so the columns of one entry can move
 into the entry above it.}
+\item{\code{scope}}{\code{"adjacent"} (the default) compares each entry
+with the one straight before it. \code{"any"} compares it with every
+earlier entry, so the same location cannot appear twice anywhere in the
+loop.}
+\item{\code{country_lists}, \code{place_lists}}{Optional. Names of the
+XLSForm choice lists the country and place questions use. With
+\code{tool_choices}, typed "Other" answers are matched against every
+label of these lists, in every language of the form.}
+\item{\code{place_filter}}{Optional. The choices column that links a place
+to its country (the \code{choice_filter} column), \code{"cf"} in 4Mi.}
 }
 
 The names inside a slot decide which columns are compared:
@@ -33,10 +43,10 @@ The names inside a slot decide which columns are compared:
 \item{\code{country}}{Required. The country question. An entry whose
 country is blank or one of \code{stop_values} ends the list.}
 \item{\code{place}}{Optional. When present, an entry only counts as a
-repeat if both country and place match the entry before it.}
+repeat if both country and place match.}
 \item{\code{country_other}, \code{place_other}}{Optional. The
-"please specify" text. It is compared too (ignoring case and spaces), so
-two "Other" answers only match when the typed text matches.}
+"please specify" answer. It is compared too, so two "Other" answers only
+match when what was typed or picked matches.}
 }
 Columns without a name (e.g. why_stop, risks, perpetrators and their
 "please specify" texts) are not compared but move with their entry.
@@ -45,13 +55,17 @@ automatically and move with their parent column.
 
 The defaults are:
 \describe{
-\item{\code{countries_transited}}{Q47 to Q54, compared on country.}
+\item{\code{countries_transited}}{Q47 to Q54, compared on country, next
+to each other only.}
 \item{\code{main_stops}}{Q56 to Q70 in five blocks of country, place and
-why_stop, compared on country + place.}
+why_stop, compared on country + place, next to each other only.}
 \item{\code{dangerous_locations}}{Q98 to Q117 in five blocks of country,
-place, risks and perpetrators, compared on country + place. Q98/Q99 is
-the first dangerous location, so Q102 is checked against it.}
+place, risks and perpetrators, compared on country + place across the
+whole loop. Q98/Q99 is the first dangerous location.}
 }
+A journey can pass through the same country or stop twice, so countries
+and stops are only checked next to each other. A dangerous location should
+only be listed once.
 }
 \examples{
 sets <- ck_repeated_entries_sections()
