@@ -101,6 +101,26 @@ two columns) and a newer one will stop with a column mismatch. Finish a round
 with the files it started with, or drop the two columns from the older file by
 hand.
 
+## Choice labels in the other responses
+* **Fixed: `prepare_other_responses()` never used the preferred-language label
+  for `selected_choices`.** It called `get_label_from_name()` with a
+  `label_column` argument the function did not have. The "unused argument"
+  error was swallowed, so labels only came through the language fallback. With
+  `label_language_fallback = FALSE`, every `select_multiple` choice was shown
+  as its raw code (`work`, `97`) instead of its label, and `preferred_language`
+  was ignored on that path.
+* **`get_label_from_name()` gains `label_column`**: an exact label column name
+  (`"label::Arabic (ar)"`) or a case-insensitive part of one (`"Arabic"`).
+  When the column is missing, or the choice has no label in it, the `label`
+  column is used as before.
+
+## Package check
+* `R CMD check` is clean again. The filter on the exported sheets is set with
+  `openxlsx::addFilter(rows = )` rather than a partial `row =` match. Six
+  column names used in dplyr code are declared as globals. Strings with
+  em-dashes, ticks and accented country names are built with `intToUtf8()` so
+  the R code is ASCII, and the console messages and output text are unchanged.
+
 # cleaningkit 2026.08.0
 
 ## One review workbook instead of two

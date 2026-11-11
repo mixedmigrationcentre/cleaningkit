@@ -11,21 +11,21 @@
 #'   \item{uuid in discard log still present in clean data}{A survey marked
 #'     \code{discard} was not removed from the clean dataset.}
 #'   \item{uuid in discard log not in raw data}{The discard log references a
-#'     uuid that doesn't exist in the raw dataset — probably a typo.}
+#'     uuid that doesn't exist in the raw dataset - probably a typo.}
 #'   \item{uuid in cleaning log also in discard log}{A cell-level change was
-#'     logged for a survey that is also marked for discard — contradictory.}
+#'     logged for a survey that is also marked for discard - contradictory.}
 #'   \item{no_action with mismatched new/old value}{A \code{no_action} row has
-#'     a \code{New value} that differs from \code{Old value} — the reviewer
+#'     a \code{New value} that differs from \code{Old value} - the reviewer
 #'     may have accidentally changed something.}
 #'   \item{change not applied}{The \code{New value} in the cleaning log does
-#'     not match the actual value in the clean dataset — the cleaning step
+#'     not match the actual value in the clean dataset - the cleaning step
 #'     missed this row.}
 #'   \item{undocumented change}{A value differs between raw and clean datasets
 #'     but has no corresponding row in the cleaning log.}
 #'   \item{new value mismatch}{The cleaning log says the new value should be X
 #'     but the clean dataset has Y.}
 #'   \item{duplicate uuid+question}{The same \code{uuid + question} appears
-#'     more than once in the cleaning log with different \code{New value}s —
+#'     more than once in the cleaning log with different \code{New value}s -
 #'     ambiguous.}
 #'   \item{uuid missing from raw data}{The cleaning log references a uuid that
 #'     does not exist in the raw dataset.}
@@ -33,13 +33,13 @@
 #'     that does not exist in the raw dataset.}
 #' }
 #'
-#' \strong{Action type mapping (your log → internal):}
+#' \strong{Action type mapping (your log -> internal):}
 #' \describe{
 #'   \item{\code{recoded}, \code{addition}, \code{other}}{Cell changed to
-#'     \code{New value} — verified against the clean dataset.}
+#'     \code{New value} - verified against the clean dataset.}
 #'   \item{\code{delete_data_point}}{Cell set to \code{NA}/blank.}
 #'   \item{\code{discard}}{Entire survey removed.}
-#'   \item{\code{no_action}}{No change — \code{New value} should equal
+#'   \item{\code{no_action}}{No change - \code{New value} should equal
 #'     \code{Old value}.}
 #' }
 #'
@@ -319,7 +319,7 @@ review_cleaned_data <- function(
   )
 
   # =====================================================================
-  # CHECK 3: no_action rows where New value ≠ Old value
+  # CHECK 3: no_action rows where New value != Old value
   # =====================================================================
   no_act_rows <- which(cl_action %in% tolower(no_action_values))
   no_act_mismatch <- no_act_rows[
@@ -375,7 +375,7 @@ review_cleaned_data <- function(
     paste0(
       "Discard uuid '",
       discard_not_in_raw,
-      "' not found in raw dataset — possible typo"
+      paste0("' not found in raw dataset ", intToUtf8(0x2014), " possible typo")
     )
   )
 
@@ -392,7 +392,11 @@ review_cleaned_data <- function(
     cl_new[contradicted],
     NA_character_,
     "cell_change_for_discarded_uuid",
-    "This uuid is also marked for discard — cell-level change is contradictory"
+    paste0(
+      "This uuid is also marked for discard ",
+      intToUtf8(0x2014),
+      " cell-level change is contradictory"
+    )
   )
 
   # =====================================================================
@@ -435,13 +439,17 @@ review_cleaned_data <- function(
       cl_new[flag_idx],
       NA_character_,
       "duplicate_uuid_question",
-      "Same uuid+question appears more than once with different New values — ambiguous"
+      paste0(
+        "Same uuid+question appears more than once with different New values ",
+        intToUtf8(0x2014),
+        " ambiguous"
+      )
     )
   }
 
   # =====================================================================
   # CHECK 8: changes not applied / new value mismatch
-  # Build a uuid+question → clean_value lookup via pivot for efficiency
+  # Build a uuid+question -> clean_value lookup via pivot for efficiency
   # =====================================================================
   check_action_idx <- which(
     cl_action %in%
@@ -452,7 +460,7 @@ review_cleaned_data <- function(
   )
 
   if (length(check_action_idx) > 0) {
-    # Build uuid → row-index lookup for clean dataset
+    # Build uuid -> row-index lookup for clean dataset
     clean_row_idx <- stats::setNames(seq_along(clean_uuids), clean_uuids)
 
     for (i in check_action_idx) {
@@ -464,7 +472,7 @@ review_cleaned_data <- function(
 
       crow <- clean_row_idx[uid]
       if (is.na(crow)) {
-        # uuid was removed (discard) — skip
+        # uuid was removed (discard) - skip
         next
       }
       if (!(q %in% names(clean))) {
@@ -482,7 +490,11 @@ review_cleaned_data <- function(
 
       if (!vals_equal(val_in_clean, expected)) {
         comment <- if (vals_equal(val_in_clean, old_in_log)) {
-          "Change was not applied — clean dataset still has the old value"
+          paste0(
+            "Change was not applied ",
+            intToUtf8(0x2014),
+            " clean dataset still has the old value"
+          )
         } else {
           paste0(
             "New value mismatch: log says '",
@@ -508,7 +520,7 @@ review_cleaned_data <- function(
   }
 
   # =====================================================================
-  # CHECK 9: undocumented changes — values differ between raw and clean
+  # CHECK 9: undocumented changes - values differ between raw and clean
   #          with no corresponding log entry
   # =====================================================================
   # Build a set of (uuid, question) pairs that ARE documented

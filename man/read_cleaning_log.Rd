@@ -119,12 +119,12 @@ more than one row (e.g. the same cell was reviewed in two separate log files
 or two reviewers completed the same row), the most decisive action is kept
 using the following priority:
 \enumerate{
-\item \code{recoded} — a specific new value was chosen
-\item \code{addition} — a blank was filled in
-\item \code{other} — a change was made that doesn't fit a standard category
-\item \code{delete_data_point} — the cell was blanked
-\item \code{no_action} — reviewer confirmed no change needed
-\item \code{NA} or anything else — lowest priority
+\item \code{recoded} - a specific new value was chosen
+\item \code{addition} - a blank was filled in
+\item \code{other} - a change was made that doesn't fit a standard category
+\item \code{delete_data_point} - the cell was blanked
+\item \code{no_action} - reviewer confirmed no change needed
+\item \code{NA} or anything else - lowest priority
 }
 \code{discard} rows are handled separately: only one \code{discard} row is
 kept per uuid.
