@@ -46,7 +46,9 @@ ck_rw_other <- function() {
     selected_choices = rep("Other", 3),
     response_en = c("busness", "war", "familly")
   )
-  for (h in .ck_other_review_headers()) df[[h]] <- NA_character_
+  for (h in .ck_other_review_headers()) {
+    df[[h]] <- NA_character_
+  }
   attr(df, "ona_label_row_skipped") <- TRUE
   df
 }

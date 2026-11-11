@@ -906,7 +906,7 @@ prepare_other_responses <- function(
   # Frozen header row and a column filter. Navigation only - neither touches the
   # cell styling above.
   if (n_cols > 0 && isTRUE(add_filter)) {
-    addFilter(wb, sheet_name, row = 1, cols = seq_len(n_cols))
+    addFilter(wb, sheet_name, rows = 1, cols = seq_len(n_cols))
   }
   if (isTRUE(freeze_header)) {
     freezePane(wb, sheet_name, firstRow = TRUE)

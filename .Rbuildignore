@@ -7,3 +7,6 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^CLAUDE\.md$
+^\.claude$
+^[^/]*\.xlsx$

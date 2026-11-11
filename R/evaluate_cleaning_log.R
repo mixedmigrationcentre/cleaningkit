@@ -69,12 +69,12 @@ ck_issue_values <- function(df) {
 #' or two reviewers completed the same row), the most decisive action is kept
 #' using the following priority:
 #' \enumerate{
-#'   \item \code{recoded} — a specific new value was chosen
-#'   \item \code{addition} — a blank was filled in
-#'   \item \code{other} — a change was made that doesn't fit a standard category
-#'   \item \code{delete_data_point} — the cell was blanked
-#'   \item \code{no_action} — reviewer confirmed no change needed
-#'   \item \code{NA} or anything else — lowest priority
+#'   \item \code{recoded} - a specific new value was chosen
+#'   \item \code{addition} - a blank was filled in
+#'   \item \code{other} - a change was made that doesn't fit a standard category
+#'   \item \code{delete_data_point} - the cell was blanked
+#'   \item \code{no_action} - reviewer confirmed no change needed
+#'   \item \code{NA} or anything else - lowest priority
 #' }
 #' \code{discard} rows are handled separately: only one \code{discard} row is
 #' kept per uuid.
@@ -343,8 +343,8 @@ read_cleaning_log <- function(
   # files when two files cover overlapping checks. We keep exactly one row per
   # triplet:
   #
-  #   Rule A — all duplicates share the same action: keep the first occurrence.
-  #   Rule B — mixed actions: keep the most decisive action (lowest priority
+  #   Rule A - all duplicates share the same action: keep the first occurrence.
+  #   Rule B - mixed actions: keep the most decisive action (lowest priority
   #             number); no_action / NA are dropped when a better action exists.
   #
   # Priority: recoded=1, addition=2, other=3, delete_data_point=4, no_action=5,
@@ -760,7 +760,11 @@ evaluate_cleaning_log <- function(
     paste0(
       "'New value' ('",
       cl[[new_value_col]][same_val],
-      "') is identical to 'Old value' — no change will be made"
+      paste0(
+        "') is identical to 'Old value' ",
+        intToUtf8(0x2014),
+        " no change will be made"
+      )
     )
   )
 
@@ -878,7 +882,11 @@ evaluate_cleaning_log <- function(
       cl[[new_value_col]][explicit_with_val],
       "') differs from 'Old value' ('",
       cl[[old_value_col]][explicit_with_val],
-      "') — this value will be ignored during cleaning"
+      paste0(
+        "') ",
+        intToUtf8(0x2014),
+        " this value will be ignored during cleaning"
+      )
     )
   )
   add_issue(
@@ -893,7 +901,11 @@ evaluate_cleaning_log <- function(
       cl[[new_value_col]][blank_with_val],
       "') differs from 'Old value' ('",
       cl[[old_value_col]][blank_with_val],
-      "') — select an action if this change should be applied, ",
+      paste0(
+        "') ",
+        intToUtf8(0x2014),
+        " select an action if this change should be applied, "
+      ),
       "otherwise clear the 'New value'"
     )
   )

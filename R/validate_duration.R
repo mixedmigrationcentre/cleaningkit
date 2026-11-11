@@ -43,8 +43,11 @@ validate_duration <- function(
     stop("Cannot identify the dataset in the list")
   }
 
-  if (!is.logical(flag_above_upper) || length(flag_above_upper) != 1 ||
-      is.na(flag_above_upper)) {
+  if (
+    !is.logical(flag_above_upper) ||
+      length(flag_above_upper) != 1 ||
+      is.na(flag_above_upper)
+  ) {
     stop("flag_above_upper must be TRUE or FALSE")
   }
 

@@ -207,9 +207,12 @@ test_that("unusable GPS is reported as a warning and never written to the log", 
   expect_equal(nrow(out$result$interview_location_log), 0)
   expect_true(any(grepl("NOT written to the cleaning log", out$warnings)))
   expect_true(any(grepl("u7", out$warnings)))
-  expect_false(any(grepl("location_missing_gps", loc_bindings(
-    out$result$interview_location_log
-  ))))
+  expect_false(any(grepl(
+    "location_missing_gps",
+    loc_bindings(
+      out$result$interview_location_log
+    )
+  )))
 })
 
 test_that("(0, 0) and non-numeric coordinates count as unusable", {
@@ -563,7 +566,10 @@ test_that("city check geocodes correctly and flags distant GPS", {
     }
     if (grepl("[?&]q=", url)) {
       n_free <<- n_free + 1L
-      body <- lookup(free, utils::URLdecode(sub(".*[?&]q=([^&]*).*", "\\1", url)))
+      body <- lookup(
+        free,
+        utils::URLdecode(sub(".*[?&]q=([^&]*).*", "\\1", url))
+      )
     } else {
       n_structured <<- n_structured + 1L
       body <- lookup(
@@ -571,7 +577,9 @@ test_that("city check geocodes correctly and flags distant GPS", {
         utils::URLdecode(sub(".*[?&]city=([^&]*).*", "\\1", url))
       )
     }
-    if (is.null(body)) body <- "[]"
+    if (is.null(body)) {
+      body <- "[]"
+    }
     structure(list(status = 200L, body = body), class = "mock_response")
   }
 
@@ -599,10 +607,16 @@ test_that("city check geocodes correctly and flags distant GPS", {
   expect_true(any(grepl("^location_city ~/~ u3", loc_bindings(log))))
   expect_true(any(grepl("^location_city ~/~ u4", loc_bindings(log))))
   for (u in c("u1", "u2", "u6")) {
-    expect_false(any(grepl(paste0("^location_city ~/~ ", u), loc_bindings(log))))
+    expect_false(any(grepl(
+      paste0("^location_city ~/~ ", u),
+      loc_bindings(log)
+    )))
   }
   # Quetta -> Karachi is ~590km
-  expect_match(log$issue[log$uuid == "u3"], "59[0-9](\\.[0-9])?km from the centre")
+  expect_match(
+    log$issue[log$uuid == "u3"],
+    "59[0-9](\\.[0-9])?km from the centre"
+  )
 })
 
 test_that("case and whitespace variants of a city are geocoded once", {

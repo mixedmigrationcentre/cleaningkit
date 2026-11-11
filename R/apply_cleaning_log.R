@@ -28,6 +28,21 @@
 #' \code{default_blank_action = NULL} to restore the old behaviour, where a
 #' blank cell is an unknown action.
 #'
+#' \strong{Repeated entries:} rows written by
+#' \code{\link{validate_repeated_entries}} (back-to-back repeated countries,
+#' main stops and dangerous locations) are applied automatically when
+#' \code{apply_repeated_entries = TRUE} (the default), whatever the reviewer
+#' put in \strong{Action taken} and \strong{New value}. The value written is
+#' the one suggested in the row's \strong{Issue}: the row becomes
+#' \code{recoded} with that value, or \code{delete_data_point} when the
+#' suggestion is blank. A survey marked \code{discard} is still removed.
+#' "Possible repeat" rows (not next to each other, or matched through a typed
+#' "Other" answer) are only applied for a record the reviewer accepted, by
+#' giving any one of its rows an action in \code{change_response_values};
+#' otherwise they are kept as they are. Set
+#' \code{apply_repeated_entries = FALSE} to treat these rows like any other
+#' row and apply only what the reviewer filled in.
+#'
 #' \strong{Column-wide changes:} if \code{uuid} is \code{"all_data"} (case-
 #' insensitive), the change is applied to every row of \code{question} rather
 #' than one specific survey. This mirrors the original behaviour for bulk
@@ -70,6 +85,16 @@
 #'   cell is blank. Default \code{"no_action"}: an unfilled row means the data
 #'   point stays as it is, so nothing is applied for it. Set to \code{NULL} to
 #'   leave blank cells blank.
+#' @param apply_repeated_entries Logical. If \code{TRUE} (the default), the
+#'   rows from \code{\link{validate_repeated_entries}} are applied with their
+#'   suggested value whatever the reviewer filled in. If \code{FALSE}, they
+#'   are applied only as the reviewer filled them in, like any other row.
+#' @param log_issue_col Name of the issue column in \code{cleaning_log}, used
+#'   to find the repeated-entry rows and their suggested value. Default
+#'   \code{"Issue"}.
+#' @param log_binding_col Name of the hidden check-binding column in
+#'   \code{cleaning_log}. Default \code{"check_binding"}. When it is missing
+#'   the rows are found from \code{log_issue_col} alone.
 #' @param skip_label_row Logical. If \code{TRUE} (the default), the first row
 #'   of \code{raw_dataset} is preserved as the ONA label/description row and
 #'   never modified by the cleaning log. Changes are only applied to rows 2+.
@@ -79,11 +104,16 @@
 #' @param verbose Logical. If \code{TRUE} (the default), a summary message is
 #'   printed on completion.
 #'
-#' @return A list with two elements:
+#' @return A list with three elements:
 #'   \item{clean_dataset}{The cleaned dataframe.}
 #'   \item{audit_log}{A dataframe recording every change applied, with columns
 #'     \code{uuid}, \code{question}, \code{action}, \code{value_before}, and
 #'     \code{value_after}.}
+#'   \item{cleaning_log}{The cleaning log that was applied: \code{cleaning_log}
+#'     as passed in, with the repeated-entry rows' \strong{Action taken} and
+#'     \strong{New value} filled in when \code{apply_repeated_entries = TRUE}.
+#'     Pass this one on to \code{combine_reviewed_logs()} so the final log
+#'     matches the clean data.}
 #' @export
 apply_cleaning_log <- function(
   raw_dataset,
@@ -98,6 +128,9 @@ apply_cleaning_log <- function(
   remove_survey_values = "discard",
   no_action_values = "no_action",
   default_blank_action = "no_action",
+  apply_repeated_entries = TRUE,
+  log_issue_col = "Issue",
+  log_binding_col = "check_binding",
   skip_label_row = TRUE,
   restore_types = TRUE,
   verbose = TRUE
@@ -132,6 +165,49 @@ apply_cleaning_log <- function(
     remove_survey_values,
     no_action_values
   )
+
+  # ---- repeated entries: apply the suggested value whatever was filled in ----
+  if (isTRUE(apply_repeated_entries)) {
+    forced <- .ck_force_repeated_entries(
+      cleaning_log,
+      action_col = log_action_col,
+      new_value_col = log_new_value_col,
+      issue_col = log_issue_col,
+      binding_col = log_binding_col,
+      change_action = change_response_values[1],
+      blank_action = blank_response_values[1],
+      keep_actions = remove_survey_values,
+      uuid_col = log_uuid_col,
+      accept_actions = change_response_values
+    )
+    if (verbose && forced$n_possible > 0) {
+      message(
+        "apply_cleaning_log: ",
+        forced$n_accepted,
+        " of ",
+        forced$n_possible,
+        " possible repeated-entry record(s) accepted by the reviewer and ",
+        "applied; the rest are kept as they are."
+      )
+    }
+    cleaning_log <- forced$cleaning_log
+    if (verbose && forced$n > 0) {
+      message(
+        "apply_cleaning_log: ",
+        forced$n,
+        " repeated-entry row(s) applied with their suggested value",
+        if (forced$n_changed > 0) {
+          paste0(
+            " (",
+            forced$n_changed,
+            " differed from what the reviewer filled in)"
+          )
+        },
+        ". Set apply_repeated_entries = FALSE to apply only the reviewer's ",
+        "choices."
+      )
+    }
+  }
 
   # ---- normalise cleaning log columns ----
   cl <- cleaning_log
@@ -407,6 +483,7 @@ apply_cleaning_log <- function(
 
   list(
     clean_dataset = raw_dataset,
-    audit_log = audit_log
+    audit_log = audit_log,
+    cleaning_log = cleaning_log
   )
 }

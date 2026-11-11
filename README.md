@@ -354,6 +354,39 @@ interview_location_log <- cleaningkit::validate_interview_location(
 )
 ```
 
+**`validate_repeated_entries()`** - flags looped journey questions where
+an entry repeats an earlier one: countries transited (Q47 to Q54) on
+country and main stops (Q56 to Q70) on country *and* place, next to each
+other only, so `Kenya, Kenya, Uganda` is flagged and becomes
+`Kenya, Uganda, None` while `Kenya, Uganda, Tanzania, Kenya` is left
+alone; dangerous locations (Q98 to Q117) on country and place across the
+whole loop. A repeat that is not next to each other, or that only
+matches through a typed “Other” answer (with `tool_choices`: any
+language of the form, `ck_country_aliases()`, small typos), is a
+*possible* repeat the reviewer accepts on the cleaning log. Works on
+coded and labelled exports. The log has one row per cell that has to
+change, and its issue says what was repeated and the suggested new
+value; the data itself is not changed.
+
+*Customise:* `sections` if your tool numbers these questions
+differently - start from `ck_repeated_entries_sections()`, edit it and
+pass it in (or pass a subset,
+e.g. `ck_repeated_entries_sections()["main_stops"]`); `aliases` and
+`similarity` for typed answers; `none_value`, `stop_values` and
+`other_values` if None, Don’t know, Refused and Other use other codes or
+labels.
+
+``` r
+repeated_entries_log <- cleaningkit::validate_repeated_entries(
+  dataset = raw_data,
+  uuid_column = "_uuid",
+  sections = cleaningkit::ck_repeated_entries_sections(),
+  tool_choices = tool_choices,
+  log_name = "repeated_entries_log",
+  skip_label_row = TRUE
+)
+```
+
 **`validate_logical_with_list()`** - runs the checks written in the
 Excel checklist (see the next section).
 
@@ -470,6 +503,7 @@ list_of_log_all <- c(
   country_of_interview_log,
   interview_time_log,
   interview_location_log,
+  repeated_entries_log,
   outliers_log,
   logical_check_log
 )
@@ -505,13 +539,15 @@ cleaningkit::create_review_workbook(
 
 ### Reviewing the Follow-up Workbook
 
-`cleaningkit::create_review_workbook()` leaves one file in The tabs are in the order you work through them: `dataset`, `cleaning_log`, `other_responses`, `readme`, `Dropdown_values`.
+`cleaningkit::create_review_workbook()` leaves one file in
 `output/follow_ups/`, named `<date>_follow-ups.xlsm`. That file is what
 goes to the reviewer, and everything the next stage reads comes back in
 the same file — so work in it directly, keep the sheet names as they
 are, and save it under a name ending in `_follow-ups_edited.xlsm` when
 you are done. Its `readme` sheet repeats the essentials below, so a
-reviewer who did not read this guide still has the codes to hand.
+reviewer who did not read this guide still has the codes to hand. The
+tabs are in the order you work through them: `dataset`, `cleaning_log`,
+`other_responses`, `readme`, `Dropdown_values`.
 
 #### Before you start: enable the macros
 
@@ -609,7 +645,10 @@ workbook, normally `output/follow_ups/` — and `output_path` on
 #----------------------------------
 cleaning_log <- cleaningkit::read_cleaning_log(path = "path/to/output/", raw_dataset = raw_data)
 evaluated_log <- cleaningkit::evaluate_cleaning_log(cleaning_log = cleaning_log, raw_dataset = raw_data)
-cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log)
+# rows from validate_repeated_entries() are applied with their suggested value;
+# apply_repeated_entries = FALSE applies only what the reviewer filled in
+cleaned_data_list <- cleaningkit::apply_cleaning_log(raw_dataset = raw_data, cleaning_log = evaluated_log$cleaning_log, apply_repeated_entries = TRUE)
+applied_log <- cleaned_data_list$cleaning_log
 
 # the same reviewed workbook - each reader finds its own sheet by name
 other_log <- cleaningkit::read_other_responses(path = "path/to/output/", dataset = raw_data, other_db = other_db, tool_choices = choices_sheet)
@@ -618,7 +657,7 @@ cleaned_data_list <- cleaningkit::apply_other_responses(dataset = cleaned_data_l
 #----------------------------------
 # combine cleaning logs
 #----------------------------------
-final_log <- cleaningkit::combine_reviewed_logs(main_log = evaluated_log$cleaning_log, other_log = other_log, dataset = raw_data)
+final_log <- cleaningkit::combine_reviewed_logs(main_log = applied_log, other_log = other_log, dataset = raw_data)
 
 #----------------------------------
 # review clean dataset

@@ -102,21 +102,21 @@ every discrepancy found, ready for investigation before sign-off.
 \item{uuid in discard log still present in clean data}{A survey marked
 \code{discard} was not removed from the clean dataset.}
 \item{uuid in discard log not in raw data}{The discard log references a
-uuid that doesn't exist in the raw dataset — probably a typo.}
+uuid that doesn't exist in the raw dataset - probably a typo.}
 \item{uuid in cleaning log also in discard log}{A cell-level change was
-logged for a survey that is also marked for discard — contradictory.}
+logged for a survey that is also marked for discard - contradictory.}
 \item{no_action with mismatched new/old value}{A \code{no_action} row has
-a \code{New value} that differs from \code{Old value} — the reviewer
+a \code{New value} that differs from \code{Old value} - the reviewer
 may have accidentally changed something.}
 \item{change not applied}{The \code{New value} in the cleaning log does
-not match the actual value in the clean dataset — the cleaning step
+not match the actual value in the clean dataset - the cleaning step
 missed this row.}
 \item{undocumented change}{A value differs between raw and clean datasets
 but has no corresponding row in the cleaning log.}
 \item{new value mismatch}{The cleaning log says the new value should be X
 but the clean dataset has Y.}
 \item{duplicate uuid+question}{The same \code{uuid + question} appears
-more than once in the cleaning log with different \code{New value}s —
+more than once in the cleaning log with different \code{New value}s -
 ambiguous.}
 \item{uuid missing from raw data}{The cleaning log references a uuid that
 does not exist in the raw dataset.}
@@ -124,13 +124,13 @@ does not exist in the raw dataset.}
 that does not exist in the raw dataset.}
 }
 
-\strong{Action type mapping (your log → internal):}
+\strong{Action type mapping (your log -> internal):}
 \describe{
 \item{\code{recoded}, \code{addition}, \code{other}}{Cell changed to
-\code{New value} — verified against the clean dataset.}
+\code{New value} - verified against the clean dataset.}
 \item{\code{delete_data_point}}{Cell set to \code{NA}/blank.}
 \item{\code{discard}}{Entire survey removed.}
-\item{\code{no_action}}{No change — \code{New value} should equal
+\item{\code{no_action}}{No change - \code{New value} should equal
 \code{Old value}.}
 }
 }

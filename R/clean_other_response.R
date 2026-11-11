@@ -366,7 +366,10 @@ read_other_responses <- function(
     return(.empty_other_log())
   }
 
-  # ---- combine three existing_other slots into one semicolon-separated field ----
+  # ---- combine three existing_other slots into one ";;"-separated field ----
+  # ";;" and not ";": a choice label may itself contain ";", e.g.
+  # "Lack of freedom (of expression; movement; association)/repressive
+  # government"
   or <- or |>
     tidyr::unite(
       "existing_other",
@@ -375,7 +378,7 @@ read_other_responses <- function(
         "existing_other_2",
         "existing_other_3"
       )),
-      sep = ";",
+      sep = ";;",
       remove = TRUE,
       na.rm = TRUE
     ) |>
@@ -500,7 +503,7 @@ read_other_responses <- function(
   }
 
   # Convention detection is per parent question and identical for every log
-  # row that touches it — memoise it so a large dataset is scanned once.
+  # row that touches it - memoise it so a large dataset is scanned once.
   conv_cache <- new.env(parent = emptyenv())
 
   # uuid -> row position, built once: every value lookup below uses it instead
@@ -737,7 +740,7 @@ read_other_responses <- function(
     }
 
     if (is.na(new_concat)) {
-      # removing this choice empties the parent — blank all sub-columns too
+      # removing this choice empties the parent - blank all sub-columns too
       for (col in all_sub) {
         rows[[length(rows) + 1]] <- data.frame(
           uuid = uuid,
@@ -989,7 +992,7 @@ read_other_responses <- function(
 #'
 #' The \code{list_name} recorded in \code{other_db} comes from whichever
 #' version of the tool produced the original output, and that need not be the
-#' list the current \code{tool_choices} calls by that name — a colleague's tool
+#' list the current \code{tool_choices} calls by that name - a colleague's tool
 #' can name the same list differently, or name a different list the same. So the
 #' stated list is tried first, then the rest of \code{tool_choices} is searched
 #' for the same text, so a mismatched \code{list_name} degrades to a slower
@@ -1072,12 +1075,18 @@ read_other_responses <- function(
   saw_binary <- FALSE
   for (col in cand) {
     pos <- regexpr(sm_separator, col, fixed = TRUE)
-    if (pos < 1L) next
+    if (pos < 1L) {
+      next
+    }
     suffix <- substring(col, pos + nchar(sm_separator))
-    if (!nzchar(suffix)) next
+    if (!nzchar(suffix)) {
+      next
+    }
     vals <- as.character(ds[[col]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-    if (length(vals) == 0) next
+    if (length(vals) == 0) {
+      next
+    }
     v <- .norm_tok(vals)
     if (any(v == .norm_tok(suffix))) {
       return("suffix")
@@ -1094,7 +1103,7 @@ read_other_responses <- function(
 #' A label export writes the choice text into the column, a coded export writes
 #' the XLSForm \code{name}. Recoding an "other" response must write back
 #' whichever the column already contains, so this compares the column's existing
-#' values against \code{tool_choices} — first within the recorded
+#' values against \code{tool_choices} - first within the recorded
 #' \code{list_name}, then across every list, since that name may come from a
 #' different version of the tool.
 #'
@@ -1115,7 +1124,8 @@ read_other_responses <- function(
 
   out <- "label" # a label export is the safe default: never invent codes
   if (
-    col %in% names(dataset) &&
+    col %in%
+      names(dataset) &&
       is.data.frame(tool_choices) &&
       all(c("list_name", "label", "name") %in% names(tool_choices))
   ) {
@@ -1156,10 +1166,10 @@ read_other_responses <- function(
 #' Two independent things have to be detected, and getting either wrong writes
 #' values the export never uses:
 #' \enumerate{
-#'   \item \strong{Header tokens} — are sub-columns named with the choice
+#'   \item \strong{Header tokens} - are sub-columns named with the choice
 #'     \emph{label} (\code{Q83/Insufficient access to basic goods}) or the
 #'     choice \emph{code} (\code{Q83/2})?
-#'   \item \strong{Selected marker} — what does a selected cell contain? Either
+#'   \item \strong{Selected marker} - what does a selected cell contain? Either
 #'     \code{"1"} (binary export) or the choice text itself (label export, where
 #'     an unselected cell is simply blank).
 #' }
@@ -1226,7 +1236,11 @@ read_other_responses <- function(
     warning(paste0(
       "list_name '",
       list_name,
-      "' (recorded in other_db) is not in tool_choices — matching the choices ",
+      paste0(
+        "' (recorded in other_db) is not in tool_choices ",
+        intToUtf8(0x2014),
+        " matching the choices "
+      ),
       "for '",
       parent_col,
       "' against the dataset's own sub-column headers instead. This usually ",
@@ -1258,12 +1272,20 @@ read_other_responses <- function(
   for (i in seq_along(sub_cols)) {
     vals <- as.character(dataset[[sub_cols[i]]][rows])
     vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
-    if (length(vals) == 0) next
+    if (length(vals) == 0) {
+      next
+    }
     v <- .norm_tok(vals)
-    if (any(v %in% c("0", "false"))) saw_zero <- TRUE
-    if (any(v %in% c("1", "true"))) saw_one <- TRUE
-    if (!all(v %in% binary_set)) saw_nonbinary <- TRUE
-    # A suffix that is itself 0/1 proves nothing — its "1" is the binary marker.
+    if (any(v %in% c("0", "false"))) {
+      saw_zero <- TRUE
+    }
+    if (any(v %in% c("1", "true"))) {
+      saw_one <- TRUE
+    }
+    if (!all(v %in% binary_set)) {
+      saw_nonbinary <- TRUE
+    }
+    # A suffix that is itself 0/1 proves nothing - its "1" is the binary marker.
     if (
       !(.norm_tok(suffixes[i]) %in% binary_set) &&
         any(v == .norm_tok(suffixes[i]))
@@ -1316,7 +1338,9 @@ read_other_responses <- function(
     suffix = function(suffix, label = NULL) suffix,
     label = function(suffix, label = NULL) {
       if (
-        !is.null(label) && length(label) > 0 && !is.na(label[1]) &&
+        !is.null(label) &&
+          length(label) > 0 &&
+          !is.na(label[1]) &&
           nzchar(label[1])
       ) {
         label[1]
@@ -1327,7 +1351,7 @@ read_other_responses <- function(
   )
 
   # What an UNSELECTED cell looks like: "0" only where the export actually
-  # writes zeros, blank (NA) everywhere else — a label export stays blank.
+  # writes zeros, blank (NA) everywhere else - a label export stays blank.
   unsel_val <- if (identical(value_kind, "binary") && saw_zero) {
     "0"
   } else {
@@ -1424,7 +1448,9 @@ read_other_responses <- function(
       chosen
     }
 
-    if (length(new_value) == 0 || is.na(new_value[1]) || !nzchar(new_value[1])) {
+    if (
+      length(new_value) == 0 || is.na(new_value[1]) || !nzchar(new_value[1])
+    ) {
       warning(paste0(
         "Choice '",
         chosen,
@@ -1434,7 +1460,7 @@ read_other_responses <- function(
         x$list_name,
         "') for uuid '",
         uuid,
-        "' — skipped."
+        paste0("' ", intToUtf8(0x2014), " skipped.")
       ))
       return(rows[[1]])
     }
@@ -1446,7 +1472,7 @@ read_other_responses <- function(
         chosen,
         "' (recorded list_name '",
         x$list_name,
-        "') — wrote the text as given for uuid '",
+        paste0("') ", intToUtf8(0x2014), " wrote the text as given for uuid '"),
         uuid,
         "'."
       ))
@@ -1460,20 +1486,19 @@ read_other_responses <- function(
       stringsAsFactors = FALSE
     )
   } else if (identical(ref_type, "select_multiple")) {
-    # Split the existing_other field on ";;" or ";" to get individual labels
+    # Split the existing_other field on ";;" only: a single ";" can be part of
+    # a choice label, e.g. "Lack of freedom (of expression; movement; ...)"
     raw_existing <- trimws(x$existing_other)
-    chosen_labels <- if (grepl(";;", raw_existing, fixed = TRUE)) {
-      trimws(stringr::str_split(raw_existing, ";;")[[1]])
-    } else {
-      trimws(stringr::str_split(raw_existing, ";")[[1]])
-    }
+    chosen_labels <- trimws(
+      stringr::str_split(raw_existing, stringr::fixed(";;"))[[1]]
+    )
     chosen_labels <- chosen_labels[nzchar(chosen_labels)]
 
     old_concat <- gv(x$ref_question)
     new_concat <- if (is.na(old_concat)) "" else old_concat
 
     # Detect, from the data itself, (a) whether sub-columns are named with the
-    # choice label or the choice code, and (b) what a selected cell contains —
+    # choice label or the choice code, and (b) what a selected cell contains -
     # "1" in a binary export, or the choice text in a label export where an
     # unselected cell is blank. See .detect_sm_convention().
     conv <- .detect_sm_convention(
@@ -1532,7 +1557,11 @@ read_other_responses <- function(
           x$list_name,
           "') for uuid '",
           uuid,
-          "' — skipped. Check the label matches the tool."
+          paste0(
+            "' ",
+            intToUtf8(0x2014),
+            " skipped. Check the label matches the tool."
+          )
         ))
         next
       }
@@ -1596,7 +1625,11 @@ read_other_responses <- function(
           lbl,
           "' under '",
           x$ref_question,
-          "' — the parent column was updated but no child column was set."
+          paste0(
+            "' ",
+            intToUtf8(0x2014),
+            " the parent column was updated but no child column was set."
+          )
         ))
       }
       new_concat <- .add_token(new_concat, token_to_add, vocab)
@@ -1697,7 +1730,13 @@ apply_other_responses <- function(
 
     row_match <- which(dataset_uuids == uuid)
     if (length(row_match) == 0) {
-      warning(paste0("Row ", r, ": uuid '", uuid, "' not found — skipped."))
+      warning(paste0(
+        "Row ",
+        r,
+        ": uuid '",
+        uuid,
+        paste0("' not found ", intToUtf8(0x2014), " skipped.")
+      ))
       next
     }
     if (!(question %in% names(dataset))) {
@@ -1706,7 +1745,7 @@ apply_other_responses <- function(
         r,
         ": question '",
         question,
-        "' not found in dataset — skipped."
+        paste0("' not found in dataset ", intToUtf8(0x2014), " skipped.")
       ))
       next
     }

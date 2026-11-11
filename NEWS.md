@@ -1,6 +1,53 @@
 # cleaningkit (development version)
 
+## New check: repeated entries in looped questions
+* **`validate_repeated_entries()`** flags looped journey questions where an
+  entry repeats an earlier one. Countries transited (Q47 to Q54) are compared
+  on country and main stops (Q56 to Q70) on country and place, next to each
+  other only, because a journey can pass through the same place twice.
+  Dangerous locations (Q98 to Q117) are compared on country and place across
+  the whole loop, because a location should only be listed once. The log
+  suggests removing the repeat, moving the later entries up (their "please
+  specify" texts, calculates and select-multiple sub-columns included) and
+  closing the list with None; each row's issue names the suggested new value.
+  The data is not changed.
+* **`validate_repeated_entries()` understands labelled exports.** None, Don't
+  know and Refused are recognised as codes (`996`, `998`, `999`) or labels,
+  and the freed slot gets `None` in a labelled export and `996` in a coded
+  one (`none_value = NULL` picks it from the data). Before this a labelled
+  "None" counted as a location, and the slot after it was set to `996`.
+* **`validate_repeated_entries()` separates certain from possible repeats.**
+  The same answer twice in a row is a "Back-to-back repeat", applied
+  automatically. A "Possible repeat" is a dangerous location repeated further
+  down the loop - its risks and perpetrators go with it - or two entries that
+  only match through a typed "Other" answer. With the new `tool_choices`
+  argument a typed answer is matched against the form's labels in every
+  language, the spellings in the new **`ck_country_aliases()`** and small
+  typos, so "Turkey", "Turkiy" or the Persian name match a picked Türkiye;
+  two typed texts at least `similarity` alike (default `0.85`) match too.
+  `other_values` says which answers mean Other.
+* **`apply_cleaning_log()` applies the repeated-entry rows automatically.**
+  The new `apply_repeated_entries` argument (default `TRUE`) writes the
+  value suggested in each "Back-to-back repeat" row, whatever the reviewer put
+  in **Action taken** and **New value**; a discarded survey is still removed.
+  "Possible repeat" rows are applied only for a record the reviewer accepted
+  by giving any one of its rows a change action (`recoded`) - the rest are
+  kept as they are. Set it to `FALSE` to apply only the reviewer's choices.
+  `apply_cleaning_log()` now also returns `cleaning_log`, the log as it was
+  applied, to pass on to `combine_reviewed_logs()`.
+* **`ck_repeated_entries_sections()`** returns the default question sets, to
+  edit or subset for a tool with other question names. Each set now also has
+  a `scope` (`"adjacent"` or `"any"`) and the choice lists typed answers are
+  matched against.
+
 ## The other-responses drop-downs
+* **Fixed: a choice label containing ";" was split into several choices.**
+  `read_other_responses()` joined the three "correct to existing" columns
+  with ";" and, when there was no ";;", split them again on ";". A label
+  such as "Lack of freedom (of expression; movement; association)/repressive
+  government" was broken into three unknown choices and skipped with a
+  warning. The columns are now joined and split on ";;" only, the separator
+  `other_db` already uses between choices.
 * **Fixed: choices such as `197` and `297` went missing from every recoding
   drop-down.** `get_other_db()` removes a question's "other" option from the
   choices offered for recoding. It matched the pair
@@ -60,6 +107,26 @@ identical columns, so a folder holding both an older follow-up file (with the
 two columns) and a newer one will stop with a column mismatch. Finish a round
 with the files it started with, or drop the two columns from the older file by
 hand.
+
+## Choice labels in the other responses
+* **Fixed: `prepare_other_responses()` never used the preferred-language label
+  for `selected_choices`.** It called `get_label_from_name()` with a
+  `label_column` argument the function did not have. The "unused argument"
+  error was swallowed, so labels only came through the language fallback. With
+  `label_language_fallback = FALSE`, every `select_multiple` choice was shown
+  as its raw code (`work`, `97`) instead of its label, and `preferred_language`
+  was ignored on that path.
+* **`get_label_from_name()` gains `label_column`**: an exact label column name
+  (`"label::Arabic (ar)"`) or a case-insensitive part of one (`"Arabic"`).
+  When the column is missing, or the choice has no label in it, the `label`
+  column is used as before.
+
+## Package check
+* `R CMD check` is clean again. The filter on the exported sheets is set with
+  `openxlsx::addFilter(rows = )` rather than a partial `row =` match. Six
+  column names used in dplyr code are declared as globals. Strings with
+  em-dashes, ticks and accented country names are built with `intToUtf8()` so
+  the R code is ASCII, and the console messages and output text are unchanged.
 
 # cleaningkit 2026.08.0
 

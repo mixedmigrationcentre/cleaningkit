@@ -39,10 +39,10 @@ marking a choice selected), \code{sub_cols} and \code{suffixes}.
 Two independent things have to be detected, and getting either wrong writes
 values the export never uses:
 \enumerate{
-\item \strong{Header tokens} — are sub-columns named with the choice
+\item \strong{Header tokens} - are sub-columns named with the choice
 \emph{label} (\code{Q83/Insufficient access to basic goods}) or the
 choice \emph{code} (\code{Q83/2})?
-\item \strong{Selected marker} — what does a selected cell contain? Either
+\item \strong{Selected marker} - what does a selected cell contain? Either
 \code{"1"} (binary export) or the choice text itself (label export, where
 an unselected cell is simply blank).
 }

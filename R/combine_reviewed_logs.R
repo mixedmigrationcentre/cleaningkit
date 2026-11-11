@@ -8,14 +8,14 @@
 #' @details
 #' \strong{Column mapping from the other-responses log:}
 #' \describe{
-#'   \item{\code{uuid}}{→ \code{Survey UUID}; also used to look up
+#'   \item{\code{uuid}}{-> \code{Survey UUID}; also used to look up
 #'     \code{Date} and \code{Enumerator} from the dataset.}
-#'   \item{\code{question}}{→ \code{Question number}; label looked up from the
-#'     dataset label row → \code{Question text}.}
-#'   \item{\code{action_taken}}{→ \code{Action taken} (kept as-is) and used to
+#'   \item{\code{question}}{-> \code{Question number}; label looked up from the
+#'     dataset label row -> \code{Question text}.}
+#'   \item{\code{action_taken}}{-> \code{Action taken} (kept as-is) and used to
 #'     generate a human-readable \code{Issue} description.}
-#'   \item{\code{old_value}}{→ \code{Old value}.}
-#'   \item{\code{new_value}}{→ \code{New value} (already filled by
+#'   \item{\code{old_value}}{-> \code{Old value}.}
+#'   \item{\code{new_value}}{-> \code{New value} (already filled by
 #'     \code{read_other_responses()}).}
 #' }
 #'
@@ -23,7 +23,7 @@
 #' \describe{
 #'   \item{\code{true_other}}{Translation or correction of a genuine other response}
 #'   \item{\code{recode}}{Other response recoded to an existing choice}
-#'   \item{\code{remove}}{Invalid other response — value removed}
+#'   \item{\code{remove}}{Invalid other response - value removed}
 #' }
 #'
 #' \strong{check_binding:} rows from the same other-response action on the same
@@ -72,7 +72,11 @@ combine_reviewed_logs <- function(
   issue_labels = c(
     true_other = "Translation or correction of a genuine other response",
     recode = "Other response recoded to an existing choice",
-    remove = "Invalid other response — value removed"
+    remove = paste0(
+      "Invalid other response ",
+      intToUtf8(0x2014),
+      " value removed"
+    )
   ),
   skip_label_row = TRUE
 ) {
@@ -98,7 +102,11 @@ combine_reviewed_logs <- function(
   # ---- validate other_log ----
   if (!is.data.frame(other_log) || nrow(other_log) == 0) {
     message(
-      "combine_cleaning_logs: other_log is empty — returning main_log unchanged."
+      paste0(
+        "combine_cleaning_logs: other_log is empty ",
+        intToUtf8(0x2014),
+        " returning main_log unchanged."
+      )
     )
     return(main_df)
   }
@@ -159,7 +167,7 @@ combine_reviewed_logs <- function(
 
   uuid_key <- trimws(as.character(data_rows[[uuid_column]]))
 
-  # question-text from the label row (column name → label description)
+  # question-text from the label row (column name -> label description)
   label_lookup <- if (!is.null(label_row)) {
     stats::setNames(
       trimws(as.character(unlist(label_row[1, ], use.names = FALSE))),
@@ -169,7 +177,7 @@ combine_reviewed_logs <- function(
     stats::setNames(character(0), character(0))
   }
 
-  # uuid → date
+  # uuid -> date
   date_lookup <- if (date_column %in% names(data_rows)) {
     stats::setNames(clean_date(data_rows[[date_column]]), uuid_key)
   } else {
@@ -181,7 +189,7 @@ combine_reviewed_logs <- function(
     NULL
   }
 
-  # uuid → enumerator
+  # uuid -> enumerator
   enum_lookup <- if (enumerator_column %in% names(data_rows)) {
     stats::setNames(
       trimws(as.character(data_rows[[enumerator_column]])),
@@ -208,7 +216,7 @@ combine_reviewed_logs <- function(
   or_uuids <- trimws(as.character(or$uuid))
   or_questions <- trimws(as.character(or$question))
 
-  # map action_taken → human-readable issue
+  # map action_taken -> human-readable issue
   or_issue <- vapply(
     trimws(as.character(or$action_taken)),
     function(a) {

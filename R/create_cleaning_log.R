@@ -86,7 +86,11 @@ ck_readme_df <- function(
 
   # ---- the action vocabulary ----
   add("")
-  add(paste0("ACTION TAKEN - the codes used on the ", cleaning_log_name, " sheet"))
+  add(paste0(
+    "ACTION TAKEN - the codes used on the ",
+    cleaning_log_name,
+    " sheet"
+  ))
   for (k in seq_along(action_codes)) {
     add(action_codes[k], action_descriptions[k])
   }
@@ -508,7 +512,7 @@ create_formated_wb <- function(
 
     openxlsx::addWorksheet(wb, dataset_name)
     openxlsx::writeData(wb, sheet = i, dataset, rowNames = F)
-    openxlsx::addFilter(wb, sheet = i, row = 1, cols = 1:ncol(dataset))
+    openxlsx::addFilter(wb, sheet = i, rows = 1, cols = 1:ncol(dataset))
     openxlsx::freezePane(wb, sheet = i, firstCol = TRUE, firstRow = T)
     openxlsx::addStyle(
       wb,
