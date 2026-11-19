@@ -63,27 +63,8 @@ other_db <- cleaningkit::get_other_db(
 #----------------------------------
 #----------------------------------
 # keep only the newly collected records
-# run this when validation happens several times during one data collection
-# round. drop the new ONA download into ./data next to the file left by the
-# previous round; the two are compared on `_uuid`, everything already
-# validated is removed, the inputs are archived to ./data/archive and the
-# new records are written to ./data/data.xlsx
-# a running ./data/processed_uuids.csv ledger makes sure records from earlier
-# rounds cannot come back from the third round onwards
-# skip this section for the first round, or when the whole dataset is being
-# validated in one go
 #
-# the first round needs no filtering: with a single export and no ledger
-# there is nothing to compare against, so filter_new_records() renames that
-# file to data.xlsx, says the step was skipped and returns - it no longer
-# errors, and the call can safely be left in the script from round one
-#
-# CUSTOMISE: data_folder and output_name if your exports do not live at
-# ./data/data.xlsx; uuid_column if the id column is not "_uuid";
-# use_ledger = FALSE to compare only against the previous file instead of
-# the running ledger; archive = FALSE to leave the inputs where they are;
-# rename_single_file = FALSE to keep the original file name on the first
-# round
+# the first round needs no filtering
 #----------------------------------
 
 cleaningkit::filter_new_records(
@@ -119,16 +100,7 @@ raw_data <- cleaningkit::read_raw_data(
 # prepare other responses
 # add the other responses questions you to be included in the output
 # in the question argument.
-# for example
-# questions = c(
-#     "Q34_1",
-#     "Q35_1",
-#     "Q37_1",
-#     "Q38_1",
-#     "Q39_1",
-#     "Q41_1",
-#     "Q33_1"
-#   )
+# for example questions = c("Q34_1", "Q35_1", "Q37_1")
 # the result is written into the same workbook as the cleaning log further
 # down, by create_review_workbook() - there is no separate file any more
 #
@@ -271,27 +243,6 @@ interview_time_log <- cleaningkit::validate_interview_time(
 )
 
 #----------------------------------
-# validate similar surveys
-# groups data by enumerator and checks surveys which are similar
-#
-# CUSTOMISE: threshold - the lower the number, the stricter the check;
-# idnk_value to match your tool's "Don't know" label; enumerator_column for
-# your column name; return_all_results = TRUE for a row per survey rather
-# than only the flagged ones
-#----------------------------------
-# similar_surveys_log <- raw_data %>%
-#   cleaningkit::validate_similar_surveys(
-#     tool_survey = tool_survey,
-#     enumerator_column = "username",
-#     idnk_value = "Don't know",
-#     sm_separator = "/",
-#     # flags a survey whose closest neighbour differs in at most this many columns
-#     threshold = 7,
-#     # TRUE returns a row for every survey, not only the flagged ones
-#     return_all_results = FALSE
-#   )
-
-#----------------------------------
 # validate outliers
 # looks through all integer questions and checks for any outliers
 # or checks on specific columns
@@ -320,11 +271,10 @@ outliers_log <- raw_data %>%
 # check geocodes each unique city + country pair once via OpenStreetMap
 # (Nominatim), so an internet connection is required
 #
-# CUSTOMISE: country_question and city_question for your tool;
-# city_radius_km for how far from the claimed city still counts as
-# acceptable; check_country, check_city and flag_missing_gps to switch
-# individual checks off; lat_column, lon_column and location_column if your
-# GPS columns are named differently
+# a survey with every coordinate column empty is taken to be a phone
+# interview and skipped (treat_blank_gps_as_phone = TRUE); a survey whose
+# split lat/lon columns are missing or invalid falls back to the raw
+# `location` geopoint (use_location_fallback = TRUE)
 #----------------------------------
 
 interview_location_log <- cleaningkit::validate_interview_location(
@@ -339,9 +289,14 @@ interview_location_log <- cleaningkit::validate_interview_location(
   city_question = "Q14",
   log_name = "interview_location_log",
   city_radius_km = 75,
+  border_tolerance_km = 10,
   check_country = TRUE,
   check_city = TRUE,
   flag_missing_gps = TRUE,
+  # no GPS at all = phone interview, left out of every check
+  treat_blank_gps_as_phone = TRUE,
+  # use the raw geopoint when the split lat/lon columns are unusable
+  use_location_fallback = TRUE,
   nominatim_delay_s = 1,
   skip_label_row = TRUE
 )
@@ -379,6 +334,7 @@ repeated_entries_log <- cleaningkit::validate_repeated_entries(
   tool_choices = tool_choices,
   aliases = cleaningkit::ck_country_aliases(),
   similarity = 0.85,
+  sm_separator = "/",
   log_name = "repeated_entries_log",
   skip_label_row = TRUE
 )
@@ -424,7 +380,6 @@ list_of_log_all <- c(
   interview_time_log,
   interview_location_log,
   repeated_entries_log,
-  # similar_surveys_log,
   outliers_log,
   logical_check_log
 )
@@ -459,14 +414,16 @@ combined_log <- cleaningkit::create_combined_log(
 #                (an .xlsx path is corrected to .xlsm with a message)
 #
 # flag_columns puts the check flags at the front of the `dataset` sheet, so a
-# reviewer can filter on them; group_by = "issue" sets the column the log is
-# sorted and coloured by
+# reviewer can filter on them; ck_flag_column_defaults() gives duration,
+# completeness, refused, back to back and similarity. group_by = "issue" sets
+# the column the log is sorted and coloured by
 #
 # CUSTOMISE: vba for the file type, color_mode and color_columns for the
 # highlighting, group_by for how the log is sorted, output_path for the file
 # name, and other_enumerator_id for the enumerator column on the
-# other-responses sheet. drop other_responses and other_db to produce the
-# cleaning log on its own
+# other-responses sheet. flag_columns = NULL drops the flag columns;
+# include_dataset = FALSE leaves the dataset sheet out. drop other_responses
+# and other_db to produce the cleaning log on its own
 #----------------------------------
 
 cleaningkit::create_review_workbook(
@@ -475,6 +432,8 @@ cleaningkit::create_review_workbook(
   other_responses = other_responses_df,
   other_db = other_db,
   other_enumerator_id = "username",
+  include_dataset = TRUE,
+  flag_columns = cleaningkit::ck_flag_column_defaults(),
   color_mode = "partial",
   color_columns = c("old_value"),
   group_by = "issue",
