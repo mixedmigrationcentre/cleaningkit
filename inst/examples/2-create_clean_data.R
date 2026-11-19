@@ -37,6 +37,24 @@ raw_data <- cleaningkit::read_raw_data(
   filename = "./raw_data_cleaning/data.xlsx",
   tool_survey = tool_survey
 )
+
+#----------------------------------
+# check the reviewed files before reading them
+#
+# CUSTOMISE: use the same path and file_pattern as the read calls below
+#----------------------------------
+cleaningkit::check_log_files(
+  path = "./output/follow_ups/",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
+  sheet = "cleaning_log"
+)
+
+cleaningkit::check_log_files(
+  path = "./output/follow_ups/",
+  file_pattern = "_follow-ups_edited\\.xls[xm]$",
+  sheet = "other_responses"
+)
+
 #----------------------------------
 # read cleaning log
 #
@@ -57,13 +75,6 @@ cl <- cleaningkit::read_cleaning_log(
   # matches both the plain workbook and a macro-enabled one; readxl reads
   # .xlsm exactly like .xlsx
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
-  # sheet = NULL is the default; it resolves to the "cleaning_log" sheet by
-  # name and falls back to the first sheet. pass a name or a number to override
-  sheet = NULL,
-  extra_questions = NULL,
-  # what an empty "Action taken" cell is read as. "no_action" leaves the value
-  # untouched; set to NA to have evaluate_cleaning_log() flag the blank instead
-  default_blank_action = "no_action",
   skip_label_row = TRUE,
   verbose = TRUE
 )
@@ -100,9 +111,17 @@ review_cleaning_log <- cleaningkit::evaluate_cleaning_log(
 # apply cleaning log
 # This function performs the actions to clean the data
 #
-# rows from validate_repeated_entries() are applied with their suggested
-# value whatever the reviewer put in the log (apply_repeated_entries = TRUE,
-# the default). set it to FALSE to apply only what the reviewer filled in
+# rows from validate_repeated_entries():
+#   "Back-to-back repeat" - applied with the suggested value whatever the
+#                           reviewer put in Action taken / New value
+#   "Possible repeat"     - applied only for a record the reviewer accepted,
+#                           by setting any one of its rows to `recoded`
+# a discarded survey is still removed. apply_repeated_entries = FALSE applies
+# only what the reviewer filled in
+#
+# CUSTOMISE: log_issue_col and log_binding_col only if the Issue or
+# check_binding column was renamed in the review workbook - they are how the
+# repeated-entry rows and their suggested values are found
 #----------------------------------
 clean_data <- cleaningkit::apply_cleaning_log(
   raw_dataset = raw_data,
@@ -121,6 +140,8 @@ clean_data <- cleaningkit::apply_cleaning_log(
   # value whatever the reviewer filled in. FALSE applies only what the
   # reviewer filled in for them
   apply_repeated_entries = TRUE,
+  log_issue_col = "Issue",
+  log_binding_col = "check_binding",
   skip_label_row = TRUE,
   # restores the original column types after the edits are written back
   restore_types = TRUE,
@@ -149,6 +170,8 @@ other_log <- cleaningkit::read_other_responses(
   tool_choices = tool_choices,
   sm_separator = "/",
   file_pattern = "_follow-ups_edited\\.xls[xm]$",
+  # NULL finds the `other_responses` sheet by name (or the older `Sheet1`)
+  sheet = NULL,
   skip_questions = NULL,
   skip_label_row = TRUE,
   verbose = TRUE
@@ -239,6 +262,13 @@ review_cleaning <- cleaningkit::review_cleaned_data(
 
 #----------------------------------
 # create final workbook
+# one workbook with a readme, the raw data, the clean data and the combined
+# cleaning log
+#
+# CUSTOMISE: project_name, data_collection_round, prepared_by and
+# project_description for the readme; sheet_names to rename the tabs;
+# freeze_panes / add_filters for the data sheets; overwrite = FALSE to stop
+# rather than replace a file of the same name
 #----------------------------------
 
 cleaningkit::export_final_output(
@@ -251,5 +281,5 @@ cleaningkit::export_final_output(
   prepared_by = "Prepared by",
   project_description = paste0(
     "Project description."
-  ),
+  )
 )
