@@ -17,6 +17,13 @@
   **[`create_cleaning_log()`](../reference/create_cleaning_log.md)** had
   the same fault with an empty log.
 
+- **Fixed:**
+  **[`review_cleaned_data()`](../reference/review_cleaned_data.md)**
+  reported a “no action” row on a discarded survey as a contradictory
+  change (`cell_change_for_discarded_uuid`). A row that asks for no
+  change can’t contradict removing the survey, so only real changes on a
+  discarded survey are reported now.
+
 ### Round memory inside the workbooks
 
 - **[`create_review_workbook()`](../reference/create_review_workbook.md)
