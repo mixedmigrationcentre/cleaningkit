@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.08.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,21 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
+<div class="section level3">
+<h3 id="round-memory-inside-the-workbooks-development-version">Round memory inside the workbooks<a class="anchor" aria-label="anchor" href="#round-memory-inside-the-workbooks-development-version"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/create_review_workbook.html">create_review_workbook()</a></code> and <code><a href="../reference/export_final_output.html">export_final_output()</a></code> can remember the round.</strong> The new <code>round_info</code> argument writes very hidden sheets holding every survey ID checked so far (with the round it was checked in), a fingerprint of each survey in this round, and optionally the XLSForm, the logical checklist and free settings. The next round then needs only the new ONA download and the last workbook, instead of a <code>data/</code> folder that has to be kept intact between rounds. The sheets are written before the macro’s <code>_ck_config</code>, which stays last.</li>
+<li>
+<strong><code><a href="../reference/ck_round_info.html">ck_round_info()</a></code></strong> builds that memory from the surveys checked in this round, a free-text round name (rounds are ordered by date, never by name) and the memory of earlier rounds.</li>
+<li>
+<strong><code><a href="../reference/read_round_info.html">read_round_info()</a></code></strong> reads it back from one or more files and combines them: review or final workbooks, edited or not, the old <code>processed_uuids.csv</code> ledger, or an earlier export such as <code>data.xlsx</code>. Every survey ID in every file counts as checked, so giving more files than needed is safe, and existing projects can switch over from the ledger.</li>
+<li>
+<strong><code><a href="../reference/keep_new_records.html">keep_new_records()</a></code></strong> is the in-memory counterpart of <code><a href="../reference/filter_new_records.html">filter_new_records()</a></code>: it drops the surveys already checked from a new ONA download and keeps the ONA label row, without moving or renaming files.</li>
+<li>
+<strong><code><a href="../reference/round_records.html">round_records()</a></code></strong> picks a round’s surveys out of any later ONA download, since every download holds everything collected so far, and lists the surveys missing from it and those whose answers changed on ONA after they were checked.</li>
+<li>
+<strong><code><a href="../reference/round_fingerprint.html">round_fingerprint()</a></code></strong> hashes each survey’s answers. ONA metadata columns (names starting with an underscore) are left out because they change without the answers changing, and columns added to the form later don’t change an earlier fingerprint.</li>
+</ul></div>
 <div class="section level3">
 <h3 id="new-check-repeated-entries-in-looped-questions-development-version">New check: repeated entries in looped questions<a class="anchor" aria-label="anchor" href="#new-check-repeated-entries-in-looped-questions-development-version"></a></h3>
 <ul><li>

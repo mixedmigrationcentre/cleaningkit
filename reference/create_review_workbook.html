@@ -11,7 +11,7 @@ reads one file instead of two."><meta property="og:image" content="/logo.png"></
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.08.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,7 +84,8 @@ reads one file instead of two.</p>
 <span>  other_body_font_size <span class="op">=</span> <span class="fl">12</span>,</span>
 <span>  vba <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  macro_issue_prefix <span class="op">=</span> <span class="st">"manual_edit"</span>,</span>
-<span>  vba_project <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  vba_project <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  round_info <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -170,6 +171,14 @@ dataset sheet there is nothing for the macro to watch.</p></dd>
 <dt id="arg-macro-issue-prefix-vba-project">macro_issue_prefix, vba_project<a class="anchor" aria-label="anchor" href="#arg-macro-issue-prefix-vba-project"></a></dt>
 <dd><p>As documented on
 <code><a href="create_cleaning_log_vba.html">create_cleaning_log_vba()</a></code>. Ignored when <code>vba = FALSE</code>.</p></dd>
+
+
+<dt id="arg-round-info">round_info<a class="anchor" aria-label="anchor" href="#arg-round-info"></a></dt>
+<dd><p>Optional round memory from <code><a href="ck_round_info.html">ck_round_info()</a></code>:
+which surveys were checked so far, their fingerprints, and the
+questionnaire and settings of the round. Written into very hidden sheets
+so the next round can start from this workbook with
+<code><a href="read_round_info.html">read_round_info()</a></code>. Default <code>NULL</code> writes nothing.</p></dd>
 
 </dl></div>
     <div class="section level2">

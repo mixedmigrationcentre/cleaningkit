@@ -42,7 +42,8 @@ create_review_workbook(
   other_body_font_size = 12,
   vba = FALSE,
   macro_issue_prefix = "manual_edit",
-  vba_project = NULL
+  vba_project = NULL,
+  round_info = NULL
 )
 ```
 
@@ -128,6 +129,15 @@ create_review_workbook(
   As documented on
   [`create_cleaning_log_vba()`](create_cleaning_log_vba.md). Ignored
   when `vba = FALSE`.
+
+- round_info:
+
+  Optional round memory from [`ck_round_info()`](ck_round_info.md):
+  which surveys were checked so far, their fingerprints, and the
+  questionnaire and settings of the round. Written into very hidden
+  sheets so the next round can start from this workbook with
+  [`read_round_info()`](read_round_info.md). Default `NULL` writes
+  nothing.
 
 ## Value
 

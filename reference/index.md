@@ -36,6 +36,9 @@
 - [`ck_repeated_entries_sections()`](ck_repeated_entries_sections.md) :
   Default question sets for validate_repeated_entries()
 
+- [`ck_round_info()`](ck_round_info.md) : Describe a round for the
+  workbooks to remember
+
 - [`ck_vba_project_path()`](ck_vba_project_path.md) : Path to the
   compiled VBA project
 
@@ -88,6 +91,9 @@
 - [`get_value_from_uuid()`](get_value_from_uuid.md) : Get Column Value
   by UUID
 
+- [`keep_new_records()`](keep_new_records.md) : Keep only the surveys
+  not checked in earlier rounds
+
 - [`load_packages()`](load_packages.md) : Load Required Packages
 
 - [`prepare_other_responses()`](prepare_other_responses.md) : Prepare
@@ -104,6 +110,9 @@
 
 - [`read_raw_data()`](read_raw_data.md) : Read Raw Main Dataset
 
+- [`read_round_info()`](read_round_info.md) : Read what earlier rounds
+  checked
+
 - [`read_tool_choices()`](read_tool_choices.md) : Read XLSForm Choices
   Sheet
 
@@ -118,6 +127,12 @@
 
 - [`review_cleaned_data()`](review_cleaned_data.md) : Review Cleaned
   Data Against the Raw Dataset and Cleaning Log
+
+- [`round_fingerprint()`](round_fingerprint.md) : Fingerprint each
+  survey in a dataset
+
+- [`round_records()`](round_records.md) : The surveys of the last round,
+  from any later download
 
 - [`save_other_responses()`](save_other_responses.md) : Save Other
   Responses

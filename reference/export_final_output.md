@@ -36,7 +36,8 @@ export_final_output(
   date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
-  overwrite = TRUE
+  overwrite = TRUE,
+  round_info = NULL
 )
 ```
 
@@ -127,6 +128,13 @@ export_final_output(
 
   Logical. If `TRUE` (the default), an existing file at `output_path` is
   overwritten.
+
+- round_info:
+
+  Optional round memory from [`ck_round_info()`](ck_round_info.md),
+  written into very hidden sheets so the next round can start from this
+  workbook with [`read_round_info()`](read_round_info.md). Default
+  `NULL` writes nothing.
 
 ## Value
 
