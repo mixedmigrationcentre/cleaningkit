@@ -115,7 +115,10 @@ insensitively, against both the headers written by the current
 \code{prepare_other_responses()} and the earlier \code{TRUE other} /
 \code{EXISTING other} / \code{INVALID other} / \code{FOLLOW-UP message}
 headers, so a file reviewed before the rename is read exactly as before. The
-patterns are defined once in \code{.ck_other_review_patterns()}.
+patterns are defined once in \code{.ck_other_review_patterns()}. The
+respondent's text is read from \code{response}, or from \code{response_en}
+in files exported by earlier versions; a folder may mix both, since the old
+name is treated as the new one when the files' columns are compared.
 
 \strong{Column check:} before the files are stacked, their headers are
 compared with \code{check_log_files()}. Because the files are combined with

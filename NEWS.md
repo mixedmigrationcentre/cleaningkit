@@ -1,5 +1,21 @@
 # cleaningkit (development version)
 
+## Other responses: `response_en` is now `response`
+
+* **`prepare_other_responses()`** and **`save_other_responses()`** now head
+  the respondent's text `response` instead of `response_en`. The answer can
+  be in any language, so the `_en` suffix was misleading. A data frame that
+  still carries `response_en` (for example one saved before updating) is
+  written with the new name.
+* **`read_other_responses()`** still reads files that teams exported with
+  `response_en`, and a folder can mix old and new files: the old name counts
+  as the new one when the files' columns are compared before they are
+  combined.
+* **`check_log_files()`** gains `col_aliases`, which by default treats
+  `response_en` as `response`. An old and a new other-responses file are
+  therefore no longer reported as a mismatch. Pass `col_aliases = NULL` to
+  compare the headers exactly as written.
+
 ## Checks that find nothing
 
 * **Fixed:** **`validate_duration()`**, **`validate_completeness()`**,

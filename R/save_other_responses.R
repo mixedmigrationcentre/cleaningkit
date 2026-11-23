@@ -59,7 +59,12 @@
 #'   (the default), all questions in \code{other_db} are used. When provided,
 #'   only the specified questions are prepared; an error is raised if any name
 #'   is not found in \code{other_db}.
-#' @return A dataframe formatted for \code{save_other_responses()}. It carries an
+#' @return A dataframe formatted for \code{save_other_responses()}. The
+#'   respondent's own text is in the \code{response} column. It was called
+#'   \code{response_en} in earlier versions, but the text can be in any
+#'   language; files exported with the old name are still read by
+#'   \code{read_other_responses()}, and a data frame carrying it is written
+#'   under the new name by \code{save_other_responses()}. It carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
 #'   The five reviewer columns, in sheet order, are
@@ -163,9 +168,9 @@ prepare_other_responses <- function(
     pivot_longer(
       cols = all_of(var_other_raw),
       names_to = "question_name",
-      values_to = "response_en"
+      values_to = "response"
     ) %>%
-    filter(!is.na(response_en))
+    filter(!is.na(response))
 
   # --- Loop datasets other responses (if provided) ---
   other_responses <- other_responses_main
@@ -188,9 +193,9 @@ prepare_other_responses <- function(
           pivot_longer(
             cols = all_of(var_other_loop),
             names_to = "question_name",
-            values_to = "response_en"
+            values_to = "response"
           ) %>%
-          filter(!is.na(response_en))
+          filter(!is.na(response))
 
         other_responses <- bind_rows(other_responses, other_responses_loop)
       }
@@ -210,7 +215,7 @@ prepare_other_responses <- function(
     "question_name",
     "list_name",
     "full_label",
-    "response_en"
+    "response"
   )
 
   # Generate final dataframe
@@ -602,7 +607,7 @@ prepare_other_responses <- function(
     }
   }
 
-  df <- relocate(df, "selected_choices", .before = "response_en")
+  df <- relocate(df, "selected_choices", .before = "response")
 
   # Record that the label row has (or has not) been handled, so downstream
   # save_other_responses() does not drop a row a second time.
@@ -690,6 +695,10 @@ prepare_other_responses <- function(
   # sequences, so this must run before df reaches writeData.
   df[] <- lapply(df, .sanitize_utf8)
   names(df) <- stringi::stri_enc_toutf8(names(df), validate = TRUE)
+
+  # A df built by an older version of the package still carries "response_en";
+  # write it under the current name so every new file has the same header.
+  df <- .ck_normalise_other_cols(df)
 
   # --- Place enumerator column right after uuid if provided --------------------
   if (!is.null(enumerator_id) && enumerator_id %in% names(df)) {

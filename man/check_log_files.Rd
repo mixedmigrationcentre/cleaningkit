@@ -10,7 +10,8 @@ check_log_files(
   sheet = 1,
   recursive = TRUE,
   ignore_case = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  col_aliases = .ck_other_col_aliases()
 )
 }
 \arguments{
@@ -38,6 +39,14 @@ is matched case-insensitively.}
 \item{verbose}{Logical. If \code{TRUE} (the default), a summary is printed to
 the console: the column count per file, and, when the files disagree, the
 offending files with their missing and extra columns.}
+
+\item{col_aliases}{Named character vector mapping a legacy column name to its
+current name, \code{c(legacy = "current")}. Legacy names are renamed before
+the files are compared, so a file exported before a column was renamed is
+not reported as a mismatch. The default treats \code{response_en} (written
+on the other-responses sheet by earlier versions) as \code{response}, the
+same way \code{read_other_responses()} does. Pass \code{NULL} to compare
+the headers exactly as written.}
 }
 \value{
 A dataframe, invisibly when \code{verbose = TRUE}, with one row per

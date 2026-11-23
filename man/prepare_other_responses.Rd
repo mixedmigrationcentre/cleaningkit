@@ -69,7 +69,12 @@ the column is never blank there regardless of this setting.}
 \code{label} column, else the first label column found).}
 }
 \value{
-A dataframe formatted for \code{save_other_responses()}. It carries an
+A dataframe formatted for \code{save_other_responses()}. The
+respondent's own text is in the \code{response} column. It was called
+\code{response_en} in earlier versions, but the text can be in any
+language; files exported with the old name are still read by
+\code{read_other_responses()}, and a data frame carrying it is written
+under the new name by \code{save_other_responses()}. It carries an
 attribute \code{"ona_label_row_skipped"} recording whether the label row was
 dropped, so \code{save_other_responses()} does not drop a row a second time.
 The five reviewer columns, in sheet order, are

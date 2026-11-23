@@ -976,3 +976,55 @@ ck_default_blank_action <- function(x, default = "no_action") {
     explanation = "^(response from field team|explanation)"
   )
 }
+
+#' Legacy column names on the other-responses sheet
+#'
+#' Maps a column name written by an earlier version of the package (the names)
+#' to the name written today (the values). The respondent's text used to be
+#' headed \code{response_en}, which wrongly suggested it was always English; it
+#' is now \code{response}. Files that teams already exported with the old name
+#' are still read, styled and checked through this map.
+#'
+#' @return A named character vector: \code{c(legacy = "current")}.
+#' @noRd
+.ck_other_col_aliases <- function() {
+  c(response_en = "response")
+}
+
+#' Rename legacy column names to their current names
+#'
+#' Applies \code{.ck_other_col_aliases()} (or \code{aliases}) to a vector of
+#' column names. Matching ignores case and surrounding whitespace. A legacy name
+#' is left alone when the current name is already present, so a file carrying
+#' both columns is not given two columns of the same name.
+#'
+#' @param x Character vector of column names.
+#' @param aliases Named character vector, \code{c(legacy = "current")}.
+#' @return \code{x} with legacy names replaced.
+#' @noRd
+.ck_apply_col_aliases <- function(x, aliases = .ck_other_col_aliases()) {
+  if (length(aliases) == 0 || length(x) == 0) {
+    return(x)
+  }
+  key <- tolower(trimws(x))
+  legacy <- tolower(names(aliases))
+  for (i in seq_along(aliases)) {
+    hit <- which(key == legacy[i])
+    if (length(hit) > 0 && !(aliases[[i]] %in% x)) {
+      x[hit[1]] <- aliases[[i]]
+    }
+  }
+  x
+}
+
+#' Bring an other-responses data frame to the current column names
+#'
+#' @param df A data frame from \code{prepare_other_responses()} or read from an
+#'   other-responses file, of any package version.
+#' @return \code{df} with legacy column names renamed (see
+#'   \code{.ck_other_col_aliases()}).
+#' @noRd
+.ck_normalise_other_cols <- function(df) {
+  names(df) <- .ck_apply_col_aliases(names(df))
+  df
+}

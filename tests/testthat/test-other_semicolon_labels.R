@@ -33,7 +33,7 @@ ck_semi_row <- function(existing_other) {
     ref_type = "select_multiple",
     question_name = "Q81_1",
     ref_question = "Q81",
-    response_en = "no freedom of speech",
+    response = "no freedom of speech",
     existing_other = existing_other,
     list_name = "reasons_rights",
     option_other = "97",
