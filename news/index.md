@@ -2,6 +2,21 @@
 
 ## cleaningkit (development version)
 
+### Checks that find nothing
+
+- **Fixed:**
+  **[`validate_duration()`](../reference/validate_duration.md)**,
+  **[`validate_completeness()`](../reference/validate_completeness.md)**,
+  **[`validate_refused()`](../reference/validate_refused.md)**,
+  **[`validate_interview_time()`](../reference/validate_interview_time.md)**
+  and
+  **[`validate_country_of_interview()`](../reference/validate_country_of_interview.md)**
+  stopped with “replacement has 1 row, data has 0” when they found no
+  problem. A clean batch of surveys, such as the few new ones in a later
+  round, now gives an empty log instead of an error.
+  **[`create_cleaning_log()`](../reference/create_cleaning_log.md)** had
+  the same fault with an empty log.
+
 ### Round memory inside the workbooks
 
 - **[`create_review_workbook()`](../reference/create_review_workbook.md)

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">cleaningkit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2026.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,11 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="cleaningkit-development-version">cleaningkit (development version)<a class="anchor" aria-label="anchor" href="#cleaningkit-development-version"></a></h2>
+<div class="section level3">
+<h3 id="checks-that-find-nothing-development-version">Checks that find nothing<a class="anchor" aria-label="anchor" href="#checks-that-find-nothing-development-version"></a></h3>
+<ul><li>
+<strong>Fixed:</strong> <strong><code><a href="../reference/validate_duration.html">validate_duration()</a></code></strong>, <strong><code><a href="../reference/validate_completeness.html">validate_completeness()</a></code></strong>, <strong><code><a href="../reference/validate_refused.html">validate_refused()</a></code></strong>, <strong><code><a href="../reference/validate_interview_time.html">validate_interview_time()</a></code></strong> and <strong><code><a href="../reference/validate_country_of_interview.html">validate_country_of_interview()</a></code></strong> stopped with “replacement has 1 row, data has 0” when they found no problem. A clean batch of surveys, such as the few new ones in a later round, now gives an empty log instead of an error. <strong><code><a href="../reference/create_cleaning_log.html">create_cleaning_log()</a></code></strong> had the same fault with an empty log.</li>
+</ul></div>
 <div class="section level3">
 <h3 id="round-memory-inside-the-workbooks-development-version">Round memory inside the workbooks<a class="anchor" aria-label="anchor" href="#round-memory-inside-the-workbooks-development-version"></a></h3>
 <ul><li>
