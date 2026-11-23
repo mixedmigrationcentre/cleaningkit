@@ -1,6 +1,6 @@
 Package: cleaningkit
 Title: What the Package Does (One Line, Title Case)
-Version: 2026.11.0
+Version: 2026.11.1
 Authors@R: 
     person("Abubakar", "Athman", , "abubakar.athman@mixedmigration.org", role = c("aut", "cre"))
 Description: This package offers an automated toolkit for streamlining 4Mi
@@ -10,6 +10,8 @@ Description: This package offers an automated toolkit for streamlining 4Mi
     outliers, "other" text responses, and detecting potential fraud based
     on official SOPs.
 License: MIT + file LICENSE
+Depends:
+    R (>= 4.0.1)
 Imports: 
     cluster,
     crayon,
