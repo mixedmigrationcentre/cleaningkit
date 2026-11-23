@@ -191,7 +191,10 @@ insensitively, against both the headers written by the current
 <code><a href="prepare_other_responses.html">prepare_other_responses()</a></code> and the earlier <code>TRUE other</code> /
 <code>EXISTING other</code> / <code>INVALID other</code> / <code>FOLLOW-UP message</code>
 headers, so a file reviewed before the rename is read exactly as before. The
-patterns are defined once in <code>.ck_other_review_patterns()</code>.</p>
+patterns are defined once in <code>.ck_other_review_patterns()</code>. The
+respondent's text is read from <code>response</code>, or from <code>response_en</code>
+in files exported by earlier versions; a folder may mix both, since the old
+name is treated as the new one when the files' columns are compared.</p>
 <p><strong>Column check:</strong> before the files are stacked, their headers are
 compared with <code><a href="check_log_files.html">check_log_files()</a></code>. Because the files are combined with
 <code><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind()</a></code>, a single file with an extra, missing or renamed column would

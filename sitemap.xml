@@ -23,6 +23,7 @@
 <url><loc>/reference/ck_flag_column_names.html</loc></url>
 <url><loc>/reference/ck_repeated_entries_sections.html</loc></url>
 <url><loc>/reference/ck_round_info.html</loc></url>
+<url><loc>/reference/ck_translate_options.html</loc></url>
 <url><loc>/reference/ck_vba_project_path.html</loc></url>
 <url><loc>/reference/cleaningkit-package.html</loc></url>
 <url><loc>/reference/combine_reviewed_logs.html</loc></url>
@@ -87,6 +88,7 @@
 <url><loc>/reference/round_records.html</loc></url>
 <url><loc>/reference/save_other_responses.html</loc></url>
 <url><loc>/reference/setup_project_folders.html</loc></url>
+<url><loc>/reference/translate_other_responses.html</loc></url>
 <url><loc>/reference/validate_back_to_back.html</loc></url>
 <url><loc>/reference/validate_completeness.html</loc></url>
 <url><loc>/reference/validate_country_of_interview.html</loc></url>

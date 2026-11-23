@@ -60,7 +60,9 @@ includes extra columns (e.g., enumerator, sample_area) if provided.</p>
 <span>  skip_label_row <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  label_language_fallback <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  fallback_to_code <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  preferred_language <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  preferred_language <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  translate <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  translate_options <span class="op">=</span> <span class="fu"><a href="ck_translate_options.html">ck_translate_options</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -138,10 +140,39 @@ the column is never blank there regardless of this setting.</p></dd>
 <code>NULL</code> (the default), the existing preference order is used (a bare
 <code>label</code> column, else the first label column found).</p></dd>
 
+
+<dt id="arg-translate">translate<a class="anchor" aria-label="anchor" href="#arg-translate"></a></dt>
+<dd><p>Machine translation of the responses into English, in the
+<code>translation</code> column. <strong>Off by default.</strong></p><ul><li><p><code>FALSE</code> (the default): nothing is sent anywhere; the
+<code>translation</code> column is left empty.</p></li>
+<li><p><code>"preview"</code>: nothing is sent. The texts that would be sent
+are printed and attached to the result as the attribute
+<code>"translation_preview"</code>, so a team can check them first.</p></li>
+<li><p><code>TRUE</code>: the distinct "other" texts (and nothing else) are
+sent to Google Translate's free service. See
+<code><a href="translate_other_responses.html">translate_other_responses()</a></code> for exactly what is sent, and check
+your data-protection rules first.</p></li>
+</ul></dd>
+
+
+<dt id="arg-translate-options">translate_options<a class="anchor" aria-label="anchor" href="#arg-translate-options"></a></dt>
+<dd><p>Settings from <code><a href="ck_translate_options.html">ck_translate_options()</a></code>, e.g.
+<code>ck_translate_options(cache_file = "output/translation_cache.rds")</code>.
+Used only when <code>translate</code> is not <code>FALSE</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A dataframe formatted for <code><a href="save_other_responses.html">save_other_responses()</a></code>. It carries an
+    <p>A dataframe formatted for <code><a href="save_other_responses.html">save_other_responses()</a></code>. The
+respondent's own text is in the <code>response</code> column. It was called
+<code>response_en</code> in earlier versions, but the text can be in any
+language; files exported with the old name are still read by
+<code><a href="read_other_responses.html">read_other_responses()</a></code>, and a data frame carrying it is written
+under the new name by <code><a href="save_other_responses.html">save_other_responses()</a></code>. Right after it comes
+<code>translation</code>, a machine translation filled only when
+<code>translate = TRUE</code>; it is a help for the reviewer and is never applied
+to the data. Files from before this column existed are still read. It
+carries an
 attribute <code>"ona_label_row_skipped"</code> recording whether the label row was
 dropped, so <code><a href="save_other_responses.html">save_other_responses()</a></code> does not drop a row a second time.
 The five reviewer columns, in sheet order, are

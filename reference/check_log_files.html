@@ -58,7 +58,8 @@ it surfaces as an error inside <code><a href="read_cleaning_log.html">read_clean
 <span>  sheet <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  recursive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  ignore_case <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  harmonise_legacy <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -101,6 +102,15 @@ is matched case-insensitively.</p></dd>
 <dd><p>Logical. If <code>TRUE</code> (the default), a summary is printed to
 the console: the column count per file, and, when the files disagree, the
 offending files with their missing and extra columns.</p></dd>
+
+
+<dt id="arg-harmonise-legacy">harmonise_legacy<a class="anchor" aria-label="anchor" href="#arg-harmonise-legacy"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), an
+other-responses file exported by an earlier version is compared as
+<code><a href="read_other_responses.html">read_other_responses()</a></code> reads it: <code>response_en</code> counts as
+<code>response</code>, and a missing <code>translation</code> column (added later) is
+not reported. Old and new files can then sit in the same folder. Set to
+<code>FALSE</code> to compare the headers exactly as written.</p></dd>
 
 </dl></div>
     <div class="section level2">

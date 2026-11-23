@@ -19,7 +19,9 @@ prepare_other_responses(
   skip_label_row = TRUE,
   label_language_fallback = TRUE,
   fallback_to_code = TRUE,
-  preferred_language = NULL
+  preferred_language = NULL,
+  translate = FALSE,
+  translate_options = ck_translate_options()
 )
 ```
 
@@ -97,15 +99,49 @@ prepare_other_responses(
   preference order is used (a bare `label` column, else the first label
   column found).
 
+- translate:
+
+  Machine translation of the responses into English, in the
+  `translation` column. **Off by default.**
+
+  - `FALSE` (the default): nothing is sent anywhere; the `translation`
+    column is left empty.
+
+  - `"preview"`: nothing is sent. The texts that would be sent are
+    printed and attached to the result as the attribute
+    `"translation_preview"`, so a team can check them first.
+
+  - `TRUE`: the distinct "other" texts (and nothing else) are sent to
+    Google Translate's free service. See
+    [`translate_other_responses()`](translate_other_responses.md) for
+    exactly what is sent, and check your data-protection rules first.
+
+- translate_options:
+
+  Settings from [`ck_translate_options()`](ck_translate_options.md),
+  e.g.
+  `ck_translate_options(cache_file = "output/translation_cache.rds")`.
+  Used only when `translate` is not `FALSE`.
+
 ## Value
 
 A dataframe formatted for
-[`save_other_responses()`](save_other_responses.md). It carries an
-attribute `"ona_label_row_skipped"` recording whether the label row was
-dropped, so [`save_other_responses()`](save_other_responses.md) does not
-drop a row a second time. The five reviewer columns, in sheet order, are
-**Input translation or improved text**, a single **Correct to existing
-answer option** (earlier versions wrote three numbered slots), **Invalid
+[`save_other_responses()`](save_other_responses.md). The respondent's
+own text is in the `response` column. It was called `response_en` in
+earlier versions, but the text can be in any language; files exported
+with the old name are still read by
+[`read_other_responses()`](read_other_responses.md), and a data frame
+carrying it is written under the new name by
+[`save_other_responses()`](save_other_responses.md). Right after it
+comes `translation`, a machine translation filled only when
+`translate = TRUE`; it is a help for the reviewer and is never applied
+to the data. Files from before this column existed are still read. It
+carries an attribute `"ona_label_row_skipped"` recording whether the
+label row was dropped, so
+[`save_other_responses()`](save_other_responses.md) does not drop a row
+a second time. The five reviewer columns, in sheet order, are **Input
+translation or improved text**, a single **Correct to existing answer
+option** (earlier versions wrote three numbered slots), **Invalid
 other**, **Comment from IM** and **Response from field team**. Earlier
 versions of the package headed these `TRUE other`, `EXISTING other`,
 `INVALID other`, `FOLLOW-UP message` and `Explanation`;

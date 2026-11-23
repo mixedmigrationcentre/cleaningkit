@@ -15,7 +15,8 @@ check_log_files(
   sheet = 1,
   recursive = TRUE,
   ignore_case = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  harmonise_legacy = TRUE
 )
 ```
 
@@ -59,6 +60,15 @@ check_log_files(
   Logical. If `TRUE` (the default), a summary is printed to the console:
   the column count per file, and, when the files disagree, the offending
   files with their missing and extra columns.
+
+- harmonise_legacy:
+
+  Logical. If `TRUE` (the default), an other-responses file exported by
+  an earlier version is compared as
+  [`read_other_responses()`](read_other_responses.md) reads it:
+  `response_en` counts as `response`, and a missing `translation` column
+  (added later) is not reported. Old and new files can then sit in the
+  same folder. Set to `FALSE` to compare the headers exactly as written.
 
 ## Value
 

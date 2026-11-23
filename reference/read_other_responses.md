@@ -146,7 +146,10 @@ insensitively, against both the headers written by the current
 earlier `TRUE other` / `EXISTING other` / `INVALID other` /
 `FOLLOW-UP message` headers, so a file reviewed before the rename is
 read exactly as before. The patterns are defined once in
-`.ck_other_review_patterns()`.
+`.ck_other_review_patterns()`. The respondent's text is read from
+`response`, or from `response_en` in files exported by earlier versions;
+a folder may mix both, since the old name is treated as the new one when
+the files' columns are compared.
 
 **Column check:** before the files are stacked, their headers are
 compared with [`check_log_files()`](check_log_files.md). Because the

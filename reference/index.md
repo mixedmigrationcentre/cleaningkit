@@ -39,6 +39,9 @@
 - [`ck_round_info()`](ck_round_info.md) : Describe a round for the
   workbooks to remember
 
+- [`ck_translate_options()`](ck_translate_options.md) : Options for
+  Translating Other Responses
+
 - [`ck_vba_project_path()`](ck_vba_project_path.md) : Path to the
   compiled VBA project
 
@@ -139,6 +142,9 @@
 
 - [`setup_project_folders()`](setup_project_folders.md) : Set Up Project
   Folder Structure
+
+- [`translate_other_responses()`](translate_other_responses.md) :
+  Machine-Translate Other Responses
 
 - [`validate_back_to_back()`](validate_back_to_back.md) : Validate
   Back-to-Back Interviews
