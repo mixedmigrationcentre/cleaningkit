@@ -23,7 +23,8 @@ export_final_output(
   date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
-  overwrite = TRUE
+  overwrite = TRUE,
+  round_info = NULL
 )
 }
 \arguments{
@@ -78,6 +79,11 @@ added to the header row of each data sheet.}
 
 \item{overwrite}{Logical. If \code{TRUE} (the default), an existing file at
 \code{output_path} is overwritten.}
+
+\item{round_info}{Optional round memory from \code{ck_round_info()},
+written into very hidden sheets so the next round can start from this
+workbook with \code{read_round_info()}. Default \code{NULL} writes
+nothing.}
 }
 \value{
 Invisibly returns \code{output_path}. The workbook is saved to disk.

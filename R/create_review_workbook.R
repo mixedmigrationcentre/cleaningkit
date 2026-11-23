@@ -75,6 +75,11 @@
 #'   dataset sheet there is nothing for the macro to watch.
 #' @param macro_issue_prefix,vba_project As documented on
 #'   \code{create_cleaning_log_vba()}. Ignored when \code{vba = FALSE}.
+#' @param round_info Optional round memory from \code{ck_round_info()}:
+#'   which surveys were checked so far, their fingerprints, and the
+#'   questionnaire and settings of the round. Written into very hidden sheets
+#'   so the next round can start from this workbook with
+#'   \code{read_round_info()}. Default \code{NULL} writes nothing.
 #' @param cleaning_log_name,dataset_name,uuid_column,enumerator_column,date_column
 #'   Passed straight to \code{create_cleaning_log()}.
 #' @param column_for_color,color_mode,color_columns,include_dataset Passed
@@ -146,7 +151,8 @@ create_review_workbook <- function(
   other_body_font_size = 12,
   vba = FALSE,
   macro_issue_prefix = "manual_edit",
-  vba_project = NULL
+  vba_project = NULL,
+  round_info = NULL
 ) {
   # ---- pre-flight ----
   # Everything cheap is checked before the workbook is built, because building
@@ -180,6 +186,10 @@ create_review_workbook <- function(
   }
 
   flag_columns <- resolve_flag_columns(flag_columns)
+
+  if (!is.null(round_info) && !inherits(round_info, "ck_round_info")) {
+    stop("`round_info` must come from ck_round_info().", call. = FALSE)
+  }
 
   ck_assert_sheet_names(
     c(
@@ -260,6 +270,10 @@ create_review_workbook <- function(
       body_font_size = other_body_font_size
     )
   }
+
+  # ---- round memory ----
+  # Very hidden, and added before _ck_config so that sheet stays last.
+  .ck_write_round_sheets(workbook, round_info)
 
   # ---- tab order ----
   # Applied here as well as inside create_cleaning_log(), because the two

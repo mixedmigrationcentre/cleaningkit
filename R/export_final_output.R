@@ -52,6 +52,11 @@
 #' @param overwrite Logical. If \code{TRUE} (the default), an existing file at
 #'   \code{output_path} is overwritten.
 #'
+#' @param round_info Optional round memory from \code{ck_round_info()},
+#'   written into very hidden sheets so the next round can start from this
+#'   workbook with \code{read_round_info()}. Default \code{NULL} writes
+#'   nothing.
+#'
 #' @return Invisibly returns \code{output_path}. The workbook is saved to disk.
 #' @export
 export_final_output <- function(
@@ -92,7 +97,8 @@ export_final_output <- function(
   date_column_name = "Date",
   freeze_panes = TRUE,
   add_filters = TRUE,
-  overwrite = TRUE
+  overwrite = TRUE,
+  round_info = NULL
 ) {
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop(
@@ -608,6 +614,9 @@ export_final_output <- function(
 
   # colour the tab backgrounds on data sheets
   openxlsx::worksheetOrder(wb) # ensure order: readme first
+
+  # ---- round memory ----
+  .ck_write_round_sheets(wb, round_info)
 
   # ---- save ----
   openxlsx::saveWorkbook(wb, output_path, overwrite = overwrite)

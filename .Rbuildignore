@@ -10,3 +10,4 @@
 ^CLAUDE\.md$
 ^\.claude$
 ^[^/]*\.xlsx$
+^Claude outputs$
