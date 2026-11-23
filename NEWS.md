@@ -1,5 +1,35 @@
 # cleaningkit (development version)
 
+## Round memory inside the workbooks
+* **`create_review_workbook()` and `export_final_output()` can remember the
+  round.** The new `round_info` argument writes very hidden sheets holding
+  every survey ID checked so far (with the round it was checked in), a
+  fingerprint of each survey in this round, and optionally the XLSForm, the
+  logical checklist and free settings. The next round then needs only the
+  new ONA download and the last workbook, instead of a `data/` folder that
+  has to be kept intact between rounds. The sheets are written before the
+  macro's `_ck_config`, which stays last.
+* **`ck_round_info()`** builds that memory from the surveys checked in this
+  round, a free-text round name (rounds are ordered by date, never by name)
+  and the memory of earlier rounds.
+* **`read_round_info()`** reads it back from one or more files and combines
+  them: review or final workbooks, edited or not, the old
+  `processed_uuids.csv` ledger, or an earlier export such as `data.xlsx`.
+  Every survey ID in every file counts as checked, so giving more files than
+  needed is safe, and existing projects can switch over from the ledger.
+* **`keep_new_records()`** is the in-memory counterpart of
+  `filter_new_records()`: it drops the surveys already checked from a new
+  ONA download and keeps the ONA label row, without moving or renaming
+  files.
+* **`round_records()`** picks a round's surveys out of any later ONA
+  download, since every download holds everything collected so far, and
+  lists the surveys missing from it and those whose answers changed on ONA
+  after they were checked.
+* **`round_fingerprint()`** hashes each survey's answers. ONA metadata
+  columns (names starting with an underscore) are left out because they
+  change without the answers changing, and columns added to the form later
+  don't change an earlier fingerprint.
+
 ## New check: repeated entries in looped questions
 * **`validate_repeated_entries()`** flags looped journey questions where an
   entry repeats an earlier one. Countries transited (Q47 to Q54) are compared

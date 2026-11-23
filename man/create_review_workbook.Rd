@@ -39,7 +39,8 @@ create_review_workbook(
   other_body_font_size = 12,
   vba = FALSE,
   macro_issue_prefix = "manual_edit",
-  vba_project = NULL
+  vba_project = NULL,
+  round_info = NULL
 )
 }
 \arguments{
@@ -92,6 +93,12 @@ dataset sheet there is nothing for the macro to watch.}
 
 \item{macro_issue_prefix, vba_project}{As documented on
 \code{create_cleaning_log_vba()}. Ignored when \code{vba = FALSE}.}
+
+\item{round_info}{Optional round memory from \code{ck_round_info()}:
+which surveys were checked so far, their fingerprints, and the
+questionnaire and settings of the round. Written into very hidden sheets
+so the next round can start from this workbook with
+\code{read_round_info()}. Default \code{NULL} writes nothing.}
 }
 \value{
 \code{output_path}, invisibly. The extension is corrected to
