@@ -382,7 +382,12 @@ review_cleaned_data <- function(
   # =====================================================================
   # CHECK 6: cell-level log row for a uuid that is also being discarded
   # =====================================================================
-  contradicted <- cell_rows[cl_uuid[cell_rows] %in% discard_uuids]
+  # a no-action row asks for no change, so it cannot contradict the discard
+  contradicted <- cell_rows[
+    cl_uuid[cell_rows] %in%
+      discard_uuids &
+      !(cl_action[cell_rows] %in% tolower(no_action_values))
+  ]
   emit(
     "cell_change_for_discarded_uuid",
     cl_uuid[contradicted],

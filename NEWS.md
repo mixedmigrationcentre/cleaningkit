@@ -9,6 +9,11 @@
   the few new ones in a later round, now gives an empty log instead of an
   error. **`create_cleaning_log()`** had the same fault with an empty log.
 
+* **Fixed:** **`review_cleaned_data()`** reported a "no action" row on a
+  discarded survey as a contradictory change (`cell_change_for_discarded_uuid`).
+  A row that asks for no change can't contradict removing the survey, so only
+  real changes on a discarded survey are reported now.
+
 ## Round memory inside the workbooks
 * **`create_review_workbook()` and `export_final_output()` can remember the
   round.** The new `round_info` argument writes very hidden sheets holding
