@@ -1017,14 +1017,62 @@ ck_default_blank_action <- function(x, default = "no_action") {
   x
 }
 
+#' Header of the machine-translation column on the other-responses sheet
+#'
+#' Kept short and deliberately not starting with "input translation", which is
+#' how the reviewer's own translation column is recognised
+#' (\code{.ck_other_review_patterns()}).
+#' @noRd
+.ck_translation_col <- function() {
+  "translation"
+}
+
+#' Columns added to the other-responses sheet in later versions
+#'
+#' A file exported before one of these existed is still valid: the column is
+#' added, empty, when the file is read, and it is not reported as missing when
+#' files are compared.
+#' @noRd
+.ck_other_optional_cols <- function() {
+  .ck_translation_col()
+}
+
+#' Harmonise an other-responses header for comparison
+#'
+#' Renames legacy names and, on an other-responses header (one carrying
+#' \code{response}), appends any optional column the file predates. Headers of
+#' other sheets, such as a cleaning log, come back with only the renames.
+#'
+#' @param x Character vector of column names.
+#' @return The harmonised names.
+#' @noRd
+.ck_harmonise_other_header <- function(x) {
+  x <- .ck_apply_col_aliases(x)
+  if ("response" %in% trimws(x)) {
+    x <- c(x, setdiff(.ck_other_optional_cols(), trimws(x)))
+  }
+  x
+}
+
 #' Bring an other-responses data frame to the current column names
+#'
+#' Renames legacy columns (\code{.ck_other_col_aliases()}) and adds an empty
+#' \code{translation} column right after \code{response} when the data frame
+#' predates it, so every file written from here on has the same layout and old
+#' and new files can be stacked.
 #'
 #' @param df A data frame from \code{prepare_other_responses()} or read from an
 #'   other-responses file, of any package version.
-#' @return \code{df} with legacy column names renamed (see
-#'   \code{.ck_other_col_aliases()}).
+#' @return \code{df} with current column names.
 #' @noRd
 .ck_normalise_other_cols <- function(df) {
   names(df) <- .ck_apply_col_aliases(names(df))
+  tr <- .ck_translation_col()
+  if (!(tr %in% names(df))) {
+    df[[tr]] <- rep(NA_character_, nrow(df))
+    if ("response" %in% names(df)) {
+      df <- dplyr::relocate(df, dplyr::all_of(tr), .after = "response")
+    }
+  }
   df
 }

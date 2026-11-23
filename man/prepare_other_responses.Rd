@@ -15,7 +15,9 @@ prepare_other_responses(
   skip_label_row = TRUE,
   label_language_fallback = TRUE,
   fallback_to_code = TRUE,
-  preferred_language = NULL
+  preferred_language = NULL,
+  translate = FALSE,
+  translate_options = ck_translate_options()
 )
 }
 \arguments{
@@ -67,6 +69,24 @@ the column is never blank there regardless of this setting.}
 \code{get_label_from_name()} and also used to order the fallback lookup. If
 \code{NULL} (the default), the existing preference order is used (a bare
 \code{label} column, else the first label column found).}
+
+\item{translate}{Machine translation of the responses into English, in the
+\code{translation} column. \strong{Off by default.}
+\itemize{
+\item \code{FALSE} (the default): nothing is sent anywhere; the
+\code{translation} column is left empty.
+\item \code{"preview"}: nothing is sent. The texts that would be sent
+are printed and attached to the result as the attribute
+\code{"translation_preview"}, so a team can check them first.
+\item \code{TRUE}: the distinct "other" texts (and nothing else) are
+sent to Google Translate's free service. See
+\code{translate_other_responses()} for exactly what is sent, and check
+your data-protection rules first.
+}}
+
+\item{translate_options}{Settings from \code{ck_translate_options()}, e.g.
+\code{ck_translate_options(cache_file = "output/translation_cache.rds")}.
+Used only when \code{translate} is not \code{FALSE}.}
 }
 \value{
 A dataframe formatted for \code{save_other_responses()}. The
@@ -74,7 +94,11 @@ respondent's own text is in the \code{response} column. It was called
 \code{response_en} in earlier versions, but the text can be in any
 language; files exported with the old name are still read by
 \code{read_other_responses()}, and a data frame carrying it is written
-under the new name by \code{save_other_responses()}. It carries an
+under the new name by \code{save_other_responses()}. Right after it comes
+\code{translation}, a machine translation filled only when
+\code{translate = TRUE}; it is a help for the reviewer and is never applied
+to the data. Files from before this column existed are still read. It
+carries an
 attribute \code{"ona_label_row_skipped"} recording whether the label row was
 dropped, so \code{save_other_responses()} does not drop a row a second time.
 The five reviewer columns, in sheet order, are

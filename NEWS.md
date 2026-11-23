@@ -11,10 +11,37 @@
   `response_en`, and a folder can mix old and new files: the old name counts
   as the new one when the files' columns are compared before they are
   combined.
-* **`check_log_files()`** gains `col_aliases`, which by default treats
-  `response_en` as `response`. An old and a new other-responses file are
-  therefore no longer reported as a mismatch. Pass `col_aliases = NULL` to
-  compare the headers exactly as written.
+* **`check_log_files()`** gains `harmonise_legacy`, on by default. It treats
+  `response_en` as `response` and doesn't require the new `translation`
+  column, so an old and a new other-responses file are no longer reported as
+  a mismatch. Set it to `FALSE` to compare the headers exactly as written.
+
+## Machine translation of the other responses
+
+* **`prepare_other_responses()`** adds a `translation` column right after
+  `response`, in every new file. It stays empty unless the new `translate`
+  argument asks for it, so **nothing is sent anywhere by default**.
+  `translate = "preview"` sends nothing and prints the exact texts that would
+  be sent. `translate = TRUE` sends them to Google Translate's free service
+  and fills the column with the English translation, tagged with the detected
+  language, e.g. `[Arabic] I want to work`. The example script sets this with
+  one `translate_other` switch at the top.
+* **`translate_other_responses()`** does the same on a prepared data frame.
+  Only the distinct "other" texts are sent: no uuid, enumerator or any other
+  column. Blank and number-only answers are skipped, and long numbers such as
+  phone numbers and IDs are masked as `#####`. The texts travel in the
+  request body, not the web address. Texts are combined into batches,
+  requests are paced, and a "too many requests" reply is retried after a
+  growing wait. A text that still fails is left blank with a warning; the
+  run itself never stops. The free service comes with no data processing
+  agreement, so check your data-protection rules before switching it on.
+* **`ck_translate_options()`** holds the settings: number masking, a cache
+  file so a re-run sends only new texts, pacing, retries and batch size.
+* **`save_other_responses()`** and **`create_review_workbook()`** put a note
+  on the `translation` header saying the translation may be inaccurate and
+  must be confirmed, and show the column in grey italics. The readme sheet
+  explains it too. The translation is never applied to the data, and
+  **`read_other_responses()`** still reads files that predate the column.
 
 ## Checks that find nothing
 

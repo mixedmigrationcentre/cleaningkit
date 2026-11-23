@@ -59,12 +59,32 @@
 #'   (the default), all questions in \code{other_db} are used. When provided,
 #'   only the specified questions are prepared; an error is raised if any name
 #'   is not found in \code{other_db}.
+#' @param translate Machine translation of the responses into English, in the
+#'   \code{translation} column. \strong{Off by default.}
+#'   \itemize{
+#'     \item \code{FALSE} (the default): nothing is sent anywhere; the
+#'       \code{translation} column is left empty.
+#'     \item \code{"preview"}: nothing is sent. The texts that would be sent
+#'       are printed and attached to the result as the attribute
+#'       \code{"translation_preview"}, so a team can check them first.
+#'     \item \code{TRUE}: the distinct "other" texts (and nothing else) are
+#'       sent to Google Translate's free service. See
+#'       \code{translate_other_responses()} for exactly what is sent, and check
+#'       your data-protection rules first.
+#'   }
+#' @param translate_options Settings from \code{ck_translate_options()}, e.g.
+#'   \code{ck_translate_options(cache_file = "output/translation_cache.rds")}.
+#'   Used only when \code{translate} is not \code{FALSE}.
 #' @return A dataframe formatted for \code{save_other_responses()}. The
 #'   respondent's own text is in the \code{response} column. It was called
 #'   \code{response_en} in earlier versions, but the text can be in any
 #'   language; files exported with the old name are still read by
 #'   \code{read_other_responses()}, and a data frame carrying it is written
-#'   under the new name by \code{save_other_responses()}. It carries an
+#'   under the new name by \code{save_other_responses()}. Right after it comes
+#'   \code{translation}, a machine translation filled only when
+#'   \code{translate = TRUE}; it is a help for the reviewer and is never applied
+#'   to the data. Files from before this column existed are still read. It
+#'   carries an
 #'   attribute \code{"ona_label_row_skipped"} recording whether the label row was
 #'   dropped, so \code{save_other_responses()} does not drop a row a second time.
 #'   The five reviewer columns, in sheet order, are
@@ -105,8 +125,13 @@ prepare_other_responses <- function(
   skip_label_row = TRUE,
   label_language_fallback = TRUE,
   fallback_to_code = TRUE,
-  preferred_language = NULL
+  preferred_language = NULL,
+  translate = FALSE,
+  translate_options = ck_translate_options()
 ) {
+  # validated up front, so a typo fails before the slow work below
+  translate_mode <- .ck_translate_mode(translate)
+
   # --- Drop the ONA label/description row (first row after the header) --------
   # Done first, before any pivot, so it is never treated as real survey data.
   # Applied to the main data and to every loop/roster (each has its own label row).
@@ -609,6 +634,35 @@ prepare_other_responses <- function(
 
   df <- relocate(df, "selected_choices", .before = "response")
 
+  # The machine-translation column, right after the response. Always written,
+  # empty unless translation was asked for, so every new file has it.
+  df <- .ck_normalise_other_cols(df)
+  if (translate_mode == "preview") {
+    preview <- translate_other_responses(
+      df,
+      translate = "preview",
+      options = translate_options
+    )
+    if (nrow(preview) > 0) {
+      print(utils::head(preview, 20))
+      if (nrow(preview) > 20) {
+        message(
+          "... first 20 of ",
+          nrow(preview),
+          " shown. See them all with ",
+          "View(attr(<result>, \"translation_preview\"))."
+        )
+      }
+    }
+    attr(df, "translation_preview") <- preview
+  } else if (translate_mode == "send") {
+    df <- translate_other_responses(
+      df,
+      translate = TRUE,
+      options = translate_options
+    )
+  }
+
   # Record that the label row has (or has not) been handled, so downstream
   # save_other_responses() does not drop a row a second time.
   attr(df, "ona_label_row_skipped") <- isTRUE(skip_label_row)
@@ -912,6 +966,41 @@ prepare_other_responses <- function(
     apply_cat("default", style.default.body, style.default.header)
   }
 
+  # --- Machine-translation column: an accuracy note and a muted look ----------
+  # The note sits on the header cell, so it travels with the column without
+  # adding text to every row; grey italics set the column apart from what the
+  # respondent actually wrote.
+  tr_idx <- which(names(df) == .ck_translation_col())
+  if (length(tr_idx) == 1) {
+    openxlsx::writeComment(
+      wb,
+      sheet_name,
+      col = tr_idx,
+      row = 1,
+      comment = openxlsx::createComment(
+        .ck_translation_note(),
+        author = "cleaningkit",
+        visible = FALSE,
+        width = 3,
+        height = 5
+      )
+    )
+    if (isTRUE(apply_styles) && n_rows > 0) {
+      openxlsx::addStyle(
+        wb,
+        sheet_name,
+        openxlsx::createStyle(
+          fontColour = "#595959",
+          textDecoration = "italic"
+        ),
+        rows = seq_len(n_rows) + 1L,
+        cols = tr_idx,
+        gridExpand = TRUE,
+        stack = TRUE
+      )
+    }
+  }
+
   # Frozen header row and a column filter. Navigation only - neither touches the
   # cell styling above.
   if (n_cols > 0 && isTRUE(add_filter)) {
@@ -998,6 +1087,9 @@ prepare_other_responses <- function(
 
   setColWidths(wb, sheet_name, cols = seq_len(n_cols), widths = 25)
   setColWidths(wb, sheet_name, cols = seq_len(min(5L, n_cols)), widths = 15)
+  if (length(tr_idx) == 1) {
+    setColWidths(wb, sheet_name, cols = tr_idx, widths = 35)
+  }
 
   invisible(wb)
 }

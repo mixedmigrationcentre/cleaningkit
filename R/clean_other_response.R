@@ -192,7 +192,7 @@ read_other_responses <- function(
     sheet = sheet_for,
     caller = "read_other_responses",
     verbose = verbose,
-    col_aliases = .ck_other_col_aliases()
+    harmonise_legacy = TRUE
   )
 
   # ---- read and stack ----

@@ -353,7 +353,7 @@ test_that("legacy column names are mapped to the current ones", {
   expect_identical(.ck_apply_col_aliases("x", NULL), "x")
 })
 
-test_that("new files head the respondent's text 'response'", {
+test_that("new files carry 'response' then 'translation', with a note on it", {
   dir <- withr::local_tempdir()
   # a df from an older version, still carrying response_en
   suppressWarnings(save_other_responses(
@@ -369,6 +369,24 @@ test_that("new files head the respondent's text 'response'", {
   ))
   expect_true("response" %in% cols)
   expect_false("response_en" %in% cols)
+  # the df predates the translation column; the file still gets it
+  expect_identical(
+    which(cols == "translation"),
+    which(cols == "response") + 1L
+  )
+
+  wb <- openxlsx::loadWorkbook(file.path(dir, "standalone.xlsx"))
+  notes <- unlist(lapply(wb$comments[[1]], `[[`, "comment"))
+  expect_true(any(grepl("may be inaccurate", notes)))
+})
+
+test_that("the readme describes the translation column", {
+  rm <- ck_readme_df(
+    action_codes = "change_response",
+    action_descriptions = "x",
+    include_other = TRUE
+  )
+  expect_true(any(rm$Item == "translation"))
 })
 
 test_that("read_other_responses() reads a file still headed response_en", {
@@ -397,7 +415,8 @@ test_that("a folder mixing response_en and response files reads as one", {
 
   old <- ck_rw_other("response_en")[1, ]
   old[[hdr]] <- "business"
-  new <- ck_rw_other("response")[2, ]
+  new <- .ck_normalise_other_cols(ck_rw_other("response"))[2, ]
+  new$translation <- "[French] war"
   new[[hdr]] <- "conflict"
   # the old file's columns are in a different order, too
   old <- old[, rev(names(old))]
@@ -417,7 +436,7 @@ test_that("a folder mixing response_en and response files reads as one", {
       dir,
       sheet = "other_responses",
       verbose = FALSE,
-      col_aliases = NULL
+      harmonise_legacy = FALSE
     )$matches_reference
   ))
 

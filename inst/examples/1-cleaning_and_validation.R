@@ -8,6 +8,25 @@ library(cleaningkit)
 
 cleaningkit::load_packages()
 
+#==================================================================
+# SETTING: machine translation of the "other" responses
+#
+# fills the `translation` column next to each "other" response with an
+# English machine translation (Google Translate's free service)
+#
+#   FALSE      -> OFF (default). nothing leaves this computer
+#   "preview"  -> nothing is sent; prints the exact texts that WOULD be sent,
+#                 so you can check them first
+#   TRUE       -> sends the texts to Google Translate
+#
+# only the distinct "other" texts are sent - no uuid, enumerator, location or
+# any other column. long numbers (phone numbers, IDs) are replaced by #####
+# before sending. check your data-protection rules before setting TRUE.
+# translations may be inaccurate: reviewers must confirm them
+#==================================================================
+
+translate_other <- FALSE
+
 #----------------------------------
 # Setup project folders
 # Run once
@@ -107,6 +126,10 @@ raw_data <- cleaningkit::read_raw_data(
 # CUSTOMISE: questions to restrict the output to specific "other" questions
 # (leave it out for all of them), and extra_columns for the columns the
 # reviewer should see next to each response, e.g. c("username", "Q13")
+#
+# translation is switched on or off by `translate_other` at the top of this
+# script. the cache file remembers what was already translated, so a re-run
+# only sends new texts; it holds response text, so never commit or share it
 #----------------------------------
 
 other_responses_df <- cleaningkit::prepare_other_responses(
@@ -114,7 +137,11 @@ other_responses_df <- cleaningkit::prepare_other_responses(
   raw_data = raw_data,
   other_db = other_db,
   tool_choices = tool_choices,
-  extra_columns = c("username")
+  extra_columns = c("username"),
+  translate = translate_other,
+  translate_options = cleaningkit::ck_translate_options(
+    cache_file = "./output/translation_cache.rds"
+  )
 )
 
 #----------------------------------

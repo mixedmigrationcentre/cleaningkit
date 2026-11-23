@@ -199,6 +199,31 @@ other_responses_df <- cleaningkit::prepare_other_responses(
 )
 ```
 
+### Machine translation (optional, off by default)
+
+The sheet has a `translation` column right after `response`. It stays empty
+unless you switch translation on. `translate = "preview"` sends nothing and
+prints the exact texts that would be sent. `translate = TRUE` sends the
+distinct "other" texts to Google Translate's free service, and nothing else:
+no uuid, enumerator or other column. Long numbers such as phone numbers are
+replaced by `#####` before sending. Check your data-protection rules before
+switching it on. Translations can be wrong, so reviewers should check them
+against the original response.
+
+```{r}
+other_responses_df <- cleaningkit::prepare_other_responses(
+  uuid_column = "_uuid",
+  raw_data = raw_data,
+  other_db = other_db,
+  tool_choices = tool_choices,
+  extra_columns = c("username"),
+  translate = "preview", # then TRUE once the list has been checked
+  translate_options = cleaningkit::ck_translate_options(
+    cache_file = "./output/translation_cache.rds"
+  )
+)
+```
+
 ## Validate duration
 
 Flags surveys shorter than `lower_bound`. Surveys longer than `upper_bound` are
