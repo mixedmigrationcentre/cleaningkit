@@ -1,5 +1,14 @@
 # cleaningkit (development version)
 
+## Checks that find nothing
+
+* **Fixed:** **`validate_duration()`**, **`validate_completeness()`**,
+  **`validate_refused()`**, **`validate_interview_time()`** and
+  **`validate_country_of_interview()`** stopped with "replacement has 1 row,
+  data has 0" when they found no problem. A clean batch of surveys, such as
+  the few new ones in a later round, now gives an empty log instead of an
+  error. **`create_cleaning_log()`** had the same fault with an empty log.
+
 ## Round memory inside the workbooks
 * **`create_review_workbook()` and `export_final_output()` can remember the
   round.** The new `round_info` argument writes very hidden sheets holding

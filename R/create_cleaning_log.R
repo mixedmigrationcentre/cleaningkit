@@ -881,7 +881,12 @@ create_cleaning_log <- function(
 
   # fall back to a per-question/record binding if the log doesn't carry one
   if (!("check_binding" %in% names(cl))) {
-    cl$check_binding <- paste(cl$question, cl$uuid, sep = " ~/~ ")
+    cl$check_binding <- paste(
+      cl$question,
+      cl$uuid,
+      sep = " ~/~ ",
+      recycle0 = TRUE
+    )
   }
 
   # ---- build lookups from the checked dataset ----

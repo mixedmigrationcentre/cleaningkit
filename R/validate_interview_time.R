@@ -134,7 +134,12 @@ validate_interview_time <- function(
   log$old_value <- as.character(log$old_value)
 
   # Tag with check_binding so the cleaning log can colour-group related rows
-  log$check_binding <- paste("interview_time_check", log$uuid, sep = " ~/~ ")
+  log$check_binding <- paste(
+    "interview_time_check",
+    log$uuid,
+    sep = " ~/~ ",
+    recycle0 = TRUE
+  )
 
   dataset[[log_name]] <- log
   return(dataset)

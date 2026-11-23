@@ -141,7 +141,8 @@ validate_country_of_interview <- function(
   log$check_binding <- paste(
     "country_of_interview_check",
     log$uuid,
-    sep = " ~/~ "
+    sep = " ~/~ ",
+    recycle0 = TRUE
   )
 
   dataset[[log_name]] <- log
