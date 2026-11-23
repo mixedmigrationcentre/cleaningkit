@@ -147,6 +147,14 @@ ck_readme_df <- function(
       "Free text for the field team's reply. Not applied to the data."
     )
     add(
+      .ck_translation_col(),
+      paste0(
+        "Machine translation of the response into English, filled only when ",
+        "translation was switched on. It may be inaccurate: please confirm it ",
+        "against the original response. Not applied to the data."
+      )
+    )
+    add(
       "(all three left blank)",
       paste0(
         "The 'other' text is a valid answer as it stands. Nothing changes and ",

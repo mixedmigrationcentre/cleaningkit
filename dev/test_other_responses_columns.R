@@ -9,7 +9,7 @@
 #      column (named "EXISTING other (select the most appropriate choice)")
 #   2. the saved .xlsx really has that single column in its header row
 #   3. the colours: bold headers tinted to match their block, no fill on
-#      uuid -> response_en, the three original reviewer-column fills
+#      uuid -> response, the three original reviewer-column fills
 #   4. the `file_name` argument
 #   5. what the INSTALLED cleaningkit package produces, for comparison
 #

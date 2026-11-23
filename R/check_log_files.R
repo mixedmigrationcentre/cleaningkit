@@ -55,6 +55,12 @@
 #' @param verbose Logical. If \code{TRUE} (the default), a summary is printed to
 #'   the console: the column count per file, and, when the files disagree, the
 #'   offending files with their missing and extra columns.
+#' @param harmonise_legacy Logical. If \code{TRUE} (the default), an
+#'   other-responses file exported by an earlier version is compared as
+#'   \code{read_other_responses()} reads it: \code{response_en} counts as
+#'   \code{response}, and a missing \code{translation} column (added later) is
+#'   not reported. Old and new files can then sit in the same folder. Set to
+#'   \code{FALSE} to compare the headers exactly as written.
 #'
 #' @return A dataframe, invisibly when \code{verbose = TRUE}, with one row per
 #'   file and the columns:
@@ -101,7 +107,8 @@ check_log_files <- function(
   sheet = 1,
   recursive = TRUE,
   ignore_case = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  harmonise_legacy = TRUE
 ) {
   # ---- resolve files -------------------------------------------------------
   if (length(path) > 1) {
@@ -208,6 +215,12 @@ check_log_files <- function(
         }
       )
     )
+    # Legacy headers count as their current name, and columns added later are
+    # not required, so a file exported by an earlier version is not flagged
+    # against a newer one.
+    if (!is.null(res) && isTRUE(harmonise_legacy)) {
+      res <- .ck_harmonise_other_header(res)
+    }
     # `col_names[[i]] <- NULL` would delete the element rather than blank it,
     # so assign through a one-element list to keep the slot.
     col_names[i] <- list(res)
@@ -381,6 +394,9 @@ check_log_files <- function(
 #' @param caller Name of the calling function, used in the messages.
 #' @param verbose Logical. If \code{TRUE}, a one-line confirmation is printed
 #'   when all files agree.
+#' @param harmonise_legacy Passed to \code{check_log_files()}. \code{FALSE}
+#'   (the default) compares headers exactly; \code{read_other_responses()}
+#'   passes \code{TRUE} so old and new files can be mixed.
 #'
 #' @return Invisibly \code{TRUE} when the check passes; otherwise it stops.
 #' @noRd
@@ -388,7 +404,8 @@ ck_assert_log_columns <- function(
   files,
   sheet = 1,
   caller = "read_cleaning_log",
-  verbose = TRUE
+  verbose = TRUE,
+  harmonise_legacy = FALSE
 ) {
   # a single file can never disagree with itself
   if (length(files) < 2) {
@@ -396,7 +413,12 @@ ck_assert_log_columns <- function(
   }
 
   check <- tryCatch(
-    check_log_files(path = files, sheet = sheet, verbose = FALSE),
+    check_log_files(
+      path = files,
+      sheet = sheet,
+      verbose = FALSE,
+      harmonise_legacy = harmonise_legacy
+    ),
     error = function(e) NULL
   )
   # if the check itself could not run, let the caller proceed as before

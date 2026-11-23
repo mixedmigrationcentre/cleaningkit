@@ -11,3 +11,6 @@ docs
 .claude/settings.local.json
 # survey exports, outputs and forms dropped in the repo root (personal data)
 /*.xlsx
+
+# machine-translation cache: holds survey response text (personal data)
+translation_cache*.rds

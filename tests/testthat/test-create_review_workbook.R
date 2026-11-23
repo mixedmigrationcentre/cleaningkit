@@ -35,7 +35,7 @@ ck_rw_write_list <- function() {
   list(cleaning_log = cleaning_log, checked_dataset = raw)
 }
 
-ck_rw_other <- function() {
+ck_rw_other <- function(response_col = "response") {
   df <- data.frame(
     check.names = FALSE,
     stringsAsFactors = FALSE,
@@ -44,8 +44,10 @@ ck_rw_other <- function() {
     question_name = rep("Q34_other", 3),
     list_name = rep("reasons", 3),
     selected_choices = rep("Other", 3),
-    response_en = c("busness", "war", "familly")
+    response = c("busness", "war", "familly")
   )
+  # earlier versions headed the respondent's text "response_en"
+  names(df)[names(df) == "response"] <- response_col
   for (h in .ck_other_review_headers()) {
     df[[h]] <- NA_character_
   }
@@ -320,6 +322,137 @@ test_that("read_other_responses() still reads a legacy Sheet1 file", {
   )
   expect_equal(nrow(or), 1)
   expect_identical(or$new_value, "business")
+})
+
+# --------------------------------------------------------------------------
+# response_en -> response
+# --------------------------------------------------------------------------
+
+# Write an other-responses sheet as-is (no renaming by the package), so a file
+# exported by an older version can be reproduced exactly.
+ck_rw_write_raw_other <- function(df, path) {
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "other_responses")
+  openxlsx::writeData(wb, "other_responses", df)
+  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+  path
+}
+
+test_that("legacy column names are mapped to the current ones", {
+  expect_identical(
+    .ck_apply_col_aliases(c("uuid", "response_en")),
+    c("uuid", "response")
+  )
+  # case and surrounding whitespace do not matter
+  expect_identical(.ck_apply_col_aliases(" Response_EN "), "response")
+  # a file carrying both keeps both, rather than two "response" columns
+  expect_identical(
+    .ck_apply_col_aliases(c("response", "response_en")),
+    c("response", "response_en")
+  )
+  expect_identical(.ck_apply_col_aliases("x", NULL), "x")
+})
+
+test_that("new files carry 'response' then 'translation', with a note on it", {
+  dir <- withr::local_tempdir()
+  # a df from an older version, still carrying response_en
+  suppressWarnings(save_other_responses(
+    df = ck_rw_other("response_en"),
+    other_db = ck_rw_other_db(),
+    save_location = dir,
+    file_name = "standalone"
+  ))
+  cols <- names(readxl::read_excel(
+    file.path(dir, "standalone.xlsx"),
+    sheet = "other_responses",
+    n_max = 0
+  ))
+  expect_true("response" %in% cols)
+  expect_false("response_en" %in% cols)
+  # the df predates the translation column; the file still gets it
+  expect_identical(
+    which(cols == "translation"),
+    which(cols == "response") + 1L
+  )
+
+  wb <- openxlsx::loadWorkbook(file.path(dir, "standalone.xlsx"))
+  notes <- unlist(lapply(wb$comments[[1]], `[[`, "comment"))
+  expect_true(any(grepl("may be inaccurate", notes)))
+})
+
+test_that("the readme describes the translation column", {
+  rm <- ck_readme_df(
+    action_codes = "change_response",
+    action_descriptions = "x",
+    include_other = TRUE
+  )
+  expect_true(any(rm$Item == "translation"))
+})
+
+test_that("read_other_responses() reads a file still headed response_en", {
+  f <- withr::local_tempfile(fileext = ".xlsx")
+  df <- ck_rw_other("response_en")
+  df[[.ck_other_review_headers()[["true_other"]]]][1] <- "business"
+  ck_rw_write_raw_other(df, f)
+
+  or <- read_other_responses(
+    path = f,
+    dataset = ck_rw_write_list()[["checked_dataset"]],
+    other_db = ck_rw_other_db(),
+    tool_choices = ck_rw_tool_choices(),
+    uuid_column = "_uuid",
+    log_uuid_col = "uuid",
+    verbose = FALSE
+  )
+  expect_equal(nrow(or), 1)
+  expect_identical(or$old_value, "busness")
+  expect_identical(or$new_value, "business")
+})
+
+test_that("a folder mixing response_en and response files reads as one", {
+  dir <- withr::local_tempdir()
+  hdr <- .ck_other_review_headers()[["true_other"]]
+
+  old <- ck_rw_other("response_en")[1, ]
+  old[[hdr]] <- "business"
+  new <- .ck_normalise_other_cols(ck_rw_other("response"))[2, ]
+  new$translation <- "[French] war"
+  new[[hdr]] <- "conflict"
+  # the old file's columns are in a different order, too
+  old <- old[, rev(names(old))]
+
+  ck_rw_write_raw_other(old, file.path(dir, "a_follow-ups_edited.xlsx"))
+  ck_rw_write_raw_other(new, file.path(dir, "b_follow-ups_edited.xlsx"))
+
+  expect_true(all(
+    check_log_files(
+      dir,
+      sheet = "other_responses",
+      verbose = FALSE
+    )$matches_reference
+  ))
+  expect_false(all(
+    check_log_files(
+      dir,
+      sheet = "other_responses",
+      verbose = FALSE,
+      harmonise_legacy = FALSE
+    )$matches_reference
+  ))
+
+  or <- read_other_responses(
+    path = dir,
+    dataset = ck_rw_write_list()[["checked_dataset"]],
+    other_db = ck_rw_other_db(),
+    tool_choices = ck_rw_tool_choices(),
+    uuid_column = "_uuid",
+    log_uuid_col = "uuid",
+    verbose = FALSE
+  )
+  or <- or[order(or$uuid), ]
+  expect_identical(or$uuid, c("u1", "u3"))
+  expect_identical(or$old_value, c("busness", "war"))
+  expect_identical(or$new_value, c("business", "conflict"))
 })
 
 test_that("save_other_responses() writes the named sheet, not Sheet1", {

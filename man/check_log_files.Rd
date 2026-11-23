@@ -10,7 +10,8 @@ check_log_files(
   sheet = 1,
   recursive = TRUE,
   ignore_case = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  harmonise_legacy = TRUE
 )
 }
 \arguments{
@@ -38,6 +39,13 @@ is matched case-insensitively.}
 \item{verbose}{Logical. If \code{TRUE} (the default), a summary is printed to
 the console: the column count per file, and, when the files disagree, the
 offending files with their missing and extra columns.}
+
+\item{harmonise_legacy}{Logical. If \code{TRUE} (the default), an
+other-responses file exported by an earlier version is compared as
+\code{read_other_responses()} reads it: \code{response_en} counts as
+\code{response}, and a missing \code{translation} column (added later) is
+not reported. Old and new files can then sit in the same folder. Set to
+\code{FALSE} to compare the headers exactly as written.}
 }
 \value{
 A dataframe, invisibly when \code{verbose = TRUE}, with one row per

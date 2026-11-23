@@ -39,7 +39,10 @@
 #' \code{prepare_other_responses()} and the earlier \code{TRUE other} /
 #' \code{EXISTING other} / \code{INVALID other} / \code{FOLLOW-UP message}
 #' headers, so a file reviewed before the rename is read exactly as before. The
-#' patterns are defined once in \code{.ck_other_review_patterns()}.
+#' patterns are defined once in \code{.ck_other_review_patterns()}. The
+#' respondent's text is read from \code{response}, or from \code{response_en}
+#' in files exported by earlier versions; a folder may mix both, since the old
+#' name is treated as the new one when the files' columns are compared.
 #'
 #' \strong{Column check:} before the files are stacked, their headers are
 #' compared with \code{check_log_files()}. Because the files are combined with
@@ -188,7 +191,8 @@ read_other_responses <- function(
     files = files,
     sheet = sheet_for,
     caller = "read_other_responses",
-    verbose = verbose
+    verbose = verbose,
+    harmonise_legacy = TRUE
   )
 
   # ---- read and stack ----
@@ -206,6 +210,9 @@ read_other_responses <- function(
   if (length(raw_list) == 0) {
     stop("No other-response files could be read.")
   }
+  # Files exported before the rename head the respondent's text "response_en";
+  # bring each one to the current names so old and new files stack together.
+  raw_list <- lapply(raw_list, .ck_normalise_other_cols)
 
   or <- do.call(rbind, raw_list)
   if (verbose) {
@@ -264,7 +271,7 @@ read_other_responses <- function(
     log_uuid_col,
     "question_name",
     "list_name",
-    "response_en",
+    "response",
     "true_other",
     "existing_other_1",
     "invalid_other"
@@ -496,7 +503,7 @@ read_other_responses <- function(
       uuid = or_true$uuid,
       question = or_true$question_name,
       action_taken = "true_other",
-      old_value = as.character(or_true$response_en),
+      old_value = as.character(or_true$response),
       new_value = as.character(or_true$true_other),
       stringsAsFactors = FALSE
     )
@@ -683,7 +690,7 @@ read_other_responses <- function(
     uuid = uuid,
     question = x$question_name,
     action_taken = "remove",
-    old_value = as.character(x$response_en),
+    old_value = as.character(x$response),
     new_value = NA_character_,
     stringsAsFactors = FALSE
   )
@@ -785,7 +792,7 @@ read_other_responses <- function(
       uuid = uuid,
       question = x$ref_question,
       action_taken = "remove",
-      old_value = as.character(x$response_en),
+      old_value = as.character(x$response),
       new_value = NA_character_,
       stringsAsFactors = FALSE
     )
@@ -1421,7 +1428,7 @@ read_other_responses <- function(
     uuid = uuid,
     question = x$question_name,
     action_taken = "recode",
-    old_value = as.character(x$response_en),
+    old_value = as.character(x$response),
     new_value = NA_character_,
     stringsAsFactors = FALSE
   )

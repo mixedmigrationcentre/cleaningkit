@@ -56,7 +56,7 @@ if (getRversion() >= "2.15.1") {
     "refused_count",
     "relevant",
     "resolved_label",
-    "response_en",
+    "response",
     "total_flags",
     "true_other",
     "type",
